@@ -111,6 +111,24 @@ export const api = {
         status: (d.status as DelegateStatus) || 'pending',
       }));
 
+      // Method 1: Try secure, fast RPC (bypasses table column restrictions and runs in one transaction)
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('import_delegates', {
+          p_delegates: rows,
+        });
+
+        if (!rpcError && rpcData?.success) {
+          mockStore.importDelegates(delegates);
+          return { count: rpcData.count || delegates.length };
+        }
+        if (rpcError) {
+          console.warn('RPC import_delegates error, trying direct upsert fallback', rpcError);
+        }
+      } catch (e) {
+        console.warn('RPC import_delegates exception', e);
+      }
+
+      // Method 2: Fallback to batch upsert
       const batchSize = 50;
       let insertedCount = 0;
       for (let i = 0; i < rows.length; i += batchSize) {
@@ -122,6 +140,11 @@ export const api = {
 
         if (error) {
           console.error('Supabase importDelegates error:', error);
+          if (error.message?.includes('permission denied')) {
+            throw new Error(
+              'Supabase permission denied. Please run the script in supabase/fix_permissions.sql in your Supabase SQL Editor.'
+            );
+          }
           throw new Error(error.message);
         }
         if (data) {
@@ -154,9 +177,28 @@ export const api = {
         notes: h.notes || null,
       }));
 
+      // Method 1: Try RPC
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('import_houses', {
+          p_houses: rows,
+        });
+        if (!rpcError && rpcData?.success) {
+          mockStore.importHouses(houses);
+          return { count: rpcData.count || houses.length };
+        }
+      } catch (e) {
+        console.warn('RPC import_houses exception', e);
+      }
+
+      // Method 2: Direct insert
       const { data, error } = await supabase.from('houses').insert(rows).select('id');
       if (error) {
         console.error('Supabase importHouses error:', error);
+        if (error.message?.includes('permission denied')) {
+          throw new Error(
+            'Supabase permission denied for houses. Please run supabase/fix_permissions.sql in your Supabase SQL Editor.'
+          );
+        }
         throw new Error(error.message);
       }
       mockStore.importHouses(houses);
