@@ -95,23 +95,31 @@ export const Header: React.FC = () => {
               <span>ലോഗിൻ (Login)</span>
             </Link>
           ) : (
-            /* Staff Profile Pill (Role-based) & Logout */
+            /* Staff Profile Pill (Showing User Email & Role) & Logout */
             user && (
-              <div className="flex items-center gap-1.5">
-                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary-50 text-primary-800 text-xs font-bold border border-primary-200">
-                  <Shield className="w-3 h-3 text-primary" />
-                  <span>
-                    {user.role === 'admin'
-                      ? 'സംസ്ഥാന അഡ്മിൻ'
-                      : user.role === 'district'
-                      ? `${user.district_name || 'ജില്ലാ'} കൺവീനർ`
-                      : 'വളണ്ടിയർ'}
-                  </span>
-                </span>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="flex items-center gap-2 px-2.5 py-1 sm:px-3 sm:py-1 rounded-xl bg-slate-100/90 border border-slate-200 shadow-2xs">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  <div className="flex flex-col text-left">
+                    <span
+                      title={user.email}
+                      className="text-xs font-bold text-slate-900 leading-tight max-w-[130px] sm:max-w-[180px] md:max-w-[220px] truncate"
+                    >
+                      {user.email}
+                    </span>
+                    <span className="text-[10px] text-primary font-bold leading-none mt-0.5">
+                      {user.role === 'admin'
+                        ? 'സംസ്ഥാന അഡ്മിൻ'
+                        : user.role === 'district'
+                        ? `${user.district_name || 'ജില്ലാ'} കൺവീനർ`
+                        : 'വളണ്ടിയർ'}
+                    </span>
+                  </div>
+                </div>
                 <button
                   onClick={() => logout()}
-                  title="Logout"
-                  className="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                  title="Logout (ലോഗ് ഔട്ട്)"
+                  className="touch-target p-1.5 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors border border-slate-200"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>

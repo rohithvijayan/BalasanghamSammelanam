@@ -38,6 +38,7 @@ test.describe('Role-Based Authentication & Permissions E2E', () => {
 
     // Should automatically navigate to /volunteer
     await expect(page).toHaveURL(/\/volunteer/);
+    await expect(page.locator('header').getByText('volunteer@balasangham.in')).toBeVisible();
     await expect(page.getByText(/വളണ്ടിയർ ഹെൽപ്പ് ഡെസ്ക്/i)).toBeVisible();
     await expect(page.getByText(/രേഷ്മ പി\./i)).toBeVisible();
 
@@ -58,6 +59,7 @@ test.describe('Role-Based Authentication & Permissions E2E', () => {
 
     // Should navigate to /admin
     await expect(page).toHaveURL(/\/admin/);
+    await expect(page.locator('header').getByText('kannur@balasangham.in')).toBeVisible();
     await expect(page.getByText(/കണ്ണൂർ കോർഡിനേഷൻ പാനൽ/i)).toBeVisible();
     await expect(page.getByText(/കണ്ണൂർ \(ലോക്ക് ചെയ്തത്\)/i)).toBeVisible();
 
@@ -77,6 +79,7 @@ test.describe('Role-Based Authentication & Permissions E2E', () => {
 
     // Should navigate to /admin with full selector
     await expect(page).toHaveURL(/\/admin/);
+    await expect(page.locator('header').getByText('admin@balasangham.in')).toBeVisible();
     await expect(page.getByText(/സംസ്ഥാന അഡ്മിൻ വർക്ക് ബെഞ്ച്/i)).toBeVisible();
 
     // District dropdown should contain all 14 districts

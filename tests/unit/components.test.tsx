@@ -57,6 +57,7 @@ describe('React Components Unit Tests', () => {
       expect(screen.getByText(/അഡ്മിൻ വർക്ക് ബെഞ്ച്/i)).toBeInTheDocument();
       expect(screen.getByText(/ഡാറ്റ ഇമ്പോർട്ട്/i)).toBeInTheDocument();
       expect(screen.getByText(/വളണ്ടിയർ ഡെസ്ക്/i)).toBeInTheDocument();
+      expect(screen.getByText('admin@balasangham.in')).toBeInTheDocument();
       expect(screen.getByText(/സംസ്ഥാന അഡ്മിൻ/i)).toBeInTheDocument();
     });
 
@@ -77,6 +78,7 @@ describe('React Components Unit Tests', () => {
 
       expect(screen.getByText(/കണ്ണൂർ വർക്ക് ബെഞ്ച്/i)).toBeInTheDocument();
       expect(screen.getByText(/വളണ്ടിയർ ഡെസ്ക്/i)).toBeInTheDocument();
+      expect(screen.getByText('kannur@balasangham.in')).toBeInTheDocument();
       // Admin only CSV import should NOT be visible to district coordinator
       expect(screen.queryByText(/ഡാറ്റ ഇമ്പോർട്ട് \(CSV\)/i)).not.toBeInTheDocument();
     });
@@ -95,6 +97,7 @@ describe('React Components Unit Tests', () => {
       renderWithProviders(<Header />);
 
       expect(screen.getByText(/വളണ്ടിയർ ഡെസ്ക്/i)).toBeInTheDocument();
+      expect(screen.getByText('volunteer@balasangham.in')).toBeInTheDocument();
       expect(screen.queryByText(/അഡ്മിൻ വർക്ക് ബെഞ്ച്/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/ഡാറ്റ ഇമ്പോർട്ട്/i)).not.toBeInTheDocument();
     });
