@@ -1,13 +1,19 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useI18n } from '../i18n/i18nContext';
 import { useAuth } from '../auth/AuthContext';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Upload, Home, LogOut, Shield, LogIn, UserCheck } from 'lucide-react';
+import { Users, Upload, Home, LogOut, Shield, LogIn, UserCheck, Menu, X } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const { language, setLanguage, t } = useI18n();
   const { user, isAuthenticated, logout } = useAuth();
   const location = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Close mobile drawer on route navigation
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-surface-border shadow-xs">
@@ -27,7 +33,7 @@ export const Header: React.FC = () => {
           </div>
         </Link>
 
-        {/* Center / Navigation Links (Dynamically unlocked based on authenticated role) */}
+        {/* Center / Desktop Navigation Links (Dynamically unlocked based on authenticated role) */}
         {isAuthenticated && user && (
           <nav className="hidden md:flex items-center gap-1 bg-slate-100/90 p-1 rounded-xl border border-slate-200/60 shadow-2xs">
             <Link
@@ -83,9 +89,9 @@ export const Header: React.FC = () => {
           </nav>
         )}
 
-        {/* Right: Controls, Login Button / Staff Profile & Language Toggle */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-          {/* If NOT logged in: Show prominent Login button */}
+        {/* Right: Controls, Login Button / Staff Profile & Language Toggle & Hamburger */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* If NOT logged in: Show Login button */}
           {!isAuthenticated ? (
             <Link
               to="/login"
@@ -98,12 +104,12 @@ export const Header: React.FC = () => {
               </span>
             </Link>
           ) : (
-            /* Staff Profile Pill (Showing User Email & Role) & Logout */
+            /* Staff Profile Pill (Showing User Email & Role) & Desktop Logout */
             user && (
               <div className="flex items-center gap-1 sm:gap-1.5">
                 <div
                   title={`${user.email}${user.role ? ` (${user.role})` : ''}`}
-                  className="flex items-center gap-1.5 px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-xl bg-slate-100/90 border border-slate-200 shadow-2xs max-w-[80px] min-[380px]:max-w-[110px] min-[420px]:max-w-[140px] sm:max-w-[220px]"
+                  className="flex items-center gap-1.5 px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-xl bg-slate-100/90 border border-slate-200 shadow-2xs max-w-[75px] min-[380px]:max-w-[105px] min-[420px]:max-w-[140px] sm:max-w-[220px]"
                 >
                   <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                   <div className="flex flex-col text-left min-w-0">
@@ -123,7 +129,7 @@ export const Header: React.FC = () => {
                   onClick={() => logout()}
                   title="Logout"
                   aria-label="Logout"
-                  className="p-1 sm:p-1.5 rounded-lg sm:rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors border border-slate-200 shrink-0"
+                  className="hidden sm:flex p-1 sm:p-1.5 rounded-lg sm:rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors border border-slate-200 shrink-0"
                 >
                   <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
@@ -137,7 +143,7 @@ export const Header: React.FC = () => {
               onClick={() => setLanguage('ml')}
               aria-label="മലയാളം"
               title="മലയാളം"
-              className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold transition-all ${
+              className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold transition-all ${
                 language === 'ml'
                   ? 'bg-primary text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -150,7 +156,7 @@ export const Header: React.FC = () => {
               onClick={() => setLanguage('en')}
               aria-label="English"
               title="English"
-              className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold transition-all ${
+              className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold transition-all ${
                 language === 'en'
                   ? 'bg-primary text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -160,8 +166,166 @@ export const Header: React.FC = () => {
               <span className="hidden sm:inline">English</span>
             </button>
           </div>
+
+          {/* Mobile Hamburger Toggle Button */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label={isMobileMenuOpen ? 'Close Navigation Menu' : 'Open Navigation Menu'}
+            className="md:hidden p-1.5 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-slate-200 shrink-0 flex items-center justify-center"
+          >
+            {isMobileMenuOpen ? (
+              <X className="w-5 h-5 text-slate-900" />
+            ) : (
+              <Menu className="w-5 h-5 text-slate-900" />
+            )}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Navigation Drawer / Dropdown */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden border-t border-slate-200 bg-white/98 backdrop-blur-md px-4 py-3.5 shadow-xl flex flex-col gap-2.5 animate-in slide-in-from-top-2 duration-150">
+          {/* User Profile Card inside Mobile Menu */}
+          {isAuthenticated && user && (
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between gap-3 mb-1">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-bold text-slate-900 truncate">
+                    {user.email}
+                  </span>
+                  <span className="text-[10px] text-primary font-bold">
+                    {user.role === 'admin'
+                      ? (language === 'ml' ? 'സംസ്ഥാന അഡ്മിൻ (State Admin)' : 'State Admin')
+                      : user.role === 'district'
+                      ? (language === 'ml' ? `${user.district_name || 'ജില്ലാ'} കൺവീനർ` : `${user.district_name || 'District'} Convener`)
+                      : (language === 'ml' ? 'ഹെൽപ്പ് ഡെസ്ക് വളണ്ടിയർ' : 'Volunteer')}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  logout();
+                }}
+                className="px-2.5 py-1.5 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 text-xs font-bold flex items-center gap-1 border border-red-200 transition-colors shrink-0"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>{language === 'ml' ? 'ലോഗ്ഔട്ട്' : 'Logout'}</span>
+              </button>
+            </div>
+          )}
+
+          {/* Navigation Links for Mobile */}
+          <div className="flex flex-col gap-1.5">
+            {/* Home Portal Link */}
+            <Link
+              to="/"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors ${
+                location.pathname === '/'
+                  ? 'bg-primary text-white shadow-xs'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Home className="w-4 h-4 shrink-0" />
+                <span>{language === 'ml' ? 'ഹോം (Home Portal)' : 'Home Portal'}</span>
+              </div>
+              {location.pathname === '/' && (
+                <span className="text-[10px] opacity-80 bg-white/20 px-2 py-0.5 rounded-full font-normal">
+                  {language === 'ml' ? 'നിലവിൽ ഇവിടെയാണ്' : 'Active'}
+                </span>
+              )}
+            </Link>
+
+            {/* Admin or District Workbench Link */}
+            {isAuthenticated && user && (user.role === 'admin' || user.role === 'district') && (
+              <Link
+                to="/admin"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors ${
+                  location.pathname.startsWith('/admin')
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Users className="w-4 h-4 shrink-0" />
+                  <span>
+                    {user.role === 'district'
+                      ? (language === 'ml' ? `${user.district_name || 'ജില്ലാ'} വർക്ക് ബെഞ്ച്` : `${user.district_name || 'District'} Workbench`)
+                      : (language === 'ml' ? 'അഡ്മിൻ വർക്ക് ബെഞ്ച്' : 'Admin Workbench')}
+                  </span>
+                </div>
+                {location.pathname.startsWith('/admin') && (
+                  <span className="text-[10px] opacity-80 bg-white/20 px-2 py-0.5 rounded-full font-normal">
+                    {language === 'ml' ? 'നിലവിൽ ഇവിടെയാണ്' : 'Active'}
+                  </span>
+                )}
+              </Link>
+            )}
+
+            {/* Volunteer Help Desk Link */}
+            {isAuthenticated && user && (
+              <Link
+                to="/volunteer"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors ${
+                  location.pathname.startsWith('/volunteer')
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <UserCheck className="w-4 h-4 shrink-0" />
+                  <span>{language === 'ml' ? 'വളണ്ടിയർ ഹെൽപ്പ് ഡെസ്ക്' : 'Volunteer Help Desk'}</span>
+                </div>
+                {location.pathname.startsWith('/volunteer') && (
+                  <span className="text-[10px] opacity-80 bg-white/20 px-2 py-0.5 rounded-full font-normal">
+                    {language === 'ml' ? 'നിലവിൽ ഇവിടെയാണ്' : 'Active'}
+                  </span>
+                )}
+              </Link>
+            )}
+
+            {/* Import CSV Data Link (Admin Only) */}
+            {isAuthenticated && user && user.role === 'admin' && (
+              <Link
+                to="/import"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors ${
+                  location.pathname === '/import'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Upload className="w-4 h-4 shrink-0" />
+                  <span>{language === 'ml' ? 'ഡാറ്റ ഇമ്പോർട്ട് (Import CSV)' : 'Import CSV Data'}</span>
+                </div>
+                {location.pathname === '/import' && (
+                  <span className="text-[10px] opacity-80 bg-white/20 px-2 py-0.5 rounded-full font-normal">
+                    {language === 'ml' ? 'നിലവിൽ ഇവിടെയാണ്' : 'Active'}
+                  </span>
+                )}
+              </Link>
+            )}
+
+            {/* If Not Authenticated, show Login option */}
+            {!isAuthenticated && (
+              <Link
+                to="/login"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-colors"
+              >
+                <LogIn className="w-4 h-4 text-primary-300" />
+                <span>{language === 'ml' ? 'സ്റ്റാഫ് ലോഗിൻ (Staff Login)' : 'Staff Login'}</span>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 };

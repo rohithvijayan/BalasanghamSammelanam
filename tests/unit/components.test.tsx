@@ -101,6 +101,39 @@ describe('React Components Unit Tests', () => {
       expect(screen.queryByText(/അഡ്മിൻ വർക്ക് ബെഞ്ച്/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/ഡാറ്റ ഇമ്പോർട്ട്/i)).not.toBeInTheDocument();
     });
+
+    it('toggles mobile hamburger navigation menu on mobile button click', () => {
+      localStorage.setItem(
+        'sammelanam_staff_session',
+        JSON.stringify({
+          id: 'admin-1',
+          email: 'admin@balasangham.in',
+          full_name: 'സംസ്ഥാന അഡ്മിൻ',
+          role: 'admin',
+        })
+      );
+
+      renderWithProviders(<Header />);
+
+      const hamburgerBtn = screen.getByLabelText(/Open Navigation Menu/i);
+      expect(hamburgerBtn).toBeInTheDocument();
+
+      // Initially mobile menu is closed
+      expect(screen.queryByText(/സംസ്ഥാന അഡ്മിൻ \(State Admin\)/i)).not.toBeInTheDocument();
+
+      // Click to open
+      fireEvent.click(hamburgerBtn);
+
+      // Now mobile drawer is open showing full profile and links
+      expect(screen.getByText(/സംസ്ഥാന അഡ്മിൻ \(State Admin\)/i)).toBeInTheDocument();
+      expect(screen.getByText(/ഡാറ്റ ഇമ്പോർട്ട് \(Import CSV\)/i)).toBeInTheDocument();
+      expect(screen.getByText(/ഹോം \(Home Portal\)/i)).toBeInTheDocument();
+
+      // Click again to close
+      const closeBtn = screen.getByLabelText(/Close Navigation Menu/i);
+      fireEvent.click(closeBtn);
+      expect(screen.queryByText(/സംസ്ഥാന അഡ്മിൻ \(State Admin\)/i)).not.toBeInTheDocument();
+    });
   });
 
   describe('<ProtectedRoute />', () => {
