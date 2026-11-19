@@ -1,0 +1,264 @@
+import React, { useState } from 'react';
+import Papa from 'papaparse';
+import { mockStore, initialDistricts } from '../lib/mockData';
+import { Delegate, House } from '../types';
+import { useI18n } from '../i18n/i18nContext';
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Download, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+export const CSVImporter: React.FC = () => {
+  const { t } = useI18n();
+  const navigate = useNavigate();
+
+  const [importType, setImportType] = useState<'delegates' | 'houses'>('delegates');
+  const [parsedRows, setParsedRows] = useState<any[]>([]);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSuccessMsg(null);
+    setErrors([]);
+
+    // UTF-8 decoding with BOM support
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      encoding: 'UTF-8',
+      complete: (results) => {
+        const rawData = results.data as any[];
+        const validationErrors: string[] = [];
+
+        if (importType === 'delegates') {
+          const validated = rawData.map((row, idx) => {
+            if (!row.full_name) {
+              validationErrors.push(`Row ${idx + 1}: Name is required`);
+            }
+            // Match district
+            const dist = initialDistricts.find(
+              (d) =>
+                d.name_en.toLowerCase() === (row.district || '').toLowerCase().trim() ||
+                d.name_ml === (row.district || '').trim()
+            );
+
+            return {
+              id: 'del-' + Date.now() + '-' + idx,
+              token:
+                (row.district ? row.district.toLowerCase().replace(/\s+/g, '-') : 'del') +
+                '-' +
+                Math.random().toString(36).substring(2, 8),
+              full_name: row.full_name || 'Unnamed',
+              phone: row.phone || '',
+              district_id: dist ? dist.id : 2, // default Kannur if unmatched
+              district_en: dist ? dist.name_en : 'Kannur',
+              district_ml: dist ? dist.name_ml : 'കണ്ണൂർ',
+              gender: (row.gender || 'boy').toLowerCase().includes('g') ? 'girl' : 'boy',
+              emergency_name: row.emergency_name || '',
+              emergency_phone: row.emergency_phone || '',
+              notes: row.notes || '',
+              status: 'pending',
+            };
+          });
+
+          setParsedRows(validated);
+        } else {
+          // Houses import
+          const validated = rawData.map((row, idx) => {
+            return {
+              id: 'h-' + Date.now() + '-' + idx,
+              name: row.name || 'Unnamed House',
+              address: row.address || '',
+              map_url: row.map_url || '',
+              host_name: row.host_name || 'Host',
+              host_phone: row.host_phone || '',
+              capacity: parseInt(row.capacity, 10) || 4,
+              gender_restriction: (row.gender_restriction || 'any').toLowerCase(),
+              notes: row.notes || '',
+            };
+          });
+          setParsedRows(validated);
+        }
+
+        setErrors(validationErrors);
+      },
+      error: (err) => {
+        setErrors(['CSV parsing failed: ' + err.message]);
+      },
+    });
+  };
+
+  const handleCommit = () => {
+    if (parsedRows.length === 0) return;
+
+    if (importType === 'delegates') {
+      mockStore.importDelegates(parsedRows as Delegate[]);
+      setSuccessMsg(`വിജയകരമായി ${parsedRows.length} പ്രതിനിധികളെ ഉൾപ്പെടുത്തി!`);
+    } else {
+      mockStore.importHouses(parsedRows as House[]);
+      setSuccessMsg(`വിജയകരമായി ${parsedRows.length} വീടുകൾ ഉൾപ്പെടുത്തി!`);
+    }
+
+    setParsedRows([]);
+    setTimeout(() => {
+      navigate('/admin');
+    }, 1500);
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
+      {/* Header */}
+      <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col gap-2">
+        <span className="text-xs font-bold text-primary uppercase tracking-wider">
+          {t('import_csv')} (FR-IMP-1)
+        </span>
+        <h1 className="text-2xl font-malayalam-bold text-slate-900">
+          പ്രതിനിധികളുടെയും വീടുകളുടെയും വിവരങ്ങൾ ഇമ്പോർട്ട് ചെയ്യുക
+        </h1>
+        <p className="text-xs text-slate-500">
+          മലയാളം യൂണികോഡ് (UTF-8) പിന്തുണയ്ക്കുന്നു. അപ്‌ലോഡ് ചെയ്യുന്നതിന് മുൻപ് ഡാറ്റ പ്രിവ്യൂ കാണാം.
+        </p>
+      </div>
+
+      {/* Import Switcher & Template Downloads */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="inline-flex rounded-2xl bg-slate-100 p-1 border border-slate-200">
+          <button
+            onClick={() => {
+              setImportType('delegates');
+              setParsedRows([]);
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              importType === 'delegates' ? 'bg-white text-primary shadow-xs' : 'text-slate-600'
+            }`}
+          >
+            പ്രതിനിധികൾ (Delegates CSV)
+          </button>
+          <button
+            onClick={() => {
+              setImportType('houses');
+              setParsedRows([]);
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              importType === 'houses' ? 'bg-white text-primary shadow-xs' : 'text-slate-600'
+            }`}
+          >
+            വീടുകൾ (Houses CSV)
+          </button>
+        </div>
+
+        {/* Download Template Link */}
+        <a
+          href={
+            importType === 'delegates'
+              ? '/templates/delegates_template.csv'
+              : '/templates/houses_template.csv'
+          }
+          download
+          className="px-4 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors self-start sm:self-auto"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span>മാതൃകാ CSV ഡൗൺലോഡ് (Download Template)</span>
+        </a>
+      </div>
+
+      {/* File Upload Zone */}
+      <div className="bg-white rounded-3xl p-8 border-2 border-dashed border-slate-300 hover:border-primary transition-colors flex flex-col items-center justify-center text-center gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-primary-50 text-primary flex items-center justify-center">
+          <FileSpreadsheet className="w-8 h-8" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-bold text-slate-900 font-malayalam-bold">
+            {t('drag_drop_csv')}
+          </span>
+          <span className="text-xs text-slate-400">
+            .csv ഫയലുകൾ മാത്രം (UTF-8 Encoded)
+          </span>
+        </div>
+        <label className="cursor-pointer px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-sm hover:bg-primary-600 transition-all">
+          <span>ഫയൽ തിരഞ്ഞെടുക്കുക (Browse File)</span>
+          <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
+        </label>
+      </div>
+
+      {/* Notifications */}
+      {successMsg && (
+        <div className="p-4 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
+      {errors.length > 0 && (
+        <div className="p-4 rounded-2xl bg-red-50 text-red-800 border border-red-200 text-xs flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 font-bold">
+            <AlertCircle className="w-4 h-4 text-red-600" />
+            <span>തെറ്റുകൾ കണ്ടെത്തി:</span>
+          </div>
+          {errors.map((err, i) => (
+            <span key={i} className="pl-5">• {err}</span>
+          ))}
+        </div>
+      )}
+
+      {/* Parsed Rows Preview */}
+      {parsedRows.length > 0 && (
+        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col gap-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-900">
+                {t('preview_data')}: {parsedRows.length} വരികൾ കണ്ടെത്തി
+              </span>
+            </div>
+            <button
+              onClick={handleCommit}
+              className="touch-target px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-primary-600 transition-transform active:scale-95"
+            >
+              <span>{t('save_data')} ({parsedRows.length})</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="overflow-x-auto max-h-96">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                  <th className="p-2.5">#</th>
+                  <th className="p-2.5">പേര് (Name)</th>
+                  <th className="p-2.5">{importType === 'delegates' ? 'ജില്ല' : 'വിലാസം'}</th>
+                  <th className="p-2.5">{importType === 'delegates' ? 'ഫോൺ' : 'ആതിഥേയൻ'}</th>
+                  <th className="p-2.5">{importType === 'delegates' ? 'ടോക്കൺ ലിങ്ക്' : 'കപ്പാസിറ്റി'}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700">
+                {parsedRows.slice(0, 10).map((row, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50">
+                    <td className="p-2.5 font-bold text-slate-400">{idx + 1}</td>
+                    <td className="p-2.5 font-bold font-malayalam-bold">
+                      {row.full_name || row.name}
+                    </td>
+                    <td className="p-2.5">
+                      {row.district_ml || row.address || '—'}
+                    </td>
+                    <td className="p-2.5">
+                      {row.phone || row.host_name || '—'}
+                    </td>
+                    <td className="p-2.5 font-mono text-[11px] text-primary">
+                      {row.token ? `/d/${row.token}` : `${row.capacity} പേർ`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {parsedRows.length > 10 && (
+            <span className="text-[11px] text-slate-400 italic">
+              ...മറ്റു {parsedRows.length - 10} വരികൾ കൂടിയുണ്ട്
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};

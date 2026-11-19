@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -------------------------------------------------------------------------
+   Self-Hosted Anek Malayalam Fonts (Works 100% Offline without Google Fonts)
+   ------------------------------------------------------------------------- */
+@font-face {
+  font-family: 'Anek Malayalam';
+  src: url('/fonts/AnekMalayalam-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anek Malayalam';
+  src: url('/fonts/AnekMalayalam-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anek Malayalam';
+  src: url('/fonts/AnekMalayalam-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anek Malayalam';
+  src: url('/fonts/AnekMalayalam-VariableFont_wdth,wght.ttf') format('truetype-variations');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  body {
+    font-family: 'Plus Jakarta Sans', 'Anek Malayalam', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* Malayalam Headlines with Anek 800 ExtraBold and ample line-height to avoid glyph clipping */
+  .font-malayalam-bold {
+    font-family: 'Anek Malayalam', sans-serif;
+    font-weight: 800;
+    line-height: 1.48;
+    letter-spacing: -0.01em;
+  }
+}
+
+/* Big touch target utility */
+.touch-target {
+  min-height: 48px;
+  min-width: 48px;
+}

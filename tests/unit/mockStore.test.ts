@@ -1,0 +1,142 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { mockStore } from '../../src/lib/mockData';
+import { Delegate, House } from '../../src/types';
+
+describe('mockStore - State Conference Data Store', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('should return initial list of delegates and host houses', () => {
+    const delegates = mockStore.getDelegates();
+    const houses = mockStore.getHouses();
+    const announcements = mockStore.getAnnouncements();
+
+    expect(delegates.length).toBeGreaterThan(0);
+    expect(houses.length).toBeGreaterThan(0);
+    expect(announcements.length).toBeGreaterThan(0);
+
+    // Verify Malayalam name and tokens exist
+    expect(delegates[0]).toHaveProperty('token');
+    expect(delegates[0]).toHaveProperty('full_name');
+    expect(houses[0]).toHaveProperty('capacity');
+    expect(houses[0]).toHaveProperty('host_phone');
+  });
+
+  it('should retrieve delegate by token case-insensitively', () => {
+    const data = mockStore.getDelegateByToken('kannur-arjun-412');
+    expect(data).not.toBeNull();
+    expect(data?.delegate.full_name).toContain('അർജുൻ');
+    expect(data?.house).not.toBeNull();
+    expect(data?.volunteer).not.toBeNull();
+    expect(data?.announcements.length).toBeGreaterThan(0);
+    expect(data?.helplines.length).toBeGreaterThan(0);
+
+    // Case insensitive test
+    const upperData = mockStore.getDelegateByToken('KANNUR-ARJUN-412');
+    expect(upperData).not.toBeNull();
+    expect(upperData?.delegate.id).toBe(data?.delegate.id);
+  });
+
+  it('should return null for non-existent token', () => {
+    const data = mockStore.getDelegateByToken('non-existent-token-999');
+    expect(data).toBeNull();
+  });
+
+  it('should assign a house to a delegate and persist change', () => {
+    const delegates = mockStore.getDelegates();
+    const targetDelegate = delegates[0];
+    const newHouseId = 'h-104';
+
+    mockStore.assignHouse(targetDelegate.id, newHouseId);
+
+    const updated = mockStore.getDelegates().find((d) => d.id === targetDelegate.id);
+    expect(updated?.house_id).toBe(newHouseId);
+
+    // Verify unassigning works
+    mockStore.assignHouse(targetDelegate.id, null);
+    const unassigned = mockStore.getDelegates().find((d) => d.id === targetDelegate.id);
+    expect(unassigned?.house_id).toBeNull();
+  });
+
+  it('should bulk assign multiple delegates to a house', () => {
+    const delegates = mockStore.getDelegates();
+    const ids = [delegates[0].id, delegates[1].id];
+    const targetHouseId = 'h-102';
+
+    mockStore.bulkAssign(ids, targetHouseId);
+
+    const updatedDelegates = mockStore.getDelegates().filter((d) => ids.includes(d.id));
+    expect(updatedDelegates.every((d) => d.house_id === targetHouseId)).toBe(true);
+  });
+
+  it('should update delegate status and record checked_in_at timestamp', () => {
+    const delegates = mockStore.getDelegates();
+    const target = delegates[0];
+
+    mockStore.updateStatus(target.id, 'checked_in');
+
+    const updated = mockStore.getDelegates().find((d) => d.id === target.id);
+    expect(updated?.status).toBe('checked_in');
+    expect(updated?.checked_in_at).toBeDefined();
+
+    // Revert status to pending
+    mockStore.updateStatus(target.id, 'pending');
+    const reverted = mockStore.getDelegates().find((d) => d.id === target.id);
+    expect(reverted?.status).toBe('pending');
+  });
+
+  it('should import new delegates and append them to store', () => {
+    const initialCount = mockStore.getDelegates().length;
+    const newDelegate: Delegate = {
+      id: 'del-test-100',
+      token: 'test-token-100',
+      full_name: 'ടെസ്റ്റ് പ്രതിനിധി (Test Delegate)',
+      district_id: 1,
+      district_ml: 'കാസർഗോഡ്',
+      district_en: 'Kasaragod',
+      gender: 'boy',
+      status: 'pending',
+    };
+
+    mockStore.importDelegates([newDelegate]);
+
+    const updatedDelegates = mockStore.getDelegates();
+    expect(updatedDelegates.length).toBe(initialCount + 1);
+    expect(mockStore.getDelegateByToken('test-token-100')).not.toBeNull();
+  });
+
+  it('should import new houses and append them to store', () => {
+    const initialCount = mockStore.getHouses().length;
+    const newHouse: House = {
+      id: 'h-test-999',
+      name: 'പുതിയ താമസ കേന്ദ്രം (New Test House)',
+      address: 'നീലേശ്വരം ടൗൺ',
+      host_name: 'കെ. എം. മോഹനൻ',
+      host_phone: '+91 94470 00000',
+      capacity: 8,
+      gender_restriction: 'boys',
+    };
+
+    mockStore.importHouses([newHouse]);
+
+    const updatedHouses = mockStore.getHouses();
+    expect(updatedHouses.length).toBe(initialCount + 1);
+    expect(updatedHouses.some((h) => h.id === 'h-test-999')).toBe(true);
+  });
+
+  it('should notify subscribers when store state mutates', () => {
+    const listener = vi.fn();
+    const unsubscribe = mockStore.subscribe(listener);
+
+    mockStore.updateStatus('del-1', 'checked_in');
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    mockStore.assignHouse('del-1', 'h-101');
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    unsubscribe();
+    mockStore.updateStatus('del-1', 'pending');
+    expect(listener).toHaveBeenCalledTimes(2); // Should not be called after unsubscribe
+  });
+});
