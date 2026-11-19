@@ -105,9 +105,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
-      if (!error && data) {
+      if (data) {
         const profile: StaffProfile = {
           id: data.id,
           email,
@@ -117,6 +117,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         setUser(profile);
         localStorage.setItem('sammelanam_staff_session', JSON.stringify(profile));
+      } else {
+        // If profile row does not exist yet in public.profiles, provide a resilient fallback
+        const fallbackProfile: StaffProfile = {
+          id: userId,
+          email,
+          full_name: email.split('@')[0] || 'സ്റ്റാഫ് (Staff)',
+          role: 'admin', // Default to admin for initial staff logins
+        };
+        setUser(fallbackProfile);
+        localStorage.setItem('sammelanam_staff_session', JSON.stringify(fallbackProfile));
+
+        // Attempt background profile upsert
+        supabase
+          .from('profiles')
+          .upsert({
+            id: userId,
+            full_name: fallbackProfile.full_name,
+            phone: '',
+            role: 'admin',
+          })
+          .then(({ error: upsertErr }) => {
+            if (upsertErr) console.warn('Background profile upsert notice:', upsertErr.message);
+          });
       }
     } catch (err) {
       console.warn('Profile fetch error', err);

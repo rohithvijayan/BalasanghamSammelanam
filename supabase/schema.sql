@@ -185,6 +185,38 @@ CREATE POLICY "Users read own profile"
     TO authenticated
     USING (id = auth.uid());
 
+CREATE POLICY "Users insert own profile"
+    ON profiles FOR INSERT
+    TO authenticated
+    WITH CHECK (id = auth.uid());
+
+CREATE POLICY "Users update own profile"
+    ON profiles FOR UPDATE
+    TO authenticated
+    USING (id = auth.uid())
+    WITH CHECK (id = auth.uid());
+
+-- Auto-provision profile trigger when user is created in auth.users
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, phone, role)
+  VALUES (
+    new.id,
+    COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+    COALESCE(new.phone, ''),
+    COALESCE((new.raw_user_meta_data->>'role')::user_role, 'admin')
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
 -- 5.3 Houses Policy
 CREATE POLICY "Admins full access on houses"
     ON houses FOR ALL
