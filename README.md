@@ -1,5 +1,5 @@
-# ബാലസംഘം സംസ്ഥാന സമ്മേളനം – താമസ വിവര പോർട്ടൽ
-### Balasangham State Conference – Stay & Accommodation Tracker
+# Balasangham State Conference – Stay & Accommodation Tracker
+### ബാലസംഘം സംസ്ഥാന സമ്മേളനം – താമസ വിവര പോർട്ടൽ
 
 [![Vite](https://img.shields.io/badge/Vite-6.2-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![React](https://img.shields.io/badge/React-19.0-61DAFB?logo=react&logoColor=black)](https://react.dev/)
@@ -9,27 +9,28 @@
 [![Vitest](https://img.shields.io/badge/Vitest-27_Passed-729B1B?logo=vitest&logoColor=white)](https://vitest.dev/)
 [![Playwright](https://img.shields.io/badge/Playwright-11_Passed-2EAD33?logo=playwright&logoColor=white)](https://playwright.dev/)
 
-> **8-ാമത് ബാലസംഘം സംസ്ഥാന സമ്മേളനം**  
-> **2026 നവംബർ 27, 28, 29 • നീലേശ്വരം, പാലായി, കാസർഗോഡ്**  
-> *8th Balasangham State Conference • Nov 27–29, 2026 • Nileshwaram, Palayi, Kasaragod*
+> **8th Balasangham State Conference**  
+> **November 27, 28, 29, 2026 • Nileshwaram, Palayi, Kasaragod, Kerala**  
+> *Official Delegate Accommodation Management & Arrival Tracking Platform*
 
 ---
 
-## 📌 അവലോകനം (Overview)
+## 📌 Project Overview
 
-ബാലസംഘം സംസ്ഥാന സമ്മേളനത്തിൽ പങ്കെടുക്കുന്ന നൂറുകണക്കിന് കുട്ടികൾക്കും (10–14 വയസ്സ്), അവരുടെ രക്ഷിതാക്കൾക്കും, വളണ്ടിയർമാർക്കും, സംഘാടക സമിതിക്കും താമസസൗകര്യ വിവരങ്ങൾ സുരക്ഷിതമായും തത്സമയവും നൽകുന്നതിനായി തയ്യാറാക്കിയ **Progressive Web Application (PWA)** ആണ് ഈ പ്ലാറ്റ്‌ഫോം.
+The **Balasangham State Conference Stay Tracker** is a high-performance Progressive Web Application (PWA) designed to manage accommodation logistics, arrival check-ins, and emergency support for over 600 child delegates (aged 10–14) and their accompanying parents and coordinators attending the state conference.
 
-### പ്രധാന ലക്ഷ്യങ്ങൾ:
-1. **കുട്ടികൾക്കും രക്ഷിതാക്കൾക്കും ലളിതമായ ഉപയോഗം:** ലോഗിൻ ആവശ്യമില്ലാതെ വ്യക്തിഗത ടോക്കൺ ലിങ്ക് (`/d/:token`) വഴിയോ ഹോംപേജിൽ ടോക്കൺ/ഫോൺ നമ്പർ നൽകിയോ താമസസ്ഥലം, ആതിഥേയർ, ഗൂഗിൾ റൂട്ട് മാപ്പ്, വളണ്ടിയർ സഹായം എന്നിവ കാണാം.
-2. **കുട്ടികളുടെ സ്വകാര്യതാ സംരക്ഷണം (Child Privacy):** പൊതു ഹോംപേജിൽ മറ്റ് കുട്ടികളുടെ വിവരങ്ങളോ അഡ്മിൻ ലിങ്കുകളോ പരസ്യപ്പെടുത്താതെ പൂർണ്ണമായും സുരക്ഷിതം.
-3. **റോൾ അടിസ്ഥാനത്തിലുള്ള അൺലോക്കിംഗ് (Role-Based Unlocking):** സംസ്ഥാന അഡ്മിൻ, ജില്ലാ കോർഡിനേറ്റർമാർ, ഹെൽപ്പ് ഡെസ്ക് വളണ്ടിയർമാർ എന്നിവർക്കായി പ്രത്യേകം സജ്ജീകരിച്ച വർക്ക് ബെഞ്ചുകൾ.
-4. **100% ഓഫ്‌ലൈൻ പിന്തുണ:** ട്രെയിൻ യാത്രയിലോ നെറ്റ്‌വർക്ക് തടസ്സമുള്ളപ്പോഴോ ഫോണിൽ സേവ് ചെയ്ത വിവരങ്ങൾ കാണാൻ സാധിക്കുന്ന PWA കാഷിംഗ്.
+### Core Objectives:
+1. **Frictionless Delegate Experience:** Zero app store installation or password friction. Delegates access their allocated home, host details, volunteer contacts, and Google Maps directions via a unique, unguessable personal link (`/d/:token`) sent via WhatsApp or via a fast token search on the homepage.
+2. **Child Safety & Privacy:** Public visitor pages never expose directories of delegate names, phone numbers, or administrative tools.
+3. **Role-Based Dynamic Access Control:** One platform that unlocks specific workspaces based on credentials:
+   - **State Admin:** Full access to all 14 Kerala districts, bulk allocations, housing capacity matrix, and CSV data importing.
+   - **District Coordinator:** Strictly locked to the coordinator's assigned district (e.g., Kannur, Kasaragod) to monitor their district's delegates and arrivals.
+   - **Volunteer Desk:** High-speed arrival check-in desk with instant search, 1-click status toggling, and host directory.
+4. **100% Offline Capability:** Full offline service worker caching for train journeys and weak connectivity areas in Northern Kerala.
 
 ---
 
-## 🚀 റോൾ അടിസ്ഥാനത്തിലുള്ള വർക്ക് ബെഞ്ചുകൾ (Workspaces & Roles)
-
-ലോഗിൻ ചെയ്യുന്ന ഉപയോക്താവിന്റെ ക്രെഡൻഷ്യൽ അനുസരിച്ച് പ്ലാറ്റ്‌ഫോം സ്വയം അൺലോക്ക് ആകുന്നു:
+## 🚀 Workspaces & Architecture
 
 ```
                           ┌──────────────────────────┐
@@ -43,119 +44,133 @@
 │   State Admin    │           │     District     │           │    Volunteer     │
 │  (Superadmin)    │           │   Coordinator    │           │    Helpdesk      │
 ├──────────────────┤           ├──────────────────┤           ├──────────────────┤
-│ • 14 Districts   │           │ • Locked to own  │           │ • Instant Search │
-│ • Allotment Matrix│          │   District       │           │ • 1-Tap Check-In │
-│ • CSV Data Import│           │ • District Stats │           │ • Host Directory │
-│ • Capacity Alerts│           │ • Attendance     │           │ • WhatsApp Share │
+│ • 14 Districts   │           │ • Scoped to own  │           │ • Live Tallies   │
+│ • Full Housing   │           │   District       │           │ • 1-Tap Check-In │
+│ • CSV Importer   │           │ • District Stats │           │ • Host Contacts  │
+│ • Capacity Alerts│           │ • Arrival Desk   │           │ • WhatsApp Share │
 └──────────────────┘           └──────────────────┘           └──────────────────┘
 ```
 
-### 1. പബ്ലിക് ഡെലിഗേറ്റ് പോർട്ടൽ (Public Delegate View – `/` & `/d/:token`)
-* വാട്ട്‌സ്ആപ്പിൽ ലഭിക്കുന്ന ഒറ്റ ലിങ്ക് വഴി നേരിട്ട് പ്രവേശനം.
-* **താമസസ്ഥല വിവരങ്ങൾ:** വീടിന്റെ പേര്, വിലാസം, ആതിഥേയന്റെ പേര്, ഫോൺ നമ്പർ (ഒറ്റ ക്ലിക്കിൽ വിളിക്കാം), റൂട്ട് മാപ്പ് (Google Maps).
-* **വളണ്ടിയർ സപ്പോർട്ട്:** സമീപത്തുള്ള വളണ്ടിയറുടെ പേരും ഫോൺ നമ്പറും.
-* **24/7 കൺട്രോൾ റൂം ഹെൽപ്പ്‌ലൈനുകൾ:** കൺട്രോൾ റൂം, മെഡിക്കൽ ടീം, അക്കോമഡേഷൻ കൺവീനർ നമ്പറുകൾ.
-* **താൽക്കാലിക ലൊക്കേഷൻ ഷെയറിംഗ് (30 Mins):** കുട്ടികൾ വഴിതെറ്റിയാൽ വളണ്ടിയർമാർക്ക് കണ്ടെത്താൻ താൽക്കാലിക GPS ഷെയറിംഗ്.
-* **ദ്വിഭാഷാ പിന്തുണ (Bilingual):** മലയാളം (Anek Malayalam 800 Bold) & English.
+### 1. Public Delegate Stay Portal (`/` & `/d/:token`)
+* **Verified Accommodation Details:** Host house name, physical address, room allocation, host name, and 1-tap direct dial (`tel:`) button.
+* **Navigation:** Built-in Google Maps navigation link directly routed to the host residence.
+* **Volunteer Support:** Dedicated neighborhood volunteer name and phone number.
+* **24/7 Helplines:** Quick-dial shortcuts for the Nileshwaram Control Room, Medical Aid, and Accommodation Convener.
+* **Temporary Location Sharing:** 30-minute consent-based location ping to assist volunteers in guiding lost delegates.
+* **Bilingual Switcher:** Instant switching between Malayalam (**Anek Malayalam 800 Bold**) and English.
 
-### 2. വളണ്ടിയർ ഹെൽപ്പ് ഡെസ്ക് (Volunteer Desk – `/volunteer`)
-* **തത്സമയ ഹാജർ നില:** ആകെ പ്രതിനിധികൾ, എത്തിയവർ (Checked In), ഇനി എത്താനുള്ളവർ (Pending) എന്നിവയുടെ ശതമാനം.
-* **1-ടാപ്പ് ഹാജർ രേഖപ്പെടുത്തൽ:** പേരോ നമ്പറോ ടോക്കണോ സെർച്ച് ചെയ്ത് ഒറ്റ ക്ലിക്കിൽ *"ഹാജർ രേഖപ്പെടുത്തുക (Check In)"* അല്ലെങ്കിൽ *"ഹാജരായി ✓"*.
-* **ആതിഥേയ വീടുകളുടെ ഡയറക്ടറി:** ഓരോ വീടുകളിലെയും കപ്പാസിറ്റി, ആതിഥേയന്റെ കോൺടാക്റ്റ്, നിലവിൽ താമസിക്കുന്ന കുട്ടികളുടെ പട്ടിക.
-* **വാട്ട്‌സ്ആപ്പ് ഷെയർ:** രക്ഷിതാക്കൾക്ക് കുട്ടിയുടെ വ്യക്തിഗത ലിങ്ക് ഒറ്റ ക്ലിക്കിൽ അയക്കാം.
+### 2. Volunteer Arrival Desk (`/volunteer`)
+* **Live Attendance Metrics:** Real-time counters for Total Delegates, Arrived/Checked-in (with percentage completion), Pending En Route, and Host Houses.
+* **1-Tap Check-In:** Search by delegate name, phone, or token; toggle check-in status with real-time feedback toast notifications.
+* **Host House Directory:** View house capacity limits (e.g., 3/4 occupied), host contact numbers, and list of assigned children.
+* **WhatsApp Dispatch:** 1-click button to generate pre-filled WhatsApp messages with the child's personal stay link to send to parents.
 
-### 3. ജില്ലാ കോർഡിനേഷൻ വർക്ക് ബെഞ്ച് (District Workbench – `/admin`)
-* ലോഗിൻ ചെയ്ത ജില്ലാ കൺവീനറുടെ ജില്ലയിലേക്ക് (ഉദാ: കണ്ണൂർ, കാസർഗോഡ്) ഓട്ടോമാറ്റിക്കായി ലോക്ക് ചെയ്യപ്പെടുന്നു.
-* ആ ജില്ലയിലെ കുട്ടികളുടെ വിവരങ്ങൾ, അലോട്ട് ചെയ്ത വീടുകൾ, ഹാജർ നില എന്നിവ മാത്രം കാണാനും നിയന്ത്രിക്കാനും സാധിക്കും.
+### 3. District Coordinator Workbench (`/admin`)
+* Automatically locked to the coordinator's assigned district (e.g., Kannur).
+* Filtered delegate rosters, housing assignments, and arrival monitoring strictly for delegates belonging to their district.
+* High-level admin capabilities (such as CSV imports or other districts) are restricted.
 
-### 4. സംസ്ഥാന അഡ്മിൻ വർക്ക് ബെഞ്ച് (State Admin – `/admin` & `/import`)
-* **14 ജില്ലകളും കൈകാര്യം ചെയ്യാനുള്ള പൂർണ്ണ അധികാരം.**
-* **കപ്പാസിറ്റി ഓവർഫ്ലോ മുന്നറിയിപ്പ്:** ഒരു വീടിന്റെ കപ്പാസിറ്റിയിൽ കൂടുതൽ കുട്ടികളെ അലോട്ട് ചെയ്യുമ്പോൾ അഡ്മിന് മുന്നറിയിപ്പ് നൽകുന്നു (Override Warning).
-* **CSV ഡാറ്റാ ഇമ്പോർട്ട് (`/import`):** പ്രതിനിധികളുടെയും വീടുകളുടെയും വലിയ ലിസ്റ്റുകൾ ഒറ്റ ക്ലിക്കിൽ CSV വഴി അപ്‌ലോഡ് ചെയ്യാം.
+### 4. State Admin Super-Workbench (`/admin` & `/import`)
+* **Statewide Overview:** Manage housing across all 14 Kerala districts or filter by any individual district.
+* **Housing Capacity Matrix:** Visual indicator of occupied vs. free capacity with soft warning prompts when assigning over capacity.
+* **Bulk Housing Assignment:** Select multiple unassigned delegates and allocate them to a house in a single action.
+* **UTF-8 CSV Importer (`/import`):** Upload delegates and host houses in bulk, with downloadable sample templates and pre-commit validation.
 
 ---
 
-## 🔑 ടെസ്റ്റ് ലോഗിൻ അക്കൗണ്ടുകൾ (Demo Accounts)
+## 🔑 Demo Accounts for Testing
 
-ലോഗിൻ സ്ക്രീനിൽ (`/login`) ഒറ്റ ക്ലിക്കിൽ പരീക്ഷിക്കാൻ 3 ഡെമോ ബട്ടണുകൾ നൽകിയിട്ടുണ്ട്:
+The login screen (`/login`) includes quick-fill demo buttons to test each role:
 
-| ലെവൽ | ഇമെയിൽ | പാസ്‌വേഡ് | അൺലോക്ക് ആകുന്ന പരിധി |
+| Role | Email | Password | Unlocked Capabilities |
 | :--- | :--- | :--- | :--- |
-| **സംസ്ഥാന അഡ്മിൻ** | `admin@balasangham.in` | `admin123` | മുഴുവൻ അഡ്മിൻ വർക്ക് ബെഞ്ച്, CSV ഇമ്പോർട്ട്, എല്ലാ ജില്ലകളും |
-| **ജില്ലാ കൺവീനർ** | `kannur@balasangham.in` | `kannur123` | കണ്ണൂർ ജില്ലാ തല അലോട്ട്മെന്റും ഹാജർനിലയും |
-| **വളണ്ടിയർ** | `volunteer@balasangham.in` | `volunteer123` | വളണ്ടിയർ വരവ് സ്വീകരണ ഡെസ്ക്, 1-ടാപ്പ് ചെക്ക്-ഇൻ, ഹോസ്റ്റ് ഫോണുകൾ |
+| **State Admin** | `admin@balasangham.in` | `admin123` | Full Admin Workbench (all 14 districts), CSV Data Importer, Volunteer Desk |
+| **District Coordinator** | `kannur@balasangham.in` | `kannur123` | District Workbench strictly locked to Kannur district delegates & attendance |
+| **Volunteer** | `volunteer@balasangham.in` | `volunteer123` | Volunteer Helpdesk, 1-tap arrival check-in, host directory |
 
 ---
 
-## 🛠️ സാങ്കേതിക വിവരങ്ങൾ (Tech Stack)
+## 🛠️ Technology Stack
 
-* **ഫ്രണ്ട് എൻഡ്:** React 19, TypeScript 5.7, Tailwind CSS 3.4
-* **ബിൽഡ് ടൂൾ:** Vite 6.2 (Vendor Chunks splitting: icons, supabase, vendor < 300 kB)
-* **ഓഫ്‌ലൈൻ PWA:** `vite-plugin-pwa` precaching fonts, logo, and artwork assets
-* **ടൈപ്പോഗ്രാഫി:** ഔദ്യോഗിക മലയാളം ഫോണ്ട് **Anek Malayalam 800 Bold** (Local webfonts for 100% offline support without glyph clipping)
-* **ഡാറ്റാബേസ്:** Supabase PostgreSQL (Row Level Security, RPCs, fallback to reactive LocalStorage store)
-* **ടെസ്റ്റിംഗ്:**
-  - **Unit Testing:** Vitest 5.1 + React Testing Library (27 tests)
-  - **E2E Testing:** Playwright Test 1.59 (11 tests in headless Chrome)
+* **Frontend:** React 19, TypeScript 5.7, Vite 6.2, Tailwind CSS 3.4, Lucide Icons
+* **PWA Engine:** `vite-plugin-pwa` precaching local fonts, responsive artwork, and static assets
+* **Typography:** Official Malayalam font **Anek Malayalam 800 Bold** bundled locally for offline support without clipping
+* **Database & Auth:** Supabase PostgreSQL (RLS security policies, stored procedures, RPCs) with reactive local storage fallback
+* **Testing:**
+  - **Unit Tests:** Vitest 5.1 + React Testing Library + jsdom (27 tests)
+  - **E2E Tests:** Playwright Test 1.59 (11 tests in headless Chromium)
 
 ---
 
-## 💻 ഇൻസ്റ്റാളേഷനും റണ്ണിംഗും (Getting Started)
+## 💻 Getting Started
 
-### 1. റിപ്പോസിറ്ററി ക്ലോൺ ചെയ്യുക:
+### 1. Clone the repository
 ```bash
-git clone https://github.com/rohithvijayan/balasangham-sammelanam-tracker.git
-cd balasangham-sammelanam-tracker
+git clone https://github.com/rohithvijayan/BalasanghamSammelanam.git
+cd BalasanghamSammelanam
 ```
 
-### 2. പാക്കേജുകൾ ഇൻസ്റ്റാൾ ചെയ്യുക:
+### 2. Install dependencies
 ```bash
 npm install
 ```
 
-### 3. ഡെവലപ്‌മെന്റ് സെർവർ പ്രവർത്തിപ്പിക്കുക:
+### 3. Run development server
 ```bash
 npm run dev
 ```
-ബ്രൗസറിൽ `http://localhost:5173` തുറക്കുക.
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-### 4. എൻവയോൺമെന്റ് വേരിയബിളുകൾ (Optional):
-ലൈവ് സുപാബേസ് ഡാറ്റാബേസ് കണക്ട് ചെയ്യാൻ `.env.local` ഫയൽ നിർമ്മിച്ച് നൽകാം (നൽകിയില്ലെങ്കിലും പ്ലാറ്റ്‌ഫോം പൂർണ്ണമായും ഓഫ്‌ലൈൻ/മോക്ക് മോഡിൽ പ്രവർത്തിക്കും):
+### 4. Configure Environment Variables (Optional)
+To connect to a live Supabase backend, create a `.env.local` file:
 ```env
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-public-key
 ```
+*(If omitted, the platform automatically runs in mock/local mode with full interactive functionality).*
 
 ---
 
-## 🧪 ടെസ്റ്റുകൾ പ്രവർത്തിപ്പിക്കാൻ (Running Tests)
+## 🧪 Running the Test Suites
 
 ### Unit Tests (27 Tests):
 ```bash
 npm run test
 ```
 
-### End-to-End (E2E) Tests (11 Tests):
+### End-to-End Tests with Playwright (11 Tests):
 ```bash
 npm run test:e2e
 ```
 
-### പ്രൊഡക്ഷൻ ബിൽഡ്:
+### Production Build:
 ```bash
 npm run build
 ```
 
 ---
 
-## 🗄️ ഡാറ്റാബേസ് സ്കീമ (Database Architecture)
+## 🗄️ Database Architecture (Supabase / PostgreSQL)
 
-`supabase/` ഫോൾഡറിൽ പ്രൊഡക്ഷൻ-റെഡി SQL സ്ക്രിപ്റ്റുകൾ നൽകിയിട്ടുണ്ട്:
-* [supabase/schema.sql](file:///home/rohithvijayan/Desktop/BalasanghamSammelanam/supabase/schema.sql): PostgreSQL ടേബിളുകൾ (`districts`, `host_houses`, `delegates`, `profiles`, `announcements`, `location_logs`), RLS സെക്യൂരിറ്റി പോളിസികൾ, `get_my_stay` RPC, `share_location` RPC.
-* [supabase/seed.sql](file:///home/rohithvijayan/Desktop/BalasanghamSammelanam/supabase/seed.sql): കേരളത്തിലെ 14 ജില്ലകൾ, സാമ്പിൾ ആതിഥേയ വീടുകൾ, പ്രൊഫൈലുകൾ, ഡെലിഗേറ്റുകൾ.
+Production-ready SQL migration scripts are located in the `supabase/` directory:
+* [`supabase/schema.sql`](./supabase/schema.sql): PostgreSQL tables (`districts`, `houses`, `delegates`, `profiles`, `announcements`, `location_pings`), Row Level Security (RLS) policies, `get_my_stay` RPC, and `share_location` RPC.
+* [`supabase/seed.sql`](./supabase/seed.sql): Kerala's 14 districts, sample host homes in Nileshwaram, staff profiles, sample delegates, and conference announcements.
 
 ---
 
-## 📄 ലൈസൻസ് (License)
+## 🚀 Deployment Guide
+
+### Deploy to Vercel (1-Click)
+1. Import `rohithvijayan/BalasanghamSammelanam` in [Vercel](https://vercel.com).
+2. Set Framework Preset to **Vite** (Build: `npm run build`, Output: `dist`).
+3. Add Environment Variables:
+   - `VITE_SUPABASE_URL`: Your Supabase Project URL
+   - `VITE_SUPABASE_ANON_KEY`: Your Supabase Anon Key
+4. Deploy! The included [`vercel.json`](./vercel.json) handles client-side SPA routing (`/d/:token`, `/admin`, `/volunteer`, `/login`) and asset caching.
+
+---
+
+## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.  
-ബാലസംഘം സംസ്ഥാന സ്വാഗതസംഘം ഓഫീസ് • നീലേശ്വരം, പാലായി, കാസർഗോഡ്.
+Balasangham State Conference Organizing Committee Office • Nileshwaram, Palayi, Kasaragod.
