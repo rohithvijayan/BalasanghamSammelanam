@@ -28,19 +28,19 @@ INSERT INTO app_settings (key, value) VALUES
     {"title_ml": "റെസ്ക്യൂ & സുരക്ഷ", "title_en": "Emergency & SOS Desk", "phone": "9447123456"}
 ]'::jsonb),
 ('event_info', '{
-    "name_ml": "ബാലസംഘം 16-ാമത് സംസ്ഥാന സമ്മേളനം",
-    "name_en": "Balasangham 16th State Conference",
-    "location_ml": "പയ്യന്നൂർ, കണ്ണൂർ",
-    "location_en": "Payyanur, Kannur",
-    "venue_map_url": "https://maps.google.com/?q=Payyanur+Town+Hall"
+    "name_ml": "ബാലസംഘം 8-ാമത് സംസ്ഥാന സമ്മേളനം",
+    "name_en": "Balasangham 8th State Conference",
+    "location_ml": "നീലേശ്വരം, പാലായി, കാസർഗോഡ്",
+    "location_en": "Nileshwaram, Palayi, Kasaragod",
+    "venue_map_url": "https://maps.google.com/?q=Nileshwaram+Palayi"
 }'::jsonb)
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- 3. Houses (Host homes)
 INSERT INTO houses (id, name, address, map_url, lat, lng, host_name, host_phone, capacity, gender_restriction, notes) VALUES
-('b1111111-1111-1111-1111-111111111111', 'പൂന്തോട്ടം വീട് (Poonthottam House)', 'വാർഡ് 4, പയ്യന്നൂർ നഗരസഭ, റെയിൽവേ സ്റ്റേഷൻ റോഡ്, കണ്ണൂർ', 'https://www.google.com/maps/search/?api=1&query=12.0984,75.2045', 12.0984, 75.2045, 'കെ. രാഘവൻ', '+91 94471 23456', 4, 'boys', 'റെയിൽവേ സ്റ്റേഷനിൽ നിന്ന് 500 മീറ്റർ. ഗ്രൗണ്ട് ഫ്ലോർ മുറി.'),
-('b2222222-2222-2222-2222-222222222222', 'സൗപർണിക (Souparnika)', 'വാർഡ് 2, കോളേജ് റോഡ്, പയ്യന്നൂർ', 'https://www.google.com/maps/search/?api=1&query=12.1020,75.2100', 12.1020, 75.2100, 'പ്രൊഫ. സുജാത എം.', '+91 98462 89001', 6, 'girls', 'കോളേജ് ജംഗ്ഷന് സമീപം. വിശാലമായ ഹാൾ.'),
-('b3333333-3333-3333-3333-333333333333', 'മംഗല്യ നിലയം (Mangalya Nilayam)', 'വാർഡ് 6, പഴയ ബസ് സ്റ്റാൻഡ്, പയ്യന്നൂർ', 'https://www.google.com/maps/search/?api=1&query=12.0950,75.2000', 12.0950, 75.2000, 'പി. വി. ബാലകൃഷ്ണൻ', '+91 97455 33012', 5, 'boys', 'ടൗൺ ഹാളിന് 5 മിനിറ്റ് നടത്തം.')
+('b1111111-1111-1111-1111-111111111111', 'പൂന്തോട്ടം വീട് (Poonthottam House)', 'വാർഡ് 4, നീലേശ്വരം നഗരസഭ, റെയിൽവേ സ്റ്റേഷൻ റോഡ്, കാസർഗോഡ്', 'https://www.google.com/maps/search/?api=1&query=12.2530,75.1290', 12.2530, 75.1290, 'കെ. രാഘവൻ', '+91 94471 23456', 4, 'boys', 'റെയിൽവേ സ്റ്റേഷനിൽ നിന്ന് 500 മീറ്റർ. കുടിവെള്ളവും ഫാനും ലഭ്യമാണ്.'),
+('b2222222-2222-2222-2222-222222222222', 'സൗപർണിക (Souparnika)', 'വാർഡ് 2, കോളേജ് റോഡ്, നീലേശ്വരം, കാസർഗോഡ്', 'https://www.google.com/maps/search/?api=1&query=12.2510,75.1250', 12.2510, 75.1250, 'പ്രൊഫ. സുജാത എം.', '+91 98462 89001', 6, 'girls', 'സമ്മേളന നഗരിക്ക് സമീപം. വിശാലമായ ഹാൾ, അറ്റാച്ച്ഡ് ബാത്ത്റൂം.'),
+('b3333333-3333-3333-3333-333333333333', 'മംഗല്യ നിലയം (Mangalya Nilayam)', 'വാർഡ് 6, പഴയ ബസ് സ്റ്റാൻഡ്, നീലേശ്വരം', 'https://www.google.com/maps/search/?api=1&query=12.2540,75.1310', 12.2540, 75.1310, 'പി. വി. ബാലകൃഷ്ണൻ', '+91 97455 33012', 5, 'boys', 'പാലായി സമ്മേളന നഗരിക്ക് 5 മിനിറ്റ് നടത്തം.')
 ON CONFLICT (id) DO NOTHING;
 
 -- 4. Sample Delegates
