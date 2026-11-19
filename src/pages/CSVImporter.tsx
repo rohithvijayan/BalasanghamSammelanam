@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
 import { mockStore, initialDistricts } from '../lib/mockData';
 import { Delegate, House } from '../types';
-import { api } from '../lib/supabase';
+import { api, isSupabaseConfigured } from '../lib/supabase';
 import { useI18n } from '../i18n/i18nContext';
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Download, ArrowRight, CloudUpload, RefreshCw } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Download, ArrowRight, CloudUpload, RefreshCw, Trash2, Database } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const CSVImporter: React.FC = () => {
@@ -17,9 +17,37 @@ export const CSVImporter: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isCommitting, setIsCommitting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [cloudCount, setCloudCount] = useState<number | null>(null);
 
-  const localDelegates = mockStore.getDelegates();
-  const hasLocalDelegates = localDelegates.length > 6;
+  // Reactive store subscription
+  const [delegates, setDelegates] = useState<Delegate[]>(() => mockStore.getDelegates());
+
+  useEffect(() => {
+    const unsub = mockStore.subscribe(() => {
+      setDelegates(mockStore.getDelegates());
+    });
+
+    if (isSupabaseConfigured) {
+      api.getDelegates()
+        .then((data) => setCloudCount(data.length))
+        .catch((err) => console.warn('Could not fetch cloud delegate count', err));
+    }
+
+    return unsub;
+  }, []);
+
+  // Deduplicate local delegates by unique token/id
+  const uniqueLocalDelegates = useMemo(() => {
+    const map = new Map<string, Delegate>();
+    for (const d of delegates) {
+      const key = (d.token || d.id).toLowerCase().trim();
+      map.set(key, d);
+    }
+    return Array.from(map.values());
+  }, [delegates]);
+
+  const hasLocalDelegates = uniqueLocalDelegates.length > 6;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -104,10 +132,10 @@ export const CSVImporter: React.FC = () => {
     try {
       if (importType === 'delegates') {
         const res = await api.importDelegates(parsedRows as Delegate[]);
-        setSuccessMsg(`വിജയകരമായി ${res.count} പ്രതിനിധികളെ Supabase ക്ലൗഡ് ഡാറ്റാബേസിൽ ഉൾപ്പെടുത്തി!`);
+        setSuccessMsg(`വിജയകരമായി ${res.count} പ്രതിനിധികളെ സേവ് ചെയ്തു!`);
       } else {
         const res = await api.importHouses(parsedRows as House[]);
-        setSuccessMsg(`വിജയകരമായി ${res.count} വീടുകൾ Supabase ക്ലൗഡ് ഡാറ്റാബേസിൽ ഉൾപ്പെടുത്തി!`);
+        setSuccessMsg(`വിജയകരമായി ${res.count} വീടുകൾ സേവ് ചെയ്തു!`);
       }
 
       setParsedRows([]);
@@ -128,13 +156,50 @@ export const CSVImporter: React.FC = () => {
     setSuccessMsg(null);
 
     try {
-      const res = await api.importDelegates(localDelegates);
-      setSuccessMsg(`വിജയകരമായി ഈ ഡിവൈസിലെ ${res.count} പ്രതിനിധികളെ Supabase ക്ലൗഡ് ഡാറ്റാബേസിലേക്ക് സിങ്ക് ചെയ്തു! ഇനി എല്ലാ ഡിവൈസുകളിലും ഈ ഡാറ്റ ലഭ്യമാണ്.`);
+      const res = await api.importDelegates(uniqueLocalDelegates);
+      
+      // Post-sync: pull fresh data from cloud and replace local cache
+      const cloudData = await api.getDelegates();
+      mockStore.setDelegates(cloudData);
+      setCloudCount(cloudData.length);
+
+      setSuccessMsg(
+        `വിജയകരമായി ${res.count} പ്രതിനിധികളെ Supabase ക്ലൗഡ് ഡാറ്റാബേസിലേക്ക് സിങ്ക് ചെയ്തു! ലോക്കൽ കാഷെ ക്ലൗഡുമായി പൊരുത്തപ്പെടുത്തി.`
+      );
     } catch (err: any) {
       console.error('Sync failed', err);
       setErrors(['Supabase സിങ്ക് പരാജയപ്പെട്ടു: ' + (err.message || 'Unknown error')]);
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handleClearLocalCache = async () => {
+    setIsClearing(true);
+    setErrors([]);
+    setSuccessMsg(null);
+
+    try {
+      mockStore.clearLocalDelegates();
+      if (isSupabaseConfigured) {
+        try {
+          const cloudData = await api.getDelegates();
+          if (cloudData && cloudData.length > 0) {
+            mockStore.setDelegates(cloudData);
+            setCloudCount(cloudData.length);
+            setSuccessMsg(`ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു, ക്ലൗഡിൽ നിന്നുള്ള ${cloudData.length} പ്രതിനിധികളെ പുതുക്കി ലോഡ് ചെയ്തു.`);
+            return;
+          }
+        } catch {
+          // fall through
+        }
+      }
+      setSuccessMsg('ഈ ഡിവൈസിലെ ലോക്കൽ കാഷെ വിജയകരമായി ക്ലിയർ ചെയ്തു.');
+    } catch (err: any) {
+      mockStore.clearLocalDelegates();
+      setSuccessMsg('ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു.');
+    } finally {
+      setIsClearing(false);
     }
   };
 
@@ -155,33 +220,46 @@ export const CSVImporter: React.FC = () => {
 
       {/* Sync Local Browser Data to Supabase Cloud */}
       {hasLocalDelegates && (
-        <div className="bg-amber-50 border border-amber-200/90 rounded-3xl p-5 md:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="bg-amber-50 border border-amber-200/90 rounded-3xl p-5 md:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
               <CloudUpload className="w-6 h-6 text-amber-700" />
             </div>
             <div className="flex flex-col">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-bold text-amber-900 font-malayalam-bold">
-                  ഈ ഡിവൈസിൽ {localDelegates.length} പ്രതിനിധികൾ നിലവിലുണ്ട്
+                  ഈ ഡിവൈസിൽ {uniqueLocalDelegates.length} പ്രതിനിധികൾ നിലവിലുണ്ട്
                 </span>
                 <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-300">
-                  ലോക്കൽ ഡാറ്റ
+                  {cloudCount !== null && cloudCount >= uniqueLocalDelegates.length ? 'ക്ലൗഡിൽ ലഭ്യമാണ്' : 'ലോക്കൽ ഡാറ്റ'}
                 </span>
               </div>
               <p className="text-xs text-amber-700 mt-0.5">
-                മറ്റു ഡിവൈസുകളിലും ഫോണുകളിലും കാണാൻ ഇവരെ Supabase ക്ലൗഡ് ഡാറ്റാബേസിലേക്ക് ഒറ്റ ക്ലിക്കിൽ അപ്‌ലോഡ് ചെയ്യാം.
+                {cloudCount !== null && cloudCount >= uniqueLocalDelegates.length
+                  ? `Supabase ക്ലൗഡിൽ നിലവിൽ ${cloudCount} പ്രതിനിധികളുണ്ട്. എല്ലാ ഡിവൈസുകളിലും ഒരേ ഡാറ്റ കാണാം.`
+                  : 'മറ്റു ഡിവൈസുകളിലും ഫോണുകളിലും കാണാൻ ഇവരെ Supabase ക്ലൗഡ് ഡാറ്റാബേസിലേക്ക് ഒറ്റ ക്ലിക്കിൽ സിങ്ക് ചെയ്യാം.'}
               </p>
             </div>
           </div>
-          <button
-            onClick={handleSyncLocalToSupabase}
-            disabled={isSyncing}
-            className="touch-target px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-95 disabled:opacity-50 shrink-0"
-          >
-            <CloudUpload className="w-4 h-4" />
-            <span>{isSyncing ? 'ക്ലൗഡിലേക്ക് സിങ്ക് ചെയ്യുന്നു...' : 'Supabase-ലേക്ക് സിങ്ക് ചെയ്യുക'}</span>
-          </button>
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            <button
+              onClick={handleSyncLocalToSupabase}
+              disabled={isSyncing || isClearing}
+              className="touch-target px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-95 disabled:opacity-50 shrink-0"
+            >
+              <CloudUpload className={`w-4 h-4 ${isSyncing ? 'animate-bounce' : ''}`} />
+              <span>{isSyncing ? 'ക്ലൗഡിലേക്ക് സിങ്ക് ചെയ്യുന്നു...' : 'Supabase-ലേക്ക് സിങ്ക് ചെയ്യുക'}</span>
+            </button>
+            <button
+              onClick={handleClearLocalCache}
+              disabled={isClearing || isSyncing}
+              title="ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്ത് ക്ലൗഡിൽ നിന്നുള്ള വിവരങ്ങൾ പുതുക്കുക"
+              className="touch-target px-4 py-2.5 rounded-xl bg-white hover:bg-amber-100/70 text-amber-900 border border-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95 disabled:opacity-50 shrink-0"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isClearing ? 'animate-spin' : ''}`} />
+              <span>റീസെറ്റ് / കാഷെ ക്ലിയർ</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -255,14 +333,25 @@ export const CSVImporter: React.FC = () => {
       )}
 
       {errors.length > 0 && (
-        <div className="p-4 rounded-2xl bg-red-50 text-red-800 border border-red-200 text-xs flex flex-col gap-1">
+        <div className="p-4 rounded-2xl bg-red-50 text-red-800 border border-red-200 text-xs flex flex-col gap-2">
           <div className="flex items-center gap-1.5 font-bold">
-            <AlertCircle className="w-4 h-4 text-red-600" />
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
             <span>തെറ്റുകൾ കണ്ടെത്തി:</span>
           </div>
           {errors.map((err, i) => (
             <span key={i} className="pl-5">• {err}</span>
           ))}
+          {errors.some((e) => e.toLowerCase().includes('permission denied')) && (
+            <div className="mt-2 p-3 bg-white/80 rounded-xl border border-red-300 text-red-950 flex flex-col gap-1.5">
+              <span className="font-bold flex items-center gap-1.5">
+                <Database className="w-4 h-4 text-red-700" />
+                Supabase പെർമിഷൻ പരിഹാരം:
+              </span>
+              <p className="text-[11px] text-slate-700 leading-relaxed">
+                Supabase Dashboard-ൽ <b>SQL Editor</b> തുറന്ന് പ്രോജക്റ്റിലെ <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-red-800">supabase/fix_permissions.sql</code> ഫയലിലെ കോഡ് പേസ്റ്റ് ചെയ്ത് <b>Run</b> ചെയ്യുക. ഇത് ഡാറ്റാബേസിലേക്ക് പ്രതിനിധികളെ അപ്‌ലോഡ് ചെയ്യാനുള്ള പൂർണ്ണ അനുമതി നൽകും.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

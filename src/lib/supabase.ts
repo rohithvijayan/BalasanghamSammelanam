@@ -98,8 +98,16 @@ export const api = {
 
   // Bulk import delegates to Supabase
   async importDelegates(delegates: Delegate[]): Promise<{ count: number; error?: string }> {
+    // 1. Deduplicate by token to prevent duplicate rows
+    const uniqueMap = new Map<string, Delegate>();
+    for (const d of delegates) {
+      const key = (d.token || d.id || `${d.full_name}-${d.phone}`).toLowerCase().trim();
+      uniqueMap.set(key, d);
+    }
+    const uniqueDelegates = Array.from(uniqueMap.values());
+
     if (supabase) {
-      const rows = delegates.map((d, idx) => ({
+      const rows = uniqueDelegates.map((d, idx) => ({
         token: d.token || `del-${Math.random().toString(36).substring(2, 9)}-${idx}`,
         full_name: d.full_name,
         phone: d.phone || null,
@@ -118,8 +126,8 @@ export const api = {
         });
 
         if (!rpcError && rpcData?.success) {
-          mockStore.importDelegates(delegates);
-          return { count: rpcData.count || delegates.length };
+          mockStore.importDelegates(uniqueDelegates);
+          return { count: rpcData.count || uniqueDelegates.length };
         }
         if (rpcError) {
           console.warn('RPC import_delegates error, trying direct upsert fallback', rpcError);
@@ -142,7 +150,7 @@ export const api = {
           console.error('Supabase importDelegates error:', error);
           if (error.message?.includes('permission denied')) {
             throw new Error(
-              'Supabase permission denied. Please run the script in supabase/fix_permissions.sql in your Supabase SQL Editor.'
+              'Supabase permission denied for table delegates. Please run the script in supabase/fix_permissions.sql in your Supabase SQL Editor.'
             );
           }
           throw new Error(error.message);
@@ -153,18 +161,25 @@ export const api = {
       }
 
       // Also sync to mockStore
-      mockStore.importDelegates(delegates);
-      return { count: insertedCount || delegates.length };
+      mockStore.importDelegates(uniqueDelegates);
+      return { count: insertedCount || uniqueDelegates.length };
     }
 
-    mockStore.importDelegates(delegates);
-    return { count: delegates.length };
+    mockStore.importDelegates(uniqueDelegates);
+    return { count: uniqueDelegates.length };
   },
 
   // Bulk import houses to Supabase
   async importHouses(houses: House[]): Promise<{ count: number; error?: string }> {
+    const uniqueMap = new Map<string, House>();
+    for (const h of houses) {
+      const key = (h.id || h.name).toLowerCase().trim();
+      uniqueMap.set(key, h);
+    }
+    const uniqueHouses = Array.from(uniqueMap.values());
+
     if (supabase) {
-      const rows = houses.map((h) => ({
+      const rows = uniqueHouses.map((h) => ({
         name: h.name,
         address: h.address,
         map_url: h.map_url || null,
@@ -183,8 +198,8 @@ export const api = {
           p_houses: rows,
         });
         if (!rpcError && rpcData?.success) {
-          mockStore.importHouses(houses);
-          return { count: rpcData.count || houses.length };
+          mockStore.importHouses(uniqueHouses);
+          return { count: rpcData.count || uniqueHouses.length };
         }
       } catch (e) {
         console.warn('RPC import_houses exception', e);
@@ -201,11 +216,11 @@ export const api = {
         }
         throw new Error(error.message);
       }
-      mockStore.importHouses(houses);
-      return { count: data?.length || houses.length };
+      mockStore.importHouses(uniqueHouses);
+      return { count: data?.length || uniqueHouses.length };
     }
-    mockStore.importHouses(houses);
-    return { count: houses.length };
+    mockStore.importHouses(uniqueHouses);
+    return { count: uniqueHouses.length };
   },
   // Fetch delegate stay details using secure token
   async getMyStay(token: string): Promise<StayPortalData | null> {

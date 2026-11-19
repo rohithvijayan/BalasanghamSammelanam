@@ -106,6 +106,63 @@ describe('mockStore - State Conference Data Store', () => {
     expect(mockStore.getDelegateByToken('test-token-100')).not.toBeNull();
   });
 
+  it('should deduplicate delegates when importing duplicate tokens without ballooning the count', () => {
+    const currentCount = mockStore.getDelegates().length;
+    const duplicateDelegate: Delegate = {
+      id: 'del-dup-1',
+      token: 'duplicate-token-xyz',
+      full_name: 'ആവർത്തന പ്രതിനിധി (Duplicate Test)',
+      district_id: 1,
+      district_ml: 'കാസർഗോഡ്',
+      district_en: 'Kasaragod',
+      gender: 'boy',
+      status: 'pending',
+    };
+
+    // Import once
+    mockStore.importDelegates([duplicateDelegate]);
+    expect(mockStore.getDelegates().length).toBe(currentCount + 1);
+
+    // Import the exact same delegate 3 more times
+    mockStore.importDelegates([duplicateDelegate]);
+    mockStore.importDelegates([duplicateDelegate]);
+    mockStore.importDelegates([duplicateDelegate]);
+
+    // Count should still remain exactly currentCount + 1, never multiplying
+    expect(mockStore.getDelegates().length).toBe(currentCount + 1);
+  });
+
+  it('should support setDelegates to cleanly overwrite cache and clearLocalDelegates to reset', () => {
+    const customList: Delegate[] = [
+      {
+        id: 'del-custom-1',
+        token: 'token-c1',
+        full_name: 'കസ്റ്റം 1',
+        district_id: 2,
+        district_ml: 'കണ്ണൂർ',
+        district_en: 'Kannur',
+        gender: 'boy',
+        status: 'pending',
+      },
+      {
+        id: 'del-custom-2',
+        token: 'token-c2',
+        full_name: 'കസ്റ്റം 2',
+        district_id: 2,
+        district_ml: 'കണ്ണൂർ',
+        district_en: 'Kannur',
+        gender: 'girl',
+        status: 'checked_in',
+      },
+    ];
+
+    mockStore.setDelegates(customList);
+    expect(mockStore.getDelegates().length).toBe(2);
+
+    mockStore.clearLocalDelegates();
+    expect(mockStore.getDelegates().length).toBeGreaterThanOrEqual(6);
+  });
+
   it('should import new houses and append them to store', () => {
     const initialCount = mockStore.getHouses().length;
     const newHouse: House = {

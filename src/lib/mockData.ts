@@ -220,10 +220,39 @@ class MockStore {
 
   constructor() {
     const savedDelegates = localStorage.getItem('sammelanam_delegates');
-    this.delegates = savedDelegates ? JSON.parse(savedDelegates) : initialDelegates;
+    if (savedDelegates) {
+      try {
+        const parsed: Delegate[] = JSON.parse(savedDelegates);
+        // Deduplicate saved delegates by token or id to immediately cleanse any poisoned/duplicated local storage
+        const tokenMap = new Map<string, Delegate>();
+        for (const d of parsed) {
+          const key = (d.token || d.id).toLowerCase().trim();
+          tokenMap.set(key, d);
+        }
+        this.delegates = Array.from(tokenMap.values());
+      } catch {
+        this.delegates = [...initialDelegates];
+      }
+    } else {
+      this.delegates = [...initialDelegates];
+    }
 
     const savedHouses = localStorage.getItem('sammelanam_houses');
-    this.houses = savedHouses ? JSON.parse(savedHouses) : initialHouses;
+    if (savedHouses) {
+      try {
+        const parsed: House[] = JSON.parse(savedHouses);
+        const houseMap = new Map<string, House>();
+        for (const h of parsed) {
+          const key = (h.id || h.name).toLowerCase().trim();
+          houseMap.set(key, h);
+        }
+        this.houses = Array.from(houseMap.values());
+      } catch {
+        this.houses = [...initialHouses];
+      }
+    } else {
+      this.houses = [...initialHouses];
+    }
 
     const savedPings = localStorage.getItem('sammelanam_location_pings');
     this.locationPings = savedPings ? JSON.parse(savedPings) : {};
@@ -300,12 +329,64 @@ class MockStore {
   }
 
   importDelegates(newDelegates: Delegate[]) {
-    this.delegates = [...this.delegates, ...newDelegates];
+    const tokenMap = new Map<string, Delegate>();
+    for (const d of this.delegates) {
+      const key = (d.token || d.id).toLowerCase().trim();
+      tokenMap.set(key, d);
+    }
+    for (const d of newDelegates) {
+      const key = (d.token || d.id).toLowerCase().trim();
+      const existing = tokenMap.get(key);
+      tokenMap.set(key, existing ? { ...existing, ...d } : d);
+    }
+    this.delegates = Array.from(tokenMap.values());
+    this.save();
+  }
+
+  setDelegates(delegates: Delegate[]) {
+    const tokenMap = new Map<string, Delegate>();
+    for (const d of delegates) {
+      const key = (d.token || d.id).toLowerCase().trim();
+      tokenMap.set(key, d);
+    }
+    this.delegates = Array.from(tokenMap.values());
+    this.save();
+  }
+
+  clearLocalDelegates() {
+    this.delegates = [...initialDelegates];
+    localStorage.removeItem('sammelanam_delegates');
     this.save();
   }
 
   importHouses(newHouses: House[]) {
-    this.houses = [...this.houses, ...newHouses];
+    const houseMap = new Map<string, House>();
+    for (const h of this.houses) {
+      const key = (h.id || h.name).toLowerCase().trim();
+      houseMap.set(key, h);
+    }
+    for (const h of newHouses) {
+      const key = (h.id || h.name).toLowerCase().trim();
+      const existing = houseMap.get(key);
+      houseMap.set(key, existing ? { ...existing, ...h } : h);
+    }
+    this.houses = Array.from(houseMap.values());
+    this.save();
+  }
+
+  setHouses(houses: House[]) {
+    const houseMap = new Map<string, House>();
+    for (const h of houses) {
+      const key = (h.id || h.name).toLowerCase().trim();
+      houseMap.set(key, h);
+    }
+    this.houses = Array.from(houseMap.values());
+    this.save();
+  }
+
+  clearLocalHouses() {
+    this.houses = [...initialHouses];
+    localStorage.removeItem('sammelanam_houses');
     this.save();
   }
 
