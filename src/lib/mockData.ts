@@ -1,4 +1,4 @@
-import { District, House, Delegate, Announcement, HelplineItem, StayPortalData } from '../types';
+import { District, House, Delegate, Announcement, HelplineItem, StayPortalData, LocationPing } from '../types';
 
 export const initialDistricts: District[] = [
   { id: 1, name_en: 'Kasaragod', name_ml: 'കാസർഗോഡ്' },
@@ -215,6 +215,7 @@ class MockStore {
   private delegates: Delegate[];
   private houses: House[];
   private announcements: Announcement[];
+  private locationPings: Record<string, LocationPing> = {};
   private listeners: (() => void)[] = [];
 
   constructor() {
@@ -224,12 +225,16 @@ class MockStore {
     const savedHouses = localStorage.getItem('sammelanam_houses');
     this.houses = savedHouses ? JSON.parse(savedHouses) : initialHouses;
 
+    const savedPings = localStorage.getItem('sammelanam_location_pings');
+    this.locationPings = savedPings ? JSON.parse(savedPings) : {};
+
     this.announcements = initialAnnouncements;
   }
 
   private save() {
     localStorage.setItem('sammelanam_delegates', JSON.stringify(this.delegates));
     localStorage.setItem('sammelanam_houses', JSON.stringify(this.houses));
+    localStorage.setItem('sammelanam_location_pings', JSON.stringify(this.locationPings));
     this.listeners.forEach((cb) => cb());
   }
 
@@ -302,6 +307,35 @@ class MockStore {
   importHouses(newHouses: House[]) {
     this.houses = [...this.houses, ...newHouses];
     this.save();
+  }
+
+  recordLocationPing(tokenOrId: string, lat: number, lng: number, accuracy?: number) {
+    const delegate = this.delegates.find(
+      (d) => d.token.toLowerCase() === tokenOrId.toLowerCase() || d.id === tokenOrId
+    );
+    if (!delegate) return;
+    const now = new Date();
+    const expires = new Date(now.getTime() + 30 * 60 * 1000);
+    this.locationPings[delegate.id] = {
+      delegate_id: delegate.id,
+      lat,
+      lng,
+      accuracy,
+      created_at: now.toISOString(),
+      expires_at: expires.toISOString(),
+    };
+    this.save();
+  }
+
+  getActiveLocationPings(): Record<string, LocationPing> {
+    const now = Date.now();
+    const active: Record<string, LocationPing> = {};
+    for (const [delId, ping] of Object.entries(this.locationPings)) {
+      if (new Date(ping.expires_at).getTime() > now) {
+        active[delId] = ping;
+      }
+    }
+    return active;
   }
 }
 

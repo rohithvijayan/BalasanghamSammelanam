@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { mockStore } from './mockData';
-import { StayPortalData, DelegateStatus } from '../types';
+import { StayPortalData, DelegateStatus, LocationPing } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -42,11 +42,39 @@ export const api = {
         p_accuracy: accuracy || null,
       });
       if (!error && data?.success) {
+        mockStore.recordLocationPing(token, lat, lng, accuracy);
         return { success: true };
       }
     }
+    mockStore.recordLocationPing(token, lat, lng, accuracy);
     console.log('[MOCK LOCATION SHARED]', { token, lat, lng, accuracy, expires_in: '30m' });
     return { success: true };
+  },
+
+  // Fetch active location pings (for admin and volunteers)
+  async getActiveLocationPings(): Promise<Record<string, LocationPing>> {
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('location_pings')
+          .select('id, delegate_id, lat, lng, accuracy, created_at, expires_at')
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          const pings: Record<string, LocationPing> = {};
+          data.forEach((p: any) => {
+            if (!pings[p.delegate_id]) {
+              pings[p.delegate_id] = p;
+            }
+          });
+          return pings;
+        }
+      } catch (err) {
+        console.warn('Failed to query location_pings from Supabase, fallback to store', err);
+      }
+    }
+    return mockStore.getActiveLocationPings();
   },
 
   // Update check-in status (Admin/Staff)

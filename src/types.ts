@@ -54,6 +54,17 @@ export interface Delegate {
   volunteer?: Volunteer | null;
   status: DelegateStatus;
   checked_in_at?: string | null;
+  active_location?: LocationPing | null;
+}
+
+export interface LocationPing {
+  id?: string;
+  delegate_id: string;
+  lat: number;
+  lng: number;
+  accuracy?: number;
+  created_at: string;
+  expires_at: string;
 }
 
 export interface Announcement {

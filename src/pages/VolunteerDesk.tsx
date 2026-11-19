@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { mockStore, initialDistricts } from '../lib/mockData';
-import { Delegate, House } from '../types';
+import { Delegate, House, LocationPing } from '../types';
+import { api } from '../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/i18nContext';
 import {
@@ -27,16 +28,32 @@ export const VolunteerDesk: React.FC = () => {
   const [houses, setHouses] = useState<House[]>(() => mockStore.getHouses());
   const [activeTab, setActiveTab] = useState<'attendance' | 'houses'>('attendance');
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'checked_in'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'checked_in' | 'with_location'>('all');
   const [districtFilter, setDistrictFilter] = useState<string>('all');
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [locationPings, setLocationPings] = useState<Record<string, LocationPing>>({});
+
+  const refreshPings = async () => {
+    try {
+      const pings = await api.getActiveLocationPings();
+      setLocationPings(pings);
+    } catch (e) {
+      console.error('Failed to load active location pings', e);
+    }
+  };
 
   useEffect(() => {
+    refreshPings();
+    const interval = setInterval(refreshPings, 10000); // Poll every 10s for live GPS updates
     const unsubscribe = mockStore.subscribe(() => {
       setDelegates(mockStore.getDelegates());
       setHouses(mockStore.getHouses());
+      refreshPings();
     });
-    return unsubscribe;
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
   }, []);
 
   // Filter delegates
@@ -48,7 +65,11 @@ export const VolunteerDesk: React.FC = () => {
       (d.phone && d.phone.includes(searchQuery));
 
     const matchesStatus =
-      statusFilter === 'all' || d.status === statusFilter;
+      statusFilter === 'all'
+        ? true
+        : statusFilter === 'with_location'
+        ? Boolean(locationPings[d.id])
+        : d.status === statusFilter;
 
     const matchesDistrict =
       districtFilter === 'all' || d.district_id.toString() === districtFilter;
@@ -60,6 +81,7 @@ export const VolunteerDesk: React.FC = () => {
   const totalCount = delegates.length;
   const checkedInCount = delegates.filter((d) => d.status === 'checked_in').length;
   const pendingCount = totalCount - checkedInCount;
+  const activePingCount = Object.keys(locationPings).length;
   const checkinPercentage = Math.round((checkedInCount / (totalCount || 1)) * 100);
 
   // 1-Click Check-in Toggle
@@ -192,6 +214,34 @@ export const VolunteerDesk: React.FC = () => {
       {/* TAB 1: Attendance & Delegate Check-In */}
       {activeTab === 'attendance' && (
         <div className="flex flex-col gap-4">
+          {/* Active Live GPS Locations Alert Banner */}
+          {activePingCount > 0 && (
+            <div className="bg-amber-50 border border-amber-200/90 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                  <MapPin className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-amber-900 font-malayalam-bold">
+                      📍 {activePingCount} പ്രതിനിധി(കൾ) തത്സമയ ലൊക്കേഷൻ ഷെയർ ചെയ്തിട്ടുണ്ട്
+                    </span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  </div>
+                  <span className="text-[11px] text-amber-700">
+                    വഴിയിലുള്ള പ്രതിനിധികളുടെ തത്സമയ ജി.പി.എസ് ലൊക്കേഷൻ Google Maps-ൽ നേരിട്ട് പരിശോധിക്കാം.
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setStatusFilter(statusFilter === 'with_location' ? 'all' : 'with_location')}
+                className="px-3.5 py-2 rounded-xl bg-amber-200/80 hover:bg-amber-300 text-amber-900 text-xs font-bold transition-colors self-start sm:self-auto shrink-0"
+              >
+                {statusFilter === 'with_location' ? 'എല്ലാം കാണിക്കുക' : 'ലൊക്കേഷനുള്ളവരെ മാത്രം കാണുക'}
+              </button>
+            </div>
+          )}
+
           {/* Search & Filters */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
             {/* Search */}
@@ -207,7 +257,7 @@ export const VolunteerDesk: React.FC = () => {
             </div>
 
             {/* Status Pills */}
-            <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200 shrink-0">
+            <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200 shrink-0 flex-wrap gap-1">
               <button
                 onClick={() => setStatusFilter('all')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -232,6 +282,17 @@ export const VolunteerDesk: React.FC = () => {
               >
                 ഹാജരായവർ ({checkedInCount})
               </button>
+              {activePingCount > 0 && (
+                <button
+                  onClick={() => setStatusFilter(statusFilter === 'with_location' ? 'all' : 'with_location')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                    statusFilter === 'with_location' ? 'bg-primary text-white shadow-xs' : 'text-primary bg-primary-50 hover:bg-primary-100'
+                  }`}
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>ലൈവ് GPS ({activePingCount})</span>
+                </button>
+              )}
             </div>
 
             {/* District Filter */}
@@ -254,6 +315,7 @@ export const VolunteerDesk: React.FC = () => {
             {filteredDelegates.map((del) => {
               const assignedHouse = houses.find((h) => h.id === del.house_id);
               const isCheckedIn = del.status === 'checked_in';
+              const ping = locationPings[del.id];
 
               return (
                 <div
@@ -280,6 +342,12 @@ export const VolunteerDesk: React.FC = () => {
                             }`}
                           >
                             {del.gender === 'girl' ? 'പെൺകുട്ടി' : 'ആൺകുട്ടി'}
+                          </span>
+                        )}
+                        {ping && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 animate-pulse">
+                            <MapPin className="w-3 h-3 text-primary fill-primary" />
+                            <span>GPS ഷെയർ ചെയ്തു</span>
                           </span>
                         )}
                       </div>
@@ -348,6 +416,33 @@ export const VolunteerDesk: React.FC = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* Live GPS Tracking Box */}
+                  {ping && (
+                    <div className="p-3 rounded-xl bg-amber-50/90 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                        <div className="flex flex-col text-left">
+                          <span className="text-xs font-bold text-amber-950 flex items-center gap-1 font-malayalam-bold">
+                            <Navigation className="w-3.5 h-3.5 text-primary" />
+                            <span>തത്സമയ ലൊക്കേഷൻ ലഭ്യമാണ് (Live GPS)</span>
+                          </span>
+                          <span className="text-[11px] text-amber-800 font-mono">
+                            30 മിനിറ്റ് ട്രാക്കിംഗ് • {ping.lat.toFixed(4)}, {ping.lng.toFixed(4)}
+                          </span>
+                        </div>
+                      </div>
+                      <a
+                        href={`https://www.google.com/maps?q=${ping.lat},${ping.lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="touch-target px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-transform active:scale-95 shrink-0"
+                      >
+                        <MapPin className="w-3.5 h-3.5" />
+                        <span>Google Maps-ൽ കാണുക</span>
+                      </a>
+                    </div>
+                  )}
 
                   {/* Action Buttons */}
                   <div className="flex items-center gap-2 pt-1">
