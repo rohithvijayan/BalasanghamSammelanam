@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { mockStore, initialDistricts } from '../lib/mockData';
 import { Delegate, House } from '../types';
+import { api } from '../lib/supabase';
 import { useI18n } from '../i18n/i18nContext';
 import { useAuth } from '../auth/AuthContext';
 import {
@@ -38,12 +39,27 @@ export const AdminWorkbench: React.FC = () => {
   const [selectedDelegateIds, setSelectedDelegateIds] = useState<string[]>([]);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
 
+  const loadData = async () => {
+    try {
+      const [delData, houseData] = await Promise.all([
+        api.getDelegates(),
+        api.getHouses(),
+      ]);
+      setDelegates(delData);
+      setHouses(houseData);
+    } catch (e) {
+      console.warn('Failed to load data in workbench', e);
+    }
+  };
+
   useEffect(() => {
+    loadData();
     const unsubscribe = mockStore.subscribe(() => {
-      setDelegates(mockStore.getDelegates());
-      setHouses(mockStore.getHouses());
+      loadData();
     });
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // If district coordinator, force filter to their district

@@ -42,12 +42,25 @@ export const VolunteerDesk: React.FC = () => {
     }
   };
 
+  const loadData = async () => {
+    try {
+      const [delData, houseData] = await Promise.all([
+        api.getDelegates(),
+        api.getHouses(),
+      ]);
+      setDelegates(delData);
+      setHouses(houseData);
+    } catch (e) {
+      console.warn('Failed to load data from api', e);
+    }
+  };
+
   useEffect(() => {
+    loadData();
     refreshPings();
     const interval = setInterval(refreshPings, 10000); // Poll every 10s for live GPS updates
     const unsubscribe = mockStore.subscribe(() => {
-      setDelegates(mockStore.getDelegates());
-      setHouses(mockStore.getHouses());
+      loadData();
       refreshPings();
     });
     return () => {

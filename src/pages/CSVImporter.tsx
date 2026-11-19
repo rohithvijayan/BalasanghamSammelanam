@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import Papa from 'papaparse';
 import { mockStore, initialDistricts } from '../lib/mockData';
 import { Delegate, House } from '../types';
+import { api } from '../lib/supabase';
 import { useI18n } from '../i18n/i18nContext';
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Download, ArrowRight } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Download, ArrowRight, CloudUpload, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const CSVImporter: React.FC = () => {
@@ -14,6 +15,11 @@ export const CSVImporter: React.FC = () => {
   const [parsedRows, setParsedRows] = useState<any[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [isCommitting, setIsCommitting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const localDelegates = mockStore.getDelegates();
+  const hasLocalDelegates = localDelegates.length > 6;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -89,21 +95,47 @@ export const CSVImporter: React.FC = () => {
     });
   };
 
-  const handleCommit = () => {
+  const handleCommit = async () => {
     if (parsedRows.length === 0) return;
+    setIsCommitting(true);
+    setErrors([]);
+    setSuccessMsg(null);
 
-    if (importType === 'delegates') {
-      mockStore.importDelegates(parsedRows as Delegate[]);
-      setSuccessMsg(`വിജയകരമായി ${parsedRows.length} പ്രതിനിധികളെ ഉൾപ്പെടുത്തി!`);
-    } else {
-      mockStore.importHouses(parsedRows as House[]);
-      setSuccessMsg(`വിജയകരമായി ${parsedRows.length} വീടുകൾ ഉൾപ്പെടുത്തി!`);
+    try {
+      if (importType === 'delegates') {
+        const res = await api.importDelegates(parsedRows as Delegate[]);
+        setSuccessMsg(`വിജയകരമായി ${res.count} പ്രതിനിധികളെ Supabase ക്ലൗഡ് ഡാറ്റാബേസിൽ ഉൾപ്പെടുത്തി!`);
+      } else {
+        const res = await api.importHouses(parsedRows as House[]);
+        setSuccessMsg(`വിജയകരമായി ${res.count} വീടുകൾ Supabase ക്ലൗഡ് ഡാറ്റാബേസിൽ ഉൾപ്പെടുത്തി!`);
+      }
+
+      setParsedRows([]);
+      setTimeout(() => {
+        navigate('/admin');
+      }, 1500);
+    } catch (err: any) {
+      console.error('Import failed', err);
+      setErrors(['ഡാറ്റാബേസിലേക്ക് സേവ് ചെയ്യാൻ സാധിച്ചില്ല: ' + (err.message || 'Unknown error')]);
+    } finally {
+      setIsCommitting(false);
     }
+  };
 
-    setParsedRows([]);
-    setTimeout(() => {
-      navigate('/admin');
-    }, 1500);
+  const handleSyncLocalToSupabase = async () => {
+    setIsSyncing(true);
+    setErrors([]);
+    setSuccessMsg(null);
+
+    try {
+      const res = await api.importDelegates(localDelegates);
+      setSuccessMsg(`വിജയകരമായി ഈ ഡിവൈസിലെ ${res.count} പ്രതിനിധികളെ Supabase ക്ലൗഡ് ഡാറ്റാബേസിലേക്ക് സിങ്ക് ചെയ്തു! ഇനി എല്ലാ ഡിവൈസുകളിലും ഈ ഡാറ്റ ലഭ്യമാണ്.`);
+    } catch (err: any) {
+      console.error('Sync failed', err);
+      setErrors(['Supabase സിങ്ക് പരാജയപ്പെട്ടു: ' + (err.message || 'Unknown error')]);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   return (
@@ -120,6 +152,38 @@ export const CSVImporter: React.FC = () => {
           മലയാളം യൂണികോഡ് (UTF-8) പിന്തുണയ്ക്കുന്നു. അപ്‌ലോഡ് ചെയ്യുന്നതിന് മുൻപ് ഡാറ്റ പ്രിവ്യൂ കാണാം.
         </p>
       </div>
+
+      {/* Sync Local Browser Data to Supabase Cloud */}
+      {hasLocalDelegates && (
+        <div className="bg-amber-50 border border-amber-200/90 rounded-3xl p-5 md:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+              <CloudUpload className="w-6 h-6 text-amber-700" />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-amber-900 font-malayalam-bold">
+                  ഈ ഡിവൈസിൽ {localDelegates.length} പ്രതിനിധികൾ നിലവിലുണ്ട്
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-300">
+                  ലോക്കൽ ഡാറ്റ
+                </span>
+              </div>
+              <p className="text-xs text-amber-700 mt-0.5">
+                മറ്റു ഡിവൈസുകളിലും ഫോണുകളിലും കാണാൻ ഇവരെ Supabase ക്ലൗഡ് ഡാറ്റാബേസിലേക്ക് ഒറ്റ ക്ലിക്കിൽ അപ്‌ലോഡ് ചെയ്യാം.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleSyncLocalToSupabase}
+            disabled={isSyncing}
+            className="touch-target px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-95 disabled:opacity-50 shrink-0"
+          >
+            <CloudUpload className="w-4 h-4" />
+            <span>{isSyncing ? 'ക്ലൗഡിലേക്ക് സിങ്ക് ചെയ്യുന്നു...' : 'Supabase-ലേക്ക് സിങ്ക് ചെയ്യുക'}</span>
+          </button>
+        </div>
+      )}
 
       {/* Import Switcher & Template Downloads */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -213,9 +277,10 @@ export const CSVImporter: React.FC = () => {
             </div>
             <button
               onClick={handleCommit}
-              className="touch-target px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-primary-600 transition-transform active:scale-95"
+              disabled={isCommitting}
+              className="touch-target px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-primary-600 transition-transform active:scale-95 disabled:opacity-50"
             >
-              <span>{t('save_data')} ({parsedRows.length})</span>
+              <span>{isCommitting ? 'Supabase-ലേക്ക് സേവ് ചെയ്യുന്നു...' : `${t('save_data')} (${parsedRows.length})`}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
