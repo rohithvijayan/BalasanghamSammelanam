@@ -29,10 +29,9 @@ test.describe('Role-Based Authentication & Permissions E2E', () => {
   test('Volunteer login unlocks Volunteer Desk and denies /import', async ({ page }) => {
     await page.goto('/login');
 
-    // Select Volunteer demo account
-    const volunteerBtn = page.getByRole('button', { name: /3\. വളണ്ടിയർ/i });
-    await expect(volunteerBtn).toBeVisible();
-    await volunteerBtn.click();
+    // Fill Volunteer credentials
+    await page.getByPlaceholder(/staff@balasangham.in/i).fill('volunteer@balasangham.in');
+    await page.getByPlaceholder(/••••••••/i).fill('volunteer123');
 
     // Sign In
     await page.getByRole('button', { name: /ലോഗിൻ ചെയ്യുക/i }).click();
@@ -50,10 +49,9 @@ test.describe('Role-Based Authentication & Permissions E2E', () => {
   test('District Coordinator login scopes workbench strictly to Kannur', async ({ page }) => {
     await page.goto('/login');
 
-    // Select District Coordinator demo account
-    const districtBtn = page.getByRole('button', { name: /2\. ജില്ലാ കൺവീനർ/i });
-    await expect(districtBtn).toBeVisible();
-    await districtBtn.click();
+    // Fill District Coordinator credentials
+    await page.getByPlaceholder(/staff@balasangham.in/i).fill('kannur@balasangham.in');
+    await page.getByPlaceholder(/••••••••/i).fill('kannur123');
 
     // Sign In
     await page.getByRole('button', { name: /ലോഗിൻ ചെയ്യുക/i }).click();
@@ -70,10 +68,9 @@ test.describe('Role-Based Authentication & Permissions E2E', () => {
   test('State Admin login unlocks full system with all districts and CSV import', async ({ page }) => {
     await page.goto('/login');
 
-    // Select State Admin demo account
-    const adminBtn = page.getByRole('button', { name: /1\. അഡ്മിൻ/i });
-    await expect(adminBtn).toBeVisible();
-    await adminBtn.click();
+    // Fill State Admin credentials
+    await page.getByPlaceholder(/staff@balasangham.in/i).fill('admin@balasangham.in');
+    await page.getByPlaceholder(/••••••••/i).fill('admin123');
 
     // Sign In
     await page.getByRole('button', { name: /ലോഗിൻ ചെയ്യുക/i }).click();

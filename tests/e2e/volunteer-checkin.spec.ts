@@ -4,7 +4,8 @@ test.describe('Volunteer Helpdesk & Check-In Desk E2E', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
     // Login as Volunteer
-    await page.getByRole('button', { name: /3\. വളണ്ടിയർ/i }).click();
+    await page.getByPlaceholder(/staff@balasangham.in/i).fill('volunteer@balasangham.in');
+    await page.getByPlaceholder(/••••••••/i).fill('volunteer123');
     await page.getByRole('button', { name: /ലോഗിൻ ചെയ്യുക/i }).click();
     await expect(page).toHaveURL(/\/volunteer/);
   });

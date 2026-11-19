@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/i18nContext';
-import { Lock, Mail, ArrowRight, AlertCircle, KeyRound, Shield } from 'lucide-react';
+import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -44,12 +44,6 @@ export const LoginPage: React.FC = () => {
     } else {
       setError(result.error || 'ലോഗിൻ പരാജയപ്പെട്ടു');
     }
-  };
-
-  const handleFillDemo = (demoEmail: string, demoPass: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
-    setError(null);
   };
 
   return (
@@ -127,58 +121,11 @@ export const LoginPage: React.FC = () => {
           </button>
         </form>
 
-        {/* Demo Credentials Quick-Fill (3 Roles: Admin, District, Volunteer) */}
-        <div className="pt-3 border-t border-slate-100 flex flex-col gap-2.5">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-            <KeyRound className="w-3.5 h-3.5 text-primary" />
-            ടെസ്റ്റ് ലോഗിൻ റോൾ തിരഞ്ഞെടുക്കുക (Select Role to Test):
-          </span>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
-            {/* 1. Admin */}
-            <button
-              type="button"
-              onClick={() => handleFillDemo('admin@balasangham.in', 'admin123')}
-              className="p-2.5 rounded-xl bg-slate-50 hover:bg-primary-50 text-slate-700 hover:text-primary border border-slate-200 text-left transition-all active:scale-98 font-medium flex flex-col justify-between"
-            >
-              <div>
-                <div className="font-bold text-slate-900">1. അഡ്മിൻ (Admin)</div>
-                <div className="text-[10px] text-primary font-mono mt-0.5">admin@balasangham.in</div>
-              </div>
-              <div className="text-[10px] text-slate-500 mt-1 bg-white px-1.5 py-0.5 rounded border border-slate-200">
-                മുഴുവൻ അഡ്മിൻ & CSV ഇമ്പോർട്ട്
-              </div>
-            </button>
-
-            {/* 2. District Coordinator */}
-            <button
-              type="button"
-              onClick={() => handleFillDemo('kannur@balasangham.in', 'kannur123')}
-              className="p-2.5 rounded-xl bg-slate-50 hover:bg-primary-50 text-slate-700 hover:text-primary border border-slate-200 text-left transition-all active:scale-98 font-medium flex flex-col justify-between"
-            >
-              <div>
-                <div className="font-bold text-slate-900">2. ജില്ലാ കൺവീനർ</div>
-                <div className="text-[10px] text-primary font-mono mt-0.5">kannur@balasangham.in</div>
-              </div>
-              <div className="text-[10px] text-slate-500 mt-1 bg-white px-1.5 py-0.5 rounded border border-slate-200">
-                ജില്ലാ തല പ്രതിനിധികൾ & അലോട്ട്മെന്റ്
-              </div>
-            </button>
-
-            {/* 3. Volunteer */}
-            <button
-              type="button"
-              onClick={() => handleFillDemo('volunteer@balasangham.in', 'volunteer123')}
-              className="p-2.5 rounded-xl bg-slate-50 hover:bg-primary-50 text-slate-700 hover:text-primary border border-slate-200 text-left transition-all active:scale-98 font-medium flex flex-col justify-between"
-            >
-              <div>
-                <div className="font-bold text-slate-900">3. വളണ്ടിയർ (Volunteer)</div>
-                <div className="text-[10px] text-primary font-mono mt-0.5">volunteer@balasangham.in</div>
-              </div>
-              <div className="text-[10px] text-slate-500 mt-1 bg-white px-1.5 py-0.5 rounded border border-slate-200">
-                ഹാജർ സ്വീകരണം & ആതിഥേയ സഹായം
-              </div>
-            </button>
-          </div>
+        {/* Footer note for staff support */}
+        <div className="pt-2 border-t border-slate-100 text-center">
+          <p className="text-[11px] text-slate-400">
+            ലോഗിൻ വിവരങ്ങൾക്ക് സ്വാഗതസംഘം കൺട്രോൾ റൂമുമായി ബന്ധപ്പെടുക.
+          </p>
         </div>
       </div>
     </div>

@@ -4,7 +4,8 @@ test.describe('Admin Workbench & Housing Allotment E2E', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
     // Login as State Admin
-    await page.getByRole('button', { name: /1\. അഡ്മിൻ/i }).click();
+    await page.getByPlaceholder(/staff@balasangham.in/i).fill('admin@balasangham.in');
+    await page.getByPlaceholder(/••••••••/i).fill('admin123');
     await page.getByRole('button', { name: /ലോഗിൻ ചെയ്യുക/i }).click();
     await expect(page).toHaveURL(/\/admin/);
   });
