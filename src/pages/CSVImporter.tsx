@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { mockStore, initialDistricts } from '../lib/mockData';
+import { mockStore, initialDistricts, getHouseNaturalKey } from '../lib/mockData';
 import { Delegate, House } from '../types';
 import { api, isSupabaseConfigured } from '../lib/supabase';
 import { useI18n } from '../i18n/i18nContext';
@@ -23,10 +23,12 @@ export const CSVImporter: React.FC = () => {
 
   // Reactive store subscription
   const [delegates, setDelegates] = useState<Delegate[]>(() => mockStore.getDelegates());
+  const [houses, setHouses] = useState<House[]>(() => mockStore.getHouses());
 
   useEffect(() => {
     const unsub = mockStore.subscribe(() => {
       setDelegates(mockStore.getDelegates());
+      setHouses(mockStore.getHouses());
     });
 
     if (isSupabaseConfigured) {
@@ -48,7 +50,18 @@ export const CSVImporter: React.FC = () => {
     return Array.from(map.values());
   }, [delegates]);
 
+  // Deduplicate local houses by natural key
+  const uniqueLocalHouses = useMemo(() => {
+    const map = new Map<string, House>();
+    for (const h of houses) {
+      const key = getHouseNaturalKey(h);
+      map.set(key, h);
+    }
+    return Array.from(map.values());
+  }, [houses]);
+
   const hasLocalDelegates = uniqueLocalDelegates.length > 0;
+  const hasLocalHouses = uniqueLocalHouses.length > 0;
 
   const processRows = (rawData: any[]) => {
     const validationErrors: string[] = [];
@@ -91,7 +104,7 @@ export const CSVImporter: React.FC = () => {
           district_id: dist ? dist.id : 2, // default Kannur if unmatched
           district_en: dist ? dist.name_en : 'Kannur',
           district_ml: dist ? dist.name_ml : 'കണ്ണൂർ',
-          gender: gender.includes('g') || gender.includes('പെൺ') ? 'girl' : 'boy',
+          gender: (gender.includes('g') || gender.includes('പെൺ') ? 'girl' : 'boy') as 'boy' | 'girl' | 'other',
           emergency_name: emergencyName,
           emergency_phone: emergencyPhone,
           notes: notes,
@@ -99,7 +112,15 @@ export const CSVImporter: React.FC = () => {
         };
       });
 
-      setParsedRows(validated);
+      // Deduplicate delegates preview by token / natural key
+      const uniqueDelMap = new Map<string, Delegate>();
+      for (const d of validated) {
+        const key = (d.token || `${d.full_name}-${d.phone}`).toLowerCase().trim();
+        if (!uniqueDelMap.has(key)) {
+          uniqueDelMap.set(key, d);
+        }
+      }
+      setParsedRows(Array.from(uniqueDelMap.values()));
     } else {
       // Houses import
       const validated = rawData.map((row, idx) => {
@@ -129,7 +150,16 @@ export const CSVImporter: React.FC = () => {
           notes: notes,
         };
       });
-      setParsedRows(validated);
+
+      // Deduplicate houses preview by natural key
+      const uniqueHouseMap = new Map<string, House>();
+      for (const h of validated) {
+        const key = getHouseNaturalKey(h);
+        if (!uniqueHouseMap.has(key)) {
+          uniqueHouseMap.set(key, h);
+        }
+      }
+      setParsedRows(Array.from(uniqueHouseMap.values()));
     }
 
     setErrors(validationErrors);
@@ -266,6 +296,40 @@ export const CSVImporter: React.FC = () => {
     }
   };
 
+  const handleClearLocalHousesCache = async () => {
+    setIsClearing(true);
+    setErrors([]);
+    setSuccessMsg(null);
+
+    try {
+      mockStore.clearLocalHouses();
+      if (isSupabaseConfigured) {
+        try {
+          const cloudHouses = await api.getHouses();
+          mockStore.setHouses(cloudHouses);
+          setSuccessMsg(
+            language === 'ml'
+              ? `വീടുകളുടെ ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു, ക്ലൗഡിൽ നിന്നുള്ള ${cloudHouses.length} വീടുകൾ പുതുക്കി ലോഡ് ചെയ്തു.`
+              : `Local house cache cleared and refreshed with ${cloudHouses.length} houses from cloud.`
+          );
+          return;
+        } catch {
+          // fall through
+        }
+      }
+      setSuccessMsg(
+        language === 'ml'
+          ? 'ഈ ഡിവൈസിലെ വീടുകളുടെ ലോക്കൽ കാഷെ വിജയകരമായി ക്ലിയർ ചെയ്തു.'
+          : 'Local house cache on this device cleared successfully.'
+      );
+    } catch (err: any) {
+      mockStore.clearLocalHouses();
+      setSuccessMsg(language === 'ml' ? 'ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു.' : 'Local cache cleared.');
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
       {/* Header */}
@@ -286,7 +350,7 @@ export const CSVImporter: React.FC = () => {
       </div>
 
       {/* Sync Local Browser Data to Supabase Cloud */}
-      {hasLocalDelegates && (
+      {importType === 'delegates' && hasLocalDelegates && (
         <div className="bg-amber-50 border border-amber-200/90 rounded-3xl p-5 md:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
@@ -334,6 +398,45 @@ export const CSVImporter: React.FC = () => {
               disabled={isClearing || isSyncing}
               title={language === 'ml' ? 'ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്ത് ക്ലൗഡിൽ നിന്നുള്ള വിവരങ്ങൾ പുതുക്കുക' : 'Clear local device cache and refresh from cloud'}
               className="touch-target px-4 py-2.5 rounded-xl bg-white hover:bg-amber-100/70 text-amber-900 border border-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95 disabled:opacity-50 shrink-0"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isClearing ? 'animate-spin' : ''}`} />
+              <span>{language === 'ml' ? 'റീസെറ്റ് / കാഷെ ക്ലിയർ' : 'Reset / Clear Cache'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Houses Sync / Clear Banner */}
+      {importType === 'houses' && hasLocalHouses && (
+        <div className="bg-sky-50 border border-sky-200/90 rounded-3xl p-5 md:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
+              <RefreshCw className="w-6 h-6 text-sky-700" />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-bold text-sky-900 font-malayalam-bold">
+                  {language === 'ml'
+                    ? `ഈ ഡിവൈസിൽ ${uniqueLocalHouses.length} വീടുകൾ നിലവിലുണ്ട്`
+                    : `${uniqueLocalHouses.length} host houses currently stored on this device`}
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 text-[10px] font-bold border border-sky-300">
+                  {language === 'ml' ? 'ഡ്യൂപ്ലിക്കേഷൻ ഫ്രീ' : 'Clean & Unique'}
+                </span>
+              </div>
+              <p className="text-xs text-sky-700 mt-0.5">
+                {language === 'ml'
+                  ? 'വീടുകൾ പേരും ഫോൺ നമ്പറും അടിസ്ഥാനമാക്കി ഓട്ടോമാറ്റിക്കായി ഡീഡ്യൂപ്ലിക്കേറ്റ് ചെയ്യപ്പെടുന്നു. പഴയ കാഷെ നീക്കം ചെയ്യാൻ റീസെറ്റ് ക്ലിക്ക് ചെയ്യുക.'
+                  : 'Houses are automatically deduplicated by name and phone. Click Reset if you wish to clear local house cache.'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            <button
+              onClick={handleClearLocalHousesCache}
+              disabled={isClearing}
+              title={language === 'ml' ? 'വീടുകളുടെ കാഷെ ക്ലിയർ ചെയ്യുക' : 'Clear local houses cache'}
+              className="touch-target px-4 py-2.5 rounded-xl bg-white hover:bg-sky-100 text-sky-900 border border-sky-300 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95 disabled:opacity-50 shrink-0"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isClearing ? 'animate-spin' : ''}`} />
               <span>{language === 'ml' ? 'റീസെറ്റ് / കാഷെ ക്ലിയർ' : 'Reset / Clear Cache'}</span>

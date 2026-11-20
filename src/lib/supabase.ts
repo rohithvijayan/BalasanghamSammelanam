@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { mockStore } from './mockData';
+import { mockStore, getHouseNaturalKey } from './mockData';
 import { StayPortalData, DelegateStatus, LocationPing, Delegate, House } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -90,8 +90,18 @@ export const api = {
             gender_restriction: row.gender_restriction,
             notes: row.notes,
           }));
-          mockStore.setHouses(mapped);
-          return mapped;
+
+          // Deduplicate by natural key so duplicate rows in Supabase never balloon the UI
+          const uniqueMap = new Map<string, House>();
+          for (const h of mapped) {
+            const key = getHouseNaturalKey(h);
+            if (!uniqueMap.has(key)) {
+              uniqueMap.set(key, h);
+            }
+          }
+          const uniqueHouses = Array.from(uniqueMap.values());
+          mockStore.setHouses(uniqueHouses);
+          return uniqueHouses;
         }
       } catch (err) {
         console.warn('Failed to fetch houses from Supabase, falling back to mockStore', err);
@@ -177,51 +187,80 @@ export const api = {
   async importHouses(houses: House[]): Promise<{ count: number; error?: string }> {
     const uniqueMap = new Map<string, House>();
     for (const h of houses) {
-      const key = (h.id || h.name).toLowerCase().trim();
+      const key = getHouseNaturalKey(h);
       uniqueMap.set(key, h);
     }
     const uniqueHouses = Array.from(uniqueMap.values());
 
     if (supabase) {
-      const rows = uniqueHouses.map((h) => ({
-        name: h.name,
-        address: h.address,
-        map_url: h.map_url || null,
-        lat: h.lat || null,
-        lng: h.lng || null,
-        host_name: h.host_name,
-        host_phone: h.host_phone,
-        capacity: h.capacity || 4,
-        gender_restriction: h.gender_restriction || 'any',
-        notes: h.notes || null,
-      }));
-
-      // Method 1: Try RPC
       try {
-        const { data: rpcData, error: rpcError } = await supabase.rpc('import_houses', {
-          p_houses: rows,
-        });
-        if (!rpcError && rpcData?.success) {
-          mockStore.importHouses(uniqueHouses);
-          return { count: rpcData.count || uniqueHouses.length };
-        }
-      } catch (e) {
-        console.warn('RPC import_houses exception', e);
-      }
+        // Fetch existing houses to avoid duplicate rows
+        const { data: existingRows } = await supabase
+          .from('houses')
+          .select('id, name, host_phone');
 
-      // Method 2: Direct insert
-      const { data, error } = await supabase.from('houses').insert(rows).select('id');
-      if (error) {
-        console.error('Supabase importHouses error:', error);
-        if (error.message?.includes('permission denied')) {
-          throw new Error(
-            'Supabase permission denied for houses. Please run supabase/fix_permissions.sql in your Supabase SQL Editor.'
+        const existingMap = new Map<string, string>(); // naturalKey -> id
+        if (existingRows) {
+          for (const r of existingRows) {
+            const key = getHouseNaturalKey(r);
+            existingMap.set(key, r.id);
+          }
+        }
+
+        const toInsert: any[] = [];
+        const toUpdate: { id: string; data: any }[] = [];
+
+        for (const h of uniqueHouses) {
+          const key = getHouseNaturalKey(h);
+          const existingId = existingMap.get(key);
+          const payload = {
+            name: h.name,
+            address: h.address,
+            map_url: h.map_url || null,
+            lat: h.lat || null,
+            lng: h.lng || null,
+            host_name: h.host_name,
+            host_phone: h.host_phone,
+            capacity: h.capacity || 4,
+            gender_restriction: h.gender_restriction || 'any',
+            notes: h.notes || null,
+          };
+
+          if (existingId) {
+            toUpdate.push({ id: existingId, data: payload });
+          } else {
+            toInsert.push(payload);
+          }
+        }
+
+        if (toInsert.length > 0) {
+          const { error: insErr } = await supabase.from('houses').insert(toInsert);
+          if (insErr) {
+            console.error('Supabase importHouses insert error:', insErr);
+            if (insErr.message?.includes('permission denied')) {
+              throw new Error(
+                'Supabase permission denied for houses. Please run supabase/fix_permissions.sql in your Supabase SQL Editor.'
+              );
+            }
+            throw new Error(insErr.message);
+          }
+        }
+
+        if (toUpdate.length > 0) {
+          await Promise.all(
+            toUpdate.map((item) =>
+              supabase.from('houses').update(item.data).eq('id', item.id)
+            )
           );
         }
-        throw new Error(error.message);
+
+        mockStore.importHouses(uniqueHouses);
+        return { count: uniqueHouses.length };
+      } catch (err: any) {
+        console.warn('Supabase importHouses error, fallback to mockStore', err);
+        mockStore.importHouses(uniqueHouses);
+        return { count: uniqueHouses.length, error: err.message };
       }
-      mockStore.importHouses(uniqueHouses);
-      return { count: data?.length || uniqueHouses.length };
     }
     mockStore.importHouses(uniqueHouses);
     return { count: uniqueHouses.length };

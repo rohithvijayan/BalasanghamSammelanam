@@ -270,4 +270,73 @@ describe('mockStore - State Conference Data Store', () => {
     expect(found).toBeDefined();
     expect(found?.capacity).toBe(5);
   });
+
+  it('should deduplicate houses when re-importing identical houses with different generated IDs', () => {
+    // Simulate first import of 50 houses
+    const batch1: House[] = Array.from({ length: 50 }, (_, i) => ({
+      id: `h-first-${i}`,
+      name: `House ${i}`,
+      address: `Ward ${i}, Nileshwaram`,
+      host_name: `Host ${i}`,
+      host_phone: `94471000${i.toString().padStart(2, '0')}`,
+      capacity: 4,
+      gender_restriction: 'boys',
+    }));
+    mockStore.importHouses(batch1);
+    expect(mockStore.getHouses().length).toBe(50);
+
+    // Simulate re-importing the same 50 houses with newly generated IDs
+    const batch2: House[] = Array.from({ length: 50 }, (_, i) => ({
+      id: `h-second-${i}`,
+      name: `House ${i}`,
+      address: `Ward ${i}, Nileshwaram`,
+      host_name: `Host ${i}`,
+      host_phone: `94471000${i.toString().padStart(2, '0')}`,
+      capacity: 5, // updated capacity
+      gender_restriction: 'boys',
+    }));
+    mockStore.importHouses(batch2);
+
+    // Count MUST stay 50, not balloon to 100
+    const houses = mockStore.getHouses();
+    expect(houses.length).toBe(50);
+    // Should preserve original ID and update capacity
+    const firstHouse = houses.find((h) => h.name === 'House 0');
+    expect(firstHouse?.id).toBe('h-first-0');
+    expect(firstHouse?.capacity).toBe(5);
+  });
+
+  it('should self-heal and deduplicate duplicate houses on getHouses and remap delegate stays', () => {
+    // Manually inject duplicate houses into local storage
+    const dupes: House[] = [
+      { id: 'h-canon-1', name: 'Souparnika House', address: 'College Rd', host_name: 'Sujatha', host_phone: '9846289001', capacity: 6, gender_restriction: 'girls' },
+      { id: 'h-dupe-1', name: 'Souparnika House', address: 'College Rd', host_name: 'Sujatha', host_phone: '9846289001', capacity: 6, gender_restriction: 'girls' },
+    ];
+    localStorage.setItem('sammelanam_houses', JSON.stringify(dupes));
+    localStorage.setItem('sammelanam_cache_ts', Date.now().toString());
+
+    // Create a new mock store instance reading from localStorage
+    const testDel: Delegate = {
+      id: 'del-occ-1',
+      token: 'tok-occ-1',
+      full_name: 'Resident A',
+      district_id: 1,
+      gender: 'girl',
+      status: 'pending',
+      house_id: 'h-dupe-1', // assigned to duplicate ID
+    };
+    mockStore.importDelegates([testDel]);
+
+    // Import the duplicate houses directly to simulate double-upload
+    mockStore.setHouses(dupes);
+
+    // getHouses should deduplicate
+    const cleanHouses = mockStore.getHouses();
+    expect(cleanHouses.length).toBe(1);
+    expect(cleanHouses[0].id).toBe('h-canon-1');
+
+    // Delegate assigned to duplicate ID should now point to canonical ID
+    const updatedDel = mockStore.getDelegates().find((d) => d.id === 'del-occ-1');
+    expect(updatedDel?.house_id).toBe('h-canon-1');
+  });
 });

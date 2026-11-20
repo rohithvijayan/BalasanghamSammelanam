@@ -229,6 +229,15 @@ export const MOCK_HOUSE_IDS = new Set(['h-101', 'h-102', 'h-103', 'h-104']);
 // Cache Time-To-Live: 10 minutes (prevents stale data from sticking indefinitely)
 export const CACHE_TTL_MS = 10 * 60 * 1000;
 
+export const getHouseNaturalKey = (h: House | { name?: string; host_phone?: string; id?: string }): string => {
+  const cleanName = (h.name || '').trim().toLowerCase();
+  const cleanPhone = (h.host_phone || '').trim().replace(/[^0-9]/g, '');
+  if (cleanName) {
+    return cleanPhone ? `${cleanName}::${cleanPhone}` : cleanName;
+  }
+  return (h.id || '').trim().toLowerCase();
+};
+
 // In-Memory Reactive Store (Local state with localStorage sync & TTL)
 class MockStore {
   private delegates: Delegate[];
@@ -267,9 +276,14 @@ class MockStore {
         const parsed: House[] = JSON.parse(savedHouses);
         const houseMap = new Map<string, House>();
         for (const h of parsed) {
-          const key = (h.id || h.name).toLowerCase().trim();
           if (!MOCK_HOUSE_IDS.has(h.id)) {
-            houseMap.set(key, h);
+            const key = getHouseNaturalKey(h);
+            const existing = houseMap.get(key);
+            if (!existing) {
+              houseMap.set(key, h);
+            } else {
+              houseMap.set(key, { ...h, id: existing.id || h.id });
+            }
           }
         }
         this.houses = Array.from(houseMap.values());
@@ -306,6 +320,38 @@ class MockStore {
   }
 
   getHouses(): House[] {
+    const houseMap = new Map<string, House>();
+    const idRemap = new Map<string, string>();
+    let hadDuplicates = false;
+
+    for (const h of this.houses) {
+      if (!MOCK_HOUSE_IDS.has(h.id)) {
+        const key = getHouseNaturalKey(h);
+        const existing = houseMap.get(key);
+        if (existing) {
+          hadDuplicates = true;
+          if (h.id && existing.id && h.id !== existing.id) {
+            idRemap.set(h.id, existing.id);
+          }
+        } else {
+          houseMap.set(key, h);
+        }
+      }
+    }
+
+    if (hadDuplicates) {
+      this.houses = Array.from(houseMap.values());
+      if (idRemap.size > 0) {
+        this.delegates = this.delegates.map((d) => {
+          if (d.house_id && idRemap.has(d.house_id)) {
+            return { ...d, house_id: idRemap.get(d.house_id)! };
+          }
+          return d;
+        });
+      }
+      this.save();
+    }
+
     return this.houses;
   }
 
@@ -443,32 +489,67 @@ class MockStore {
 
   importHouses(newHouses: House[]) {
     const houseMap = new Map<string, House>();
+    const idRemap = new Map<string, string>();
+
     for (const h of this.houses) {
       if (!MOCK_HOUSE_IDS.has(h.id)) {
-        const key = (h.id || h.name).toLowerCase().trim();
+        const key = getHouseNaturalKey(h);
         houseMap.set(key, h);
       }
     }
     for (const h of newHouses) {
       if (!MOCK_HOUSE_IDS.has(h.id)) {
-        const key = (h.id || h.name).toLowerCase().trim();
+        const key = getHouseNaturalKey(h);
         const existing = houseMap.get(key);
-        houseMap.set(key, existing ? { ...existing, ...h } : h);
+        if (existing) {
+          if (h.id && existing.id && h.id !== existing.id) {
+            idRemap.set(h.id, existing.id);
+          }
+          houseMap.set(key, { ...existing, ...h, id: existing.id || h.id });
+        } else {
+          houseMap.set(key, h);
+        }
       }
     }
     this.houses = Array.from(houseMap.values());
+    if (idRemap.size > 0) {
+      this.delegates = this.delegates.map((d) => {
+        if (d.house_id && idRemap.has(d.house_id)) {
+          return { ...d, house_id: idRemap.get(d.house_id)! };
+        }
+        return d;
+      });
+    }
     this.save();
   }
 
   setHouses(houses: House[]) {
     const houseMap = new Map<string, House>();
+    const idRemap = new Map<string, string>();
+
     for (const h of houses) {
       if (!MOCK_HOUSE_IDS.has(h.id)) {
-        const key = (h.id || h.name).toLowerCase().trim();
-        houseMap.set(key, h);
+        const key = getHouseNaturalKey(h);
+        const existing = houseMap.get(key);
+        if (existing) {
+          if (h.id && existing.id && h.id !== existing.id) {
+            idRemap.set(h.id, existing.id);
+          }
+          houseMap.set(key, { ...existing, ...h, id: existing.id || h.id });
+        } else {
+          houseMap.set(key, h);
+        }
       }
     }
     this.houses = Array.from(houseMap.values());
+    if (idRemap.size > 0) {
+      this.delegates = this.delegates.map((d) => {
+        if (d.house_id && idRemap.has(d.house_id)) {
+          return { ...d, house_id: idRemap.get(d.house_id)! };
+        }
+        return d;
+      });
+    }
     this.save();
   }
 
