@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { mockStore, initialDistricts, defaultVolunteers } from '../lib/mockData';
-import { Delegate, House, Volunteer } from '../types';
+import { Delegate, House, Volunteer, Announcement } from '../types';
 import { api } from '../lib/supabase';
 import { useI18n } from '../i18n/i18nContext';
 import { useAuth } from '../auth/AuthContext';
 import { EditDelegateModal } from '../components/EditDelegateModal';
 import { EditHouseModal } from '../components/EditHouseModal';
+import { ManageAnnouncementsModal } from '../components/ManageAnnouncementsModal';
 import {
   Users,
   Home,
@@ -20,7 +21,8 @@ import {
   UserCheck,
   AlertTriangle,
   Edit2,
-  Plus
+  Plus,
+  Bell
 } from 'lucide-react';
 
 export const AdminWorkbench: React.FC = () => {
@@ -32,6 +34,8 @@ export const AdminWorkbench: React.FC = () => {
 
   const [delegates, setDelegates] = useState<Delegate[]>(() => mockStore.getDelegates());
   const [houses, setHouses] = useState<House[]>(() => mockStore.getHouses());
+  const [announcements, setAnnouncements] = useState<Announcement[]>(() => mockStore.getAnnouncements());
+  const [isAnnouncementsModalOpen, setIsAnnouncementsModalOpen] = useState<boolean>(false);
   const [selectedDistrict, setSelectedDistrict] = useState<string>(() => {
     if (user?.role === 'district' && user.district_id) {
       return user.district_id.toString();
@@ -49,15 +53,36 @@ export const AdminWorkbench: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [delData, houseData] = await Promise.all([
+      const [delData, houseData, annData] = await Promise.all([
         api.getDelegates(),
         api.getHouses(),
+        api.getAnnouncements(),
       ]);
       setDelegates(delData);
       setHouses(houseData);
+      setAnnouncements(annData);
     } catch (e) {
       console.warn('Failed to load data in workbench', e);
     }
+  };
+
+  const handleCreateAnnouncement = async (annData: {
+    title_en: string;
+    title_ml: string;
+    body_en: string;
+    body_ml: string;
+    pinned: boolean;
+    target_district_id: number | null;
+  }) => {
+    const created = await api.createAnnouncement(annData);
+    setAnnouncements((prev) => [created, ...prev.filter((a) => a.id !== created.id)]);
+    setWarningMessage(language === 'ml' ? 'അറിയിപ്പ് വിജയകരമായി പ്രസിദ്ധീകരിച്ചു!' : 'Announcement published!');
+    setTimeout(() => setWarningMessage(null), 3500);
+  };
+
+  const handleDeleteAnnouncement = async (id: string) => {
+    await api.deleteAnnouncement(id);
+    setAnnouncements((prev) => prev.filter((a) => a.id !== id));
   };
 
   useEffect(() => {
@@ -210,30 +235,47 @@ export const AdminWorkbench: React.FC = () => {
           </span>
         </div>
 
-        {/* District Filter: Lock for district coordinators, dropdown for state admins */}
-        <div className="flex items-center gap-3">
-          <label className="text-xs font-bold text-slate-600 shrink-0">
-            {t('all_districts')}:
-          </label>
-          {isDistrictCoordinator ? (
-            <div className="px-4 py-2 rounded-xl bg-primary-50 text-primary-800 text-xs font-bold border border-primary-200 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-              <span>{user?.district_name || (language === 'ml' ? 'ജില്ല' : 'District')} ({language === 'ml' ? 'ലോക്ക് ചെയ്തത്' : 'Locked'})</span>
-            </div>
-          ) : (
-            <select
-              value={selectedDistrict}
-              onChange={(e) => setSelectedDistrict(e.target.value)}
-              className="px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
-            >
-              <option value="all">{language === 'ml' ? 'എല്ലാ ജില്ലകളും (All Districts)' : 'All Districts'}</option>
-              {initialDistricts.map((dist) => (
-                <option key={dist.id} value={dist.id.toString()}>
-                  {language === 'ml' ? dist.name_ml : dist.name_en}
-                </option>
-              ))}
-            </select>
-          )}
+        {/* Action Controls: Announcements Button & District Filter */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setIsAnnouncementsModalOpen(true)}
+            className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-transform active:scale-95"
+            title={language === 'ml' ? 'സമ്മേളന അറിയിപ്പുകൾ നൽകുക / കൈകാര്യം ചെയ്യുക' : 'Manage Conference Announcements'}
+          >
+            <Bell className="w-4 h-4" />
+            <span>
+              {language === 'ml'
+                ? `അറിയിപ്പുകൾ (${announcements.length})`
+                : `Announcements (${announcements.length})`}
+            </span>
+          </button>
+
+          {/* District Filter: Lock for district coordinators, dropdown for state admins */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-bold text-slate-600 shrink-0">
+              {t('all_districts')}:
+            </label>
+            {isDistrictCoordinator ? (
+              <div className="px-4 py-2 rounded-xl bg-primary-50 text-primary-800 text-xs font-bold border border-primary-200 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                <span>{user?.district_name || (language === 'ml' ? 'ജില്ല' : 'District')} ({language === 'ml' ? 'ലോക്ക് ചെയ്തത്' : 'Locked'})</span>
+              </div>
+            ) : (
+              <select
+                value={selectedDistrict}
+                onChange={(e) => setSelectedDistrict(e.target.value)}
+                className="px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
+              >
+                <option value="all">{language === 'ml' ? 'എല്ലാ ജില്ലകളും (All Districts)' : 'All Districts'}</option>
+                {initialDistricts.map((dist) => (
+                  <option key={dist.id} value={dist.id.toString()}>
+                    {language === 'ml' ? dist.name_ml : dist.name_en}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
         </div>
       </div>
 
@@ -621,6 +663,16 @@ export const AdminWorkbench: React.FC = () => {
           setEditingHouse(null);
         }}
         onSave={handleSaveHouse}
+      />
+
+      {/* Manage Announcements Modal */}
+      <ManageAnnouncementsModal
+        isOpen={isAnnouncementsModalOpen}
+        onClose={() => setIsAnnouncementsModalOpen(false)}
+        announcements={announcements}
+        onCreateAnnouncement={handleCreateAnnouncement}
+        onDeleteAnnouncement={handleDeleteAnnouncement}
+        defaultDistrictId={user?.district_id || null}
       />
     </div>
   );

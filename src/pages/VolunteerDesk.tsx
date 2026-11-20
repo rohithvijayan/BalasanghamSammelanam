@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { mockStore, initialDistricts, defaultVolunteers } from '../lib/mockData';
-import { Delegate, House, LocationPing, VolunteerLocationPing } from '../types';
+import { Delegate, House, LocationPing, VolunteerLocationPing, Announcement } from '../types';
 import { api } from '../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/i18nContext';
 import { EditDelegateModal } from '../components/EditDelegateModal';
 import { EditHouseModal } from '../components/EditHouseModal';
+import { AnnouncementsFeed } from '../components/AnnouncementsFeed';
+import { checkAndNotifyNewAnnouncements } from '../lib/notifications';
 import {
   UserCheck,
   Clock,
@@ -39,6 +41,8 @@ export const VolunteerDesk: React.FC = () => {
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [locationPings, setLocationPings] = useState<Record<string, LocationPing>>({});
   const [volunteerPings, setVolunteerPings] = useState<Record<string, VolunteerLocationPing>>({});
+  const [announcements, setAnnouncements] = useState<Announcement[]>(() => mockStore.getAnnouncements());
+  const [knownAnnouncementIds, setKnownAnnouncementIds] = useState<Set<string>>(() => new Set());
   const [selectedVolName, setSelectedVolName] = useState<string>(() => {
     return user?.full_name || defaultVolunteers[0]?.name || 'അർജുൻ കെ.';
   });
@@ -62,12 +66,19 @@ export const VolunteerDesk: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [delData, houseData] = await Promise.all([
+      const [delData, houseData, annData] = await Promise.all([
         api.getDelegates(),
         api.getHouses(),
+        api.getAnnouncements(),
       ]);
       setDelegates(delData);
       setHouses(houseData);
+      setAnnouncements(annData);
+      if (annData && annData.length > 0) {
+        setKnownAnnouncementIds((prev) =>
+          checkAndNotifyNewAnnouncements(annData, prev, language as 'ml' | 'en')
+        );
+      }
     } catch (e) {
       console.warn('Failed to load data from api', e);
     }
@@ -373,6 +384,11 @@ export const VolunteerDesk: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Live Conference Announcements for Volunteers */}
+      {announcements.length > 0 && (
+        <AnnouncementsFeed announcements={announcements} />
+      )}
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

@@ -28,6 +28,13 @@ CREATE POLICY "Allow all for houses"
     USING (true)
     WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Allow all for announcements" ON announcements;
+CREATE POLICY "Allow all for announcements"
+    ON announcements FOR ALL
+    TO authenticated, anon
+    USING (true)
+    WITH CHECK (true);
+
 -- 3. Fast, Secure RPC for Admin Delegate Import (SECURITY DEFINER runs as database owner)
 CREATE OR REPLACE FUNCTION import_delegates(p_delegates JSONB)
 RETURNS JSONB AS $$

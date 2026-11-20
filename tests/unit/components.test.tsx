@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Header } from '../../src/components/Header';
 import { ProtectedRoute } from '../../src/auth/ProtectedRoute';
@@ -8,6 +8,7 @@ import { HelplineSupportCard } from '../../src/components/HelplineSupportCard';
 import { StayCard } from '../../src/components/StayCard';
 import { VolunteerCard } from '../../src/components/VolunteerCard';
 import { InteractiveGuideModal } from '../../src/components/InteractiveGuideModal';
+import { ManageAnnouncementsModal } from '../../src/components/ManageAnnouncementsModal';
 import { I18nProvider } from '../../src/i18n/i18nContext';
 import { AuthProvider } from '../../src/auth/AuthContext';
 import { Delegate, House, HelplineItem, Volunteer } from '../../src/types';
@@ -408,6 +409,94 @@ describe('React Components Unit Tests', () => {
       expect(screen.queryByText(/വിവരങ്ങൾ തിരുത്തുക \(Edit Modal\)/i)).not.toBeInTheDocument();
       expect(screen.getByText(/വിവരങ്ങൾ വിജയകരമായി സേവ് ചെയ്തു!/i)).toBeInTheDocument();
       expect(screen.getByText(/\+91 94471 23456/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('<ManageAnnouncementsModal />', () => {
+    const mockAnnouncements = [
+      {
+        id: 'ann-101',
+        title_ml: 'ഭക്ഷണശാല തുറന്നു',
+        title_en: 'Dining Hall Open',
+        body_ml: 'പ്രഭാതഭക്ഷണം ഹാൾ എ-യിൽ ലഭ്യമാണ്.',
+        body_en: 'Breakfast is served in Hall A.',
+        pinned: true,
+        target_district_id: null,
+        created_at: new Date().toISOString(),
+      },
+    ];
+
+    it('renders existing announcements and triggers onCreateAnnouncement on form submission', async () => {
+      const handleCreate = vi.fn().mockResolvedValue(undefined);
+      const handleDelete = vi.fn().mockResolvedValue(undefined);
+      const handleClose = vi.fn();
+
+      renderWithProviders(
+        <ManageAnnouncementsModal
+          isOpen={true}
+          onClose={handleClose}
+          announcements={mockAnnouncements}
+          onCreateAnnouncement={handleCreate}
+          onDeleteAnnouncement={handleDelete}
+        />
+      );
+
+      // Check header and existing announcement
+      expect(screen.getByText(/സമ്മേളന അറിയിപ്പുകൾ നൽകുക/i)).toBeInTheDocument();
+      expect(screen.getByText('ഭക്ഷണശാല തുറന്നു')).toBeInTheDocument();
+      expect(screen.getByText('Dining Hall Open')).toBeInTheDocument();
+
+      // Fill in new announcement form
+      const mlTitleInput = screen.getByPlaceholderText(/ഉദാ: സാംസ്കാരിക സമ്മേളനം/i);
+      const enTitleInput = screen.getByPlaceholderText(/e\.g\. Cultural Conference/i);
+      const mlBodyInput = screen.getByPlaceholderText(/പ്രതിനിധികൾക്കായി മുഴുവൻ അറിയിപ്പും/i);
+      const enBodyInput = screen.getByPlaceholderText(/Type the full message details/i);
+
+      await act(async () => {
+        fireEvent.change(mlTitleInput, { target: { value: 'ബസ് സർവീസ് റെഡിയാണ്' } });
+        fireEvent.change(enTitleInput, { target: { value: 'Bus Service Ready' } });
+        fireEvent.change(mlBodyInput, { target: { value: 'ബസുകൾ തയ്യാറാണ്.' } });
+        fireEvent.change(enBodyInput, { target: { value: 'Buses are waiting at entrance.' } });
+      });
+
+      // Click Publish Announcement
+      const publishBtn = screen.getByRole('button', { name: /അറിയിപ്പ് പ്രസിദ്ധീകരിക്കുക/i });
+      await act(async () => {
+        fireEvent.click(publishBtn);
+      });
+
+      expect(handleCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title_ml: 'ബസ് സർവീസ് റെഡിയാണ്',
+          title_en: 'Bus Service Ready',
+          body_ml: 'ബസുകൾ തയ്യാറാണ്.',
+          body_en: 'Buses are waiting at entrance.',
+        })
+      );
+    });
+
+    it('calls onDeleteAnnouncement when delete button is confirmed', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const handleCreate = vi.fn().mockResolvedValue(undefined);
+      const handleDelete = vi.fn().mockResolvedValue(undefined);
+      const handleClose = vi.fn();
+
+      renderWithProviders(
+        <ManageAnnouncementsModal
+          isOpen={true}
+          onClose={handleClose}
+          announcements={mockAnnouncements}
+          onCreateAnnouncement={handleCreate}
+          onDeleteAnnouncement={handleDelete}
+        />
+      );
+
+      const deleteBtn = screen.getByTitle(/അറിയിപ്പ് നീക്കം ചെയ്യുക/i);
+      await act(async () => {
+        fireEvent.click(deleteBtn);
+      });
+
+      expect(handleDelete).toHaveBeenCalledWith('ann-101');
     });
   });
 });

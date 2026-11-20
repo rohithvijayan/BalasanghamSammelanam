@@ -8,7 +8,14 @@ import { StayCard } from '../components/StayCard';
 import { VolunteerCard } from '../components/VolunteerCard';
 import { HelplineSupportCard } from '../components/HelplineSupportCard';
 import { AnnouncementsFeed } from '../components/AnnouncementsFeed';
-import { CheckCircle2, Clock, AlertCircle, RefreshCw, Home } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, RefreshCw, Home, Bell } from 'lucide-react';
+import {
+  isNotificationSupported,
+  getNotificationPermission,
+  requestNotificationPermission,
+  sendBrowserNotification,
+  checkAndNotifyNewAnnouncements,
+} from '../lib/notifications';
 
 export const DelegatePortal: React.FC = () => {
   const { token } = useParams<{ token: string }>();
@@ -18,17 +25,22 @@ export const DelegatePortal: React.FC = () => {
   const [data, setData] = useState<StayPortalData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('Just now');
+  const [knownAnnouncementIds, setKnownAnnouncementIds] = useState<Set<string>>(() => new Set());
+  const [notifPermission, setNotifPermission] = useState(getNotificationPermission());
 
-  const loadStayData = async (delegateToken: string) => {
-    setLoading(true);
+  const loadStayData = async (delegateToken: string, isSilent = false) => {
+    if (!isSilent) setLoading(true);
     setError(null);
 
     // Check localStorage cache first for immediate offline render (FR-PWA-2)
     const cached = localStorage.getItem(`stay_cache_${delegateToken}`);
-    if (cached) {
+    if (cached && !isSilent) {
       try {
         const parsed = JSON.parse(cached);
         setData(parsed);
+        if (parsed.announcements) {
+          setKnownAnnouncementIds(new Set(parsed.announcements.map((a: any) => a.id)));
+        }
       } catch (e) {
         console.warn('Cache parse error', e);
       }
@@ -40,24 +52,35 @@ export const DelegatePortal: React.FC = () => {
         setData(result);
         localStorage.setItem(`stay_cache_${delegateToken}`, JSON.stringify(result));
         setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-      } else if (!cached) {
+
+        if (result.announcements) {
+          setKnownAnnouncementIds((prev) =>
+            checkAndNotifyNewAnnouncements(result.announcements, prev, language as 'ml' | 'en')
+          );
+        }
+      } else if (!cached && !isSilent) {
         setError(t('error_invalid_token'));
       }
     } catch (err) {
       console.error('Error fetching stay details', err);
-      if (!cached) {
+      if (!cached && !isSilent) {
         setError(t('error_invalid_token'));
       }
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
   useEffect(() => {
     if (token) {
       loadStayData(token);
+      // Auto-poll every 15s for live announcement updates & notifications
+      const interval = setInterval(() => {
+        loadStayData(token, true);
+      }, 15000);
+      return () => clearInterval(interval);
     }
-  }, [token]);
+  }, [token, language]);
 
   if (loading && !data) {
     return (
@@ -160,6 +183,45 @@ export const DelegatePortal: React.FC = () => {
 
         {/* 5. Emergency Helplines & Location Sharing */}
         <HelplineSupportCard token={token || ''} helplines={helplines} />
+
+        {/* Browser Push Notification Permission Banner */}
+        {isNotificationSupported() && notifPermission !== 'granted' && (
+          <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                <Bell className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="font-bold text-amber-900 font-malayalam-bold">
+                  {language === 'ml' ? 'സമ്മേളന അറിയിപ്പുകൾ തത്സമയം ലഭിക്കണോ?' : 'Get Live Conference Alerts?'}
+                </h4>
+                <p className="text-[11px] text-amber-700">
+                  {language === 'ml'
+                    ? 'ഭക്ഷണസമയം, ബസ് സർവീസ്, വേദി മാറ്റങ്ങൾ എന്നിവ ഫോണിൽ ഉടനടി അറിയാൻ നോട്ടിഫിക്കേഷൻ ഓൺ ചെയ്യുക.'
+                    : 'Enable push notifications for meal timings, bus schedules, and urgent updates.'}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                const res = await requestNotificationPermission();
+                setNotifPermission(res);
+                if (res === 'granted') {
+                  sendBrowserNotification(
+                    language === 'ml' ? 'ബാലസംഘം സംസ്ഥാന സമ്മേളനം' : 'Balasangham State Conference',
+                    {
+                      body: language === 'ml' ? 'അറിയിപ്പുകൾ സജീവമാക്കി!' : 'Live alerts enabled successfully!',
+                    }
+                  );
+                }
+              }}
+              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 shadow-xs transition-transform active:scale-95"
+            >
+              {language === 'ml' ? '🔔 നോട്ടിഫിക്കേഷൻ ഓൺ ചെയ്യുക' : '🔔 Enable Alerts'}
+            </button>
+          </div>
+        )}
 
         {/* 6. Live Announcements Feed */}
         <AnnouncementsFeed announcements={announcements} />

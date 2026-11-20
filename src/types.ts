@@ -86,6 +86,7 @@ export interface Announcement {
   body_en: string;
   body_ml: string;
   pinned: boolean;
+  target_district_id?: number | null;
   created_at: string;
 }
 

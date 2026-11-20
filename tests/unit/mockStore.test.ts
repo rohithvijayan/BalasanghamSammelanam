@@ -9,14 +9,14 @@ describe('mockStore - State Conference Data Store', () => {
     mockStore.clearLocalHouses();
   });
 
-  it('starts with clean empty state for delegates and houses', () => {
+  it('starts with clean empty state for delegates, houses and announcements', () => {
     const delegates = mockStore.getDelegates();
     const houses = mockStore.getHouses();
     const announcements = mockStore.getAnnouncements();
 
     expect(delegates.length).toBe(0);
     expect(houses.length).toBe(0);
-    expect(announcements.length).toBeGreaterThan(0);
+    expect(announcements.length).toBe(0);
   });
 
   it('should retrieve demo delegate by token case-insensitively via fallback', () => {
@@ -393,5 +393,32 @@ describe('mockStore - State Conference Data Store', () => {
 
     const stayDataAfter = mockStore.getDelegateByToken('tok-vol-live-1');
     expect(stayDataAfter?.volunteer?.active_location).toBeNull();
+  });
+
+  it('allows admins to add, list, and delete real announcements', () => {
+    // 1. Initial state is empty
+    expect(mockStore.getAnnouncements().length).toBe(0);
+
+    // 2. Admin adds an announcement
+    const created = mockStore.addAnnouncement({
+      title_ml: 'ഭക്ഷണശാല തുറന്നു',
+      title_en: 'Dining Hall Open',
+      body_ml: 'പ്രഭാതഭക്ഷണം ഹാൾ എ-യിൽ ലഭ്യമാണ്.',
+      body_en: 'Breakfast is served in Hall A.',
+      pinned: true,
+      target_district_id: null,
+    });
+
+    expect(created.id).toBeDefined();
+    expect(created.title_ml).toBe('ഭക്ഷണശാല തുറന്നു');
+    expect(created.pinned).toBe(true);
+
+    const list = mockStore.getAnnouncements();
+    expect(list.length).toBe(1);
+    expect(list[0].id).toBe(created.id);
+
+    // 3. Admin deletes the announcement
+    mockStore.deleteAnnouncement(created.id);
+    expect(mockStore.getAnnouncements().length).toBe(0);
   });
 });

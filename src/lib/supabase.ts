@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { mockStore, getHouseNaturalKey } from './mockData';
-import { StayPortalData, DelegateStatus, LocationPing, Delegate, House, Volunteer, VolunteerLocationPing } from '../types';
+import { StayPortalData, DelegateStatus, LocationPing, Delegate, House, Volunteer, VolunteerLocationPing, Announcement } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -539,5 +539,94 @@ export const api = {
       }
     }
     return newHouse;
+  },
+
+  // Fetch announcements (Supabase live with fallback to mockStore)
+  async getAnnouncements(targetDistrictId?: number | null): Promise<Announcement[]> {
+    if (supabase) {
+      try {
+        let query = supabase
+          .from('announcements')
+          .select('id, title_en, title_ml, body_en, body_ml, pinned, target_district_id, created_at')
+          .order('pinned', { ascending: false })
+          .order('created_at', { ascending: false });
+
+        if (targetDistrictId) {
+          query = query.or(`target_district_id.is.null,target_district_id.eq.${targetDistrictId}`);
+        }
+
+        const { data, error } = await query;
+        if (!error && data) {
+          mockStore.setAnnouncements(data);
+          return data;
+        }
+      } catch (err) {
+        console.warn('Failed to fetch announcements from Supabase, fallback to mockStore', err);
+      }
+    }
+    const storeAnnouncements = mockStore.getAnnouncements();
+    if (targetDistrictId) {
+      return storeAnnouncements.filter(
+        (a) => !a.target_district_id || a.target_district_id === targetDistrictId
+      );
+    }
+    return storeAnnouncements;
+  },
+
+  // Create announcement (Admin)
+  async createAnnouncement(annData: {
+    title_en: string;
+    title_ml: string;
+    body_en: string;
+    body_ml: string;
+    pinned?: boolean;
+    target_district_id?: number | null;
+  }): Promise<Announcement> {
+    const local = mockStore.addAnnouncement({
+      ...annData,
+      pinned: Boolean(annData.pinned),
+    });
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('announcements')
+          .insert({
+            title_en: annData.title_en,
+            title_ml: annData.title_ml,
+            body_en: annData.body_en,
+            body_ml: annData.body_ml,
+            pinned: Boolean(annData.pinned),
+            target_district_id: annData.target_district_id || null,
+          })
+          .select()
+          .single();
+
+        if (!error && data) {
+          mockStore.deleteAnnouncement(local.id);
+          return mockStore.addAnnouncement(data);
+        } else if (error) {
+          console.warn('Supabase createAnnouncement error:', error);
+        }
+      } catch (err) {
+        console.warn('Failed to insert announcement into Supabase', err);
+      }
+    }
+    return local;
+  },
+
+  // Delete announcement (Admin)
+  async deleteAnnouncement(id: string): Promise<boolean> {
+    mockStore.deleteAnnouncement(id);
+    if (supabase) {
+      try {
+        const { error } = await supabase.from('announcements').delete().eq('id', id);
+        if (error) {
+          console.warn('Supabase deleteAnnouncement error:', error);
+        }
+      } catch (err) {
+        console.warn('Failed to delete announcement from Supabase', err);
+      }
+    }
+    return true;
   }
 };

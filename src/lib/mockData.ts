@@ -74,7 +74,9 @@ export const demoHouses: House[] = [
   }
 ];
 
-export const initialAnnouncements: Announcement[] = [
+export const initialAnnouncements: Announcement[] = [];
+
+export const demoAnnouncements: Announcement[] = [
   {
     id: 'ann-1',
     title_en: 'Cultural Conference at 5:30 PM',
@@ -250,6 +252,8 @@ export const MOCK_TOKENS = new Set([
 
 export const MOCK_HOUSE_IDS = new Set(['h-101', 'h-102', 'h-103', 'h-104']);
 
+export const MOCK_ANNOUNCEMENT_IDS = new Set(['ann-1', 'ann-2', 'ann-3']);
+
 // Cache Time-To-Live: 10 minutes (prevents stale data from sticking indefinitely)
 export const CACHE_TTL_MS = 10 * 60 * 1000;
 
@@ -325,12 +329,23 @@ class MockStore {
     const savedVolPings = localStorage.getItem('sammelanam_volunteer_pings');
     this.volunteerLocationPings = savedVolPings ? JSON.parse(savedVolPings) : {};
 
-    this.announcements = initialAnnouncements;
+    const savedAnnouncements = localStorage.getItem('sammelanam_announcements');
+    if (savedAnnouncements && !isExpired) {
+      try {
+        const parsed: Announcement[] = JSON.parse(savedAnnouncements);
+        this.announcements = parsed.filter((a) => !MOCK_ANNOUNCEMENT_IDS.has(a.id));
+      } catch {
+        this.announcements = [];
+      }
+    } else {
+      this.announcements = [];
+    }
   }
 
   private save() {
     localStorage.setItem('sammelanam_delegates', JSON.stringify(this.delegates));
     localStorage.setItem('sammelanam_houses', JSON.stringify(this.houses));
+    localStorage.setItem('sammelanam_announcements', JSON.stringify(this.announcements));
     localStorage.setItem('sammelanam_location_pings', JSON.stringify(this.locationPings));
     localStorage.setItem('sammelanam_volunteer_pings', JSON.stringify(this.volunteerLocationPings));
     localStorage.setItem('sammelanam_cache_ts', Date.now().toString());
@@ -403,6 +418,38 @@ class MockStore {
     return this.announcements;
   }
 
+  addAnnouncement(ann: Omit<Announcement, 'id' | 'created_at' | 'pinned'> & { id?: string; created_at?: string; pinned?: boolean }): Announcement {
+    const newAnn: Announcement = {
+      id: ann.id || 'ann-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+      title_en: ann.title_en,
+      title_ml: ann.title_ml,
+      body_en: ann.body_en,
+      body_ml: ann.body_ml,
+      pinned: Boolean(ann.pinned),
+      target_district_id: ann.target_district_id || null,
+      created_at: ann.created_at || new Date().toISOString(),
+    };
+    this.announcements = [newAnn, ...this.announcements.filter((a) => a.id !== newAnn.id)];
+    this.save();
+    return newAnn;
+  }
+
+  deleteAnnouncement(id: string) {
+    this.announcements = this.announcements.filter((a) => a.id !== id);
+    this.save();
+  }
+
+  setAnnouncements(announcements: Announcement[]) {
+    this.announcements = announcements.filter((a) => !MOCK_ANNOUNCEMENT_IDS.has(a.id));
+    this.save();
+  }
+
+  clearLocalAnnouncements() {
+    this.announcements = [];
+    localStorage.removeItem('sammelanam_announcements');
+    this.save();
+  }
+
   getDelegateByToken(token: string): StayPortalData | null {
     const clean = token.toLowerCase().trim();
     let delegate = this.delegates.find((d) => d.token.toLowerCase() === clean || d.id.toLowerCase() === clean);
@@ -429,7 +476,7 @@ class MockStore {
         delegate: { ...delegate, volunteer: resolvedVol },
         house: demoHouse,
         volunteer: resolvedVol,
-        announcements: this.announcements,
+        announcements: this.announcements.length > 0 ? this.announcements : demoAnnouncements,
         helplines: helplinesList,
       };
     }
@@ -623,6 +670,7 @@ class MockStore {
   loadDemoData() {
     this.delegates = [...demoDelegates];
     this.houses = [...demoHouses];
+    this.announcements = [...demoAnnouncements];
     this.save();
   }
 
