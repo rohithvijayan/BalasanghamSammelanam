@@ -55,7 +55,7 @@ describe('React Components Unit Tests', () => {
       renderWithProviders(<Header />);
 
       expect(screen.getByText(/അഡ്മിൻ വർക്ക് ബെഞ്ച്/i)).toBeInTheDocument();
-      expect(screen.getByText(/ഡാറ്റ ഇമ്പോർട്ട്/i)).toBeInTheDocument();
+      expect(screen.getByText('ഡാറ്റ ഇമ്പോർട്ട്')).toBeInTheDocument();
       expect(screen.getByText(/വളണ്ടിയർ ഡെസ്ക്/i)).toBeInTheDocument();
       expect(screen.getByText('admin@balasangham.in')).toBeInTheDocument();
       expect(screen.getByText(/സംസ്ഥാന അഡ്മിൻ/i)).toBeInTheDocument();
@@ -126,7 +126,7 @@ describe('React Components Unit Tests', () => {
 
       // Now mobile drawer is open showing full profile and links
       expect(screen.getByText(/സംസ്ഥാന അഡ്മിൻ \(State Admin\)/i)).toBeInTheDocument();
-      expect(screen.getByText(/ഡാറ്റ ഇമ്പോർട്ട് \(Import CSV\)/i)).toBeInTheDocument();
+      expect(screen.getByText(/ഡാറ്റ ഇമ്പോർട്ട് \(Import CSV \/ Excel\)/i)).toBeInTheDocument();
       expect(screen.getByText(/ഹോം \(Home Portal\)/i)).toBeInTheDocument();
 
       // Click again to close

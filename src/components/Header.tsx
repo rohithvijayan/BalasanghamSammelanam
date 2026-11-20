@@ -83,7 +83,7 @@ export const Header: React.FC = () => {
                 }`}
               >
                 <Upload className="w-3.5 h-3.5" />
-                <span>{language === 'ml' ? 'ഡാറ്റ ഇമ്പോർട്ട്' : 'Import CSV'}</span>
+                <span>{language === 'ml' ? 'ഡാറ്റ ഇമ്പോർട്ട്' : 'Import Data'}</span>
               </Link>
             )}
           </nav>
@@ -302,7 +302,7 @@ export const Header: React.FC = () => {
               >
                 <div className="flex items-center gap-3">
                   <Upload className="w-4 h-4 shrink-0" />
-                  <span>{language === 'ml' ? 'ഡാറ്റ ഇമ്പോർട്ട് (Import CSV)' : 'Import CSV Data'}</span>
+                  <span>{language === 'ml' ? 'ഡാറ്റ ഇമ്പോർട്ട് (Import CSV / Excel)' : 'Import Data (CSV / Excel)'}</span>
                 </div>
                 {location.pathname === '/import' && (
                   <span className="text-[10px] opacity-80 bg-white/20 px-2 py-0.5 rounded-full font-normal">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { mockStore, initialDistricts } from '../lib/mockData';
 import { Delegate, House } from '../types';
 import { api, isSupabaseConfigured } from '../lib/supabase';
@@ -49,78 +50,134 @@ export const CSVImporter: React.FC = () => {
 
   const hasLocalDelegates = uniqueLocalDelegates.length > 6;
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const processRows = (rawData: any[]) => {
+    const validationErrors: string[] = [];
+
+    if (importType === 'delegates') {
+      const validated = rawData.map((row, idx) => {
+        // Normalize keys to tolerate whitespace, casing, or language variants
+        const normalized: Record<string, any> = {};
+        for (const k of Object.keys(row)) {
+          normalized[k.trim().toLowerCase()] = row[k];
+        }
+
+        const fullName = normalized['full_name'] || normalized['name'] || normalized['പേര്'] || '';
+        const phone = String(normalized['phone'] || normalized['mobile'] || normalized['ഫോൺ'] || '').trim();
+        const district = String(normalized['district'] || normalized['ജില്ല'] || '').trim();
+        const gender = String(normalized['gender'] || normalized['ലിംഗം'] || 'boy').toLowerCase();
+        const emergencyName = normalized['emergency_name'] || normalized['guardian'] || normalized['രക്ഷാകർത്താവ്'] || '';
+        const emergencyPhone = String(normalized['emergency_phone'] || normalized['guardian_phone'] || '').trim();
+        const notes = normalized['notes'] || '';
+
+        if (!fullName) {
+          validationErrors.push(`Row ${idx + 1}: Name is required`);
+        }
+
+        // Match district
+        const dist = initialDistricts.find(
+          (d) =>
+            d.name_en.toLowerCase() === district.toLowerCase() ||
+            d.name_ml === district
+        );
+
+        return {
+          id: 'del-' + Date.now() + '-' + idx,
+          token:
+            (district ? district.toLowerCase().replace(/\s+/g, '-') : 'del') +
+            '-' +
+            Math.random().toString(36).substring(2, 8),
+          full_name: fullName || 'Unnamed',
+          phone: phone,
+          district_id: dist ? dist.id : 2, // default Kannur if unmatched
+          district_en: dist ? dist.name_en : 'Kannur',
+          district_ml: dist ? dist.name_ml : 'കണ്ണൂർ',
+          gender: gender.includes('g') || gender.includes('പെൺ') ? 'girl' : 'boy',
+          emergency_name: emergencyName,
+          emergency_phone: emergencyPhone,
+          notes: notes,
+          status: 'pending' as const,
+        };
+      });
+
+      setParsedRows(validated);
+    } else {
+      // Houses import
+      const validated = rawData.map((row, idx) => {
+        const normalized: Record<string, any> = {};
+        for (const k of Object.keys(row)) {
+          normalized[k.trim().toLowerCase()] = row[k];
+        }
+
+        const name = normalized['name'] || normalized['house_name'] || normalized['വീട്ടുപേര്'] || 'Unnamed House';
+        const address = normalized['address'] || normalized['മേൽവിലാസം'] || '';
+        const mapUrl = normalized['map_url'] || normalized['maps'] || '';
+        const hostName = normalized['host_name'] || normalized['host'] || normalized['ആതിഥേയൻ'] || 'Host';
+        const hostPhone = String(normalized['host_phone'] || normalized['phone'] || normalized['ഫോൺ'] || '').trim();
+        const capacity = parseInt(normalized['capacity'] || normalized['കപ്പാസിറ്റി'], 10) || 4;
+        const genderRestriction = (normalized['gender_restriction'] || normalized['gender'] || 'any').toLowerCase();
+        const notes = normalized['notes'] || '';
+
+        return {
+          id: 'h-' + Date.now() + '-' + idx,
+          name: name,
+          address: address,
+          map_url: mapUrl,
+          host_name: hostName,
+          host_phone: hostPhone,
+          capacity: capacity,
+          gender_restriction: genderRestriction,
+          notes: notes,
+        };
+      });
+      setParsedRows(validated);
+    }
+
+    setErrors(validationErrors);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setSuccessMsg(null);
     setErrors([]);
 
-    // UTF-8 decoding with BOM support
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      encoding: 'UTF-8',
-      complete: (results) => {
-        const rawData = results.data as any[];
-        const validationErrors: string[] = [];
+    const fileName = file.name.toLowerCase();
 
-        if (importType === 'delegates') {
-          const validated = rawData.map((row, idx) => {
-            if (!row.full_name) {
-              validationErrors.push(`Row ${idx + 1}: Name is required`);
-            }
-            // Match district
-            const dist = initialDistricts.find(
-              (d) =>
-                d.name_en.toLowerCase() === (row.district || '').toLowerCase().trim() ||
-                d.name_ml === (row.district || '').trim()
-            );
-
-            return {
-              id: 'del-' + Date.now() + '-' + idx,
-              token:
-                (row.district ? row.district.toLowerCase().replace(/\s+/g, '-') : 'del') +
-                '-' +
-                Math.random().toString(36).substring(2, 8),
-              full_name: row.full_name || 'Unnamed',
-              phone: row.phone || '',
-              district_id: dist ? dist.id : 2, // default Kannur if unmatched
-              district_en: dist ? dist.name_en : 'Kannur',
-              district_ml: dist ? dist.name_ml : 'കണ്ണൂർ',
-              gender: (row.gender || 'boy').toLowerCase().includes('g') ? 'girl' : 'boy',
-              emergency_name: row.emergency_name || '',
-              emergency_phone: row.emergency_phone || '',
-              notes: row.notes || '',
-              status: 'pending',
-            };
-          });
-
-          setParsedRows(validated);
-        } else {
-          // Houses import
-          const validated = rawData.map((row, idx) => {
-            return {
-              id: 'h-' + Date.now() + '-' + idx,
-              name: row.name || 'Unnamed House',
-              address: row.address || '',
-              map_url: row.map_url || '',
-              host_name: row.host_name || 'Host',
-              host_phone: row.host_phone || '',
-              capacity: parseInt(row.capacity, 10) || 4,
-              gender_restriction: (row.gender_restriction || 'any').toLowerCase(),
-              notes: row.notes || '',
-            };
-          });
-          setParsedRows(validated);
+    // Check for Excel (.xlsx, .xls)
+    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+      try {
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        if (!firstSheetName) {
+          setErrors([language === 'ml' ? 'Excel ഫയലിൽ ഷീറ്റുകൾ ഒന്നും കണ്ടെത്തിയില്ല.' : 'No sheets found in Excel file.']);
+          return;
         }
-
-        setErrors(validationErrors);
-      },
-      error: (err) => {
-        setErrors(['CSV parsing failed: ' + err.message]);
-      },
-    });
+        const worksheet = workbook.Sheets[firstSheetName];
+        const rawData = XLSX.utils.sheet_to_json<any>(worksheet, { defval: '' });
+        if (rawData.length === 0) {
+          setErrors([language === 'ml' ? 'Excel ഫയലിൽ ഡാറ്റയൊന്നും കണ്ടെത്തിയില്ല.' : 'No data rows found in Excel sheet.']);
+          return;
+        }
+        processRows(rawData);
+      } catch (err: any) {
+        setErrors([language === 'ml' ? `Excel ഫയൽ വായിക്കാൻ സാധിച്ചില്ല: ${err.message}` : `Failed to parse Excel file: ${err.message}`]);
+      }
+    } else {
+      // UTF-8 decoding with BOM support for CSV
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        encoding: 'UTF-8',
+        complete: (results) => {
+          processRows(results.data as any[]);
+        },
+        error: (err) => {
+          setErrors(['CSV parsing failed: ' + err.message]);
+        },
+      });
+    }
   };
 
   const handleCommit = async () => {
@@ -334,15 +391,15 @@ export const CSVImporter: React.FC = () => {
         </div>
         <div className="flex flex-col gap-1">
           <span className="text-sm font-bold text-slate-900 font-malayalam-bold">
-            {t('drag_drop_csv')}
+            {language === 'ml' ? 'CSV അല്ലെങ്കിൽ Excel (.xlsx / .xls) ഫയൽ ഇവിടെ വലിച്ചിടുക' : 'Drag & Drop CSV or Excel (.xlsx / .xls) File Here'}
           </span>
           <span className="text-xs text-slate-400">
-            {language === 'ml' ? '.csv ഫയലുകൾ മാത്രം (UTF-8 Encoded)' : '.csv files only (UTF-8 Encoded)'}
+            {language === 'ml' ? '.csv, .xlsx, .xls ഫയലുകൾ പിന്തുണയ്ക്കുന്നു' : 'Supports .csv, .xlsx, and .xls files'}
           </span>
         </div>
         <label className="cursor-pointer px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-sm hover:bg-primary-600 transition-all">
-          <span>{language === 'ml' ? 'ഫയൽ തിരഞ്ഞെടുക്കുക (Browse File)' : 'Browse CSV File'}</span>
-          <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
+          <span>{language === 'ml' ? 'ഫയൽ തിരഞ്ഞെടുക്കുക (Browse File)' : 'Browse Spreadsheet File'}</span>
+          <input type="file" accept=".csv, .xlsx, .xls, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" onChange={handleFileUpload} className="hidden" />
         </label>
       </div>
 
