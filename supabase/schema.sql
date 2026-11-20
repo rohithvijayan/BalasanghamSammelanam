@@ -126,6 +126,21 @@ CREATE TABLE IF NOT EXISTS location_pings (
     expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 minutes')
 );
 
+-- 3.8b Volunteer Location Pings (Temporary 30-min pings for volunteers to guide delegates & admins)
+CREATE TABLE IF NOT EXISTS volunteer_location_pings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    volunteer_name TEXT NOT NULL,
+    volunteer_phone TEXT NOT NULL,
+    lat DOUBLE PRECISION NOT NULL,
+    lng DOUBLE PRECISION NOT NULL,
+    accuracy DOUBLE PRECISION,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 minutes')
+);
+
+CREATE INDEX IF NOT EXISTS idx_vol_location_pings_expires ON volunteer_location_pings(expires_at);
+CREATE INDEX IF NOT EXISTS idx_vol_location_pings_name ON volunteer_location_pings(volunteer_name);
+
 -- 3.9 Audit Log Table
 CREATE TABLE IF NOT EXISTS audit_log (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -360,12 +375,26 @@ BEGIN
     -- Fetch volunteer if assigned
     IF v_delegate.volunteer_id IS NOT NULL THEN
         SELECT jsonb_build_object(
-            'name', full_name,
-            'phone', phone
+            'name', p.full_name,
+            'phone', p.phone,
+            'active_location', (
+                SELECT jsonb_build_object(
+                    'lat', vlp.lat,
+                    'lng', vlp.lng,
+                    'accuracy', vlp.accuracy,
+                    'created_at', vlp.created_at,
+                    'expires_at', vlp.expires_at
+                )
+                FROM volunteer_location_pings vlp
+                WHERE (vlp.volunteer_name = p.full_name OR vlp.volunteer_phone = p.phone)
+                  AND vlp.expires_at > NOW()
+                ORDER BY vlp.created_at DESC
+                LIMIT 1
+            )
         )
         INTO v_volunteer
-        FROM profiles
-        WHERE id = v_delegate.volunteer_id;
+        FROM profiles p
+        WHERE p.id = v_delegate.volunteer_id;
     END IF;
 
     -- Fetch targeted announcements
@@ -438,5 +467,33 @@ BEGIN
     VALUES (v_delegate_id, p_lat, p_lng, p_accuracy, NOW() + INTERVAL '30 minutes');
 
     RETURN jsonb_build_object('success', true);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 6.4 Share Volunteer Live Location (30 min auto-expiry)
+CREATE OR REPLACE FUNCTION share_volunteer_location(
+    p_name TEXT,
+    p_phone TEXT,
+    p_lat DOUBLE PRECISION,
+    p_lng DOUBLE PRECISION,
+    p_accuracy DOUBLE PRECISION DEFAULT NULL
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_ping_id UUID;
+BEGIN
+    DELETE FROM volunteer_location_pings
+    WHERE (volunteer_name = p_name OR volunteer_phone = p_phone)
+       OR expires_at < NOW();
+
+    INSERT INTO volunteer_location_pings (volunteer_name, volunteer_phone, lat, lng, accuracy, expires_at)
+    VALUES (p_name, p_phone, p_lat, p_lng, p_accuracy, NOW() + INTERVAL '30 minutes')
+    RETURNING id INTO v_ping_id;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'ping_id', v_ping_id,
+        'expires_in', '30 minutes'
+    );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

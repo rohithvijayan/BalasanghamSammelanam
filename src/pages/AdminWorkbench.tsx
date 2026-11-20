@@ -384,8 +384,21 @@ export const AdminWorkbench: React.FC = () => {
                         <span className="text-[11px] text-slate-500 truncate flex items-center gap-1.5 flex-wrap">
                           <span>{language === 'ml' ? del.district_ml : del.district_en} • {del.phone || (language === 'ml' ? 'ഫോൺ ഇല്ല' : 'No phone')}</span>
                           {del.volunteer && (
-                            <span className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded font-medium">
-                              👤 {del.volunteer.name}
+                            <span className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded font-medium flex items-center gap-1">
+                              <span>👤 {del.volunteer.name}</span>
+                              {del.volunteer.active_location && (
+                                <a
+                                  href={`https://maps.google.com/?q=${del.volunteer.active_location.lat},${del.volunteer.active_location.lng}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  title="Volunteer Live GPS Active (30 min)"
+                                  className="text-[9px] text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-1 rounded flex items-center gap-0.5 font-bold"
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+                                  <span>Live GPS</span>
+                                </a>
+                              )}
                             </span>
                           )}
                         </span>

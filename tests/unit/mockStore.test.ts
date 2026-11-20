@@ -359,4 +359,39 @@ describe('mockStore - State Conference Data Store', () => {
     const batch = mockStore.getDelegates().filter((d) => ['del-v-1', 'del-v-2'].includes(d.id));
     expect(batch.every((d) => d.volunteer?.name === 'Vipin Das')).toBe(true);
   });
+
+  it('should record volunteer live location ping and attach to assigned delegates for 30 minutes', () => {
+    const vol = { name: 'അർജുൻ കെ.', phone: '+91 94471 23456', unit: 'സൗത്ത് സോൺ' };
+    const d: Delegate = {
+      id: 'del-vol-live-1',
+      token: 'tok-vol-live-1',
+      full_name: 'Delegate With Live Vol',
+      district_id: 1,
+      gender: 'boy',
+      status: 'pending',
+      volunteer: vol,
+    };
+    mockStore.importDelegates([d]);
+
+    // Record volunteer live location
+    mockStore.recordVolunteerLocationPing('അർജുൻ കെ.', '+91 94471 23456', 12.2531, 75.1292, 10);
+
+    const activePings = mockStore.getActiveVolunteerLocationPings();
+    expect(activePings['അർജുൻ കെ.']).toBeDefined();
+    expect(activePings['അർജുൻ കെ.'].lat).toBe(12.2531);
+    expect(activePings['അർജുൻ കെ.'].lng).toBe(75.1292);
+
+    // Delegate stay data should reflect volunteer active_location
+    const stayData = mockStore.getDelegateByToken('tok-vol-live-1');
+    expect(stayData?.volunteer?.active_location).toBeDefined();
+    expect(stayData?.volunteer?.active_location?.lat).toBe(12.2531);
+
+    // Stop location sharing
+    mockStore.clearVolunteerLocationPing('അർജുൻ കെ.');
+    const activePingsAfter = mockStore.getActiveVolunteerLocationPings();
+    expect(activePingsAfter['അർജുൻ കെ.']).toBeUndefined();
+
+    const stayDataAfter = mockStore.getDelegateByToken('tok-vol-live-1');
+    expect(stayDataAfter?.volunteer?.active_location).toBeNull();
+  });
 });

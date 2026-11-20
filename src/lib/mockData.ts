@@ -1,4 +1,4 @@
-import { District, House, Delegate, Announcement, HelplineItem, StayPortalData, LocationPing, Volunteer } from '../types';
+import { District, House, Delegate, Announcement, HelplineItem, StayPortalData, LocationPing, Volunteer, VolunteerLocationPing } from '../types';
 
 export const initialDistricts: District[] = [
   { id: 1, name_en: 'Kasaragod', name_ml: 'കാസർഗോഡ്' },
@@ -268,6 +268,7 @@ class MockStore {
   private houses: House[];
   private announcements: Announcement[];
   private locationPings: Record<string, LocationPing> = {};
+  private volunteerLocationPings: Record<string, VolunteerLocationPing> = {};
   private listeners: (() => void)[] = [];
 
   constructor() {
@@ -321,6 +322,9 @@ class MockStore {
     const savedPings = localStorage.getItem('sammelanam_location_pings');
     this.locationPings = savedPings ? JSON.parse(savedPings) : {};
 
+    const savedVolPings = localStorage.getItem('sammelanam_volunteer_pings');
+    this.volunteerLocationPings = savedVolPings ? JSON.parse(savedVolPings) : {};
+
     this.announcements = initialAnnouncements;
   }
 
@@ -328,6 +332,7 @@ class MockStore {
     localStorage.setItem('sammelanam_delegates', JSON.stringify(this.delegates));
     localStorage.setItem('sammelanam_houses', JSON.stringify(this.houses));
     localStorage.setItem('sammelanam_location_pings', JSON.stringify(this.locationPings));
+    localStorage.setItem('sammelanam_volunteer_pings', JSON.stringify(this.volunteerLocationPings));
     localStorage.setItem('sammelanam_cache_ts', Date.now().toString());
     this.listeners.forEach((cb) => cb());
   }
@@ -340,7 +345,22 @@ class MockStore {
   }
 
   getDelegates(): Delegate[] {
-    return this.delegates;
+    const activeVolPings = this.getActiveVolunteerLocationPings();
+    return this.delegates.map((d) => {
+      if (d.volunteer) {
+        const keyName = (d.volunteer.name || '').trim().toLowerCase();
+        const keyPhone = (d.volunteer.phone || '').replace(/[^0-9]/g, '');
+        const active_location = activeVolPings[keyName] || (keyPhone ? activeVolPings[keyPhone] : null);
+        return {
+          ...d,
+          volunteer: {
+            ...d.volunteer,
+            active_location: active_location || null,
+          },
+        };
+      }
+      return d;
+    });
   }
 
   getHouses(): House[] {
@@ -387,26 +407,40 @@ class MockStore {
     const clean = token.toLowerCase().trim();
     let delegate = this.delegates.find((d) => d.token.toLowerCase() === clean || d.id.toLowerCase() === clean);
 
+    const activeVolPings = this.getActiveVolunteerLocationPings();
+    const resolveVol = (v?: Volunteer | null): Volunteer | null => {
+      if (!v) return null;
+      const keyName = (v.name || '').trim().toLowerCase();
+      const keyPhone = (v.phone || '').replace(/[^0-9]/g, '');
+      const active_location = activeVolPings[keyName] || (keyPhone ? activeVolPings[keyPhone] : null);
+      return {
+        ...v,
+        active_location: active_location || null,
+      };
+    };
+
     // Fallback to demo delegates for tests or direct demo URL access
     if (!delegate) {
       delegate = demoDelegates.find((d) => d.token.toLowerCase() === clean || d.id.toLowerCase() === clean);
       if (!delegate) return null;
       const demoHouse = demoHouses.find((h) => h.id === delegate?.house_id) || null;
+      const resolvedVol = resolveVol(delegate.volunteer);
       return {
-        delegate,
+        delegate: { ...delegate, volunteer: resolvedVol },
         house: demoHouse,
-        volunteer: delegate.volunteer || null,
+        volunteer: resolvedVol,
         announcements: this.announcements,
         helplines: helplinesList,
       };
     }
 
     const house = delegate.house_id ? this.houses.find((h) => h.id === delegate.house_id) || null : null;
+    const resolvedVol = resolveVol(delegate.volunteer);
 
     return {
-      delegate,
+      delegate: { ...delegate, volunteer: resolvedVol },
       house,
-      volunteer: delegate.volunteer || null,
+      volunteer: resolvedVol,
       announcements: this.announcements,
       helplines: helplinesList,
     };
@@ -624,6 +658,49 @@ class MockStore {
     for (const [delId, ping] of Object.entries(this.locationPings)) {
       if (new Date(ping.expires_at).getTime() > now) {
         active[delId] = ping;
+      }
+    }
+    return active;
+  }
+
+  recordVolunteerLocationPing(name: string, phone: string, lat: number, lng: number, accuracy?: number) {
+    const cleanName = (name || '').trim().toLowerCase();
+    const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+    const now = new Date();
+    const expires = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes
+    const pingObj: VolunteerLocationPing = {
+      volunteer_name: name,
+      volunteer_phone: phone,
+      lat,
+      lng,
+      accuracy,
+      created_at: now.toISOString(),
+      expires_at: expires.toISOString(),
+    };
+    if (cleanName) this.volunteerLocationPings[cleanName] = pingObj;
+    if (cleanPhone) this.volunteerLocationPings[cleanPhone] = pingObj;
+    this.save();
+  }
+
+  clearVolunteerLocationPing(name: string, phone?: string) {
+    const cleanName = (name || '').trim().toLowerCase();
+    const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+    for (const [key, ping] of Object.entries(this.volunteerLocationPings)) {
+      const matchName = cleanName && (key === cleanName || (ping.volunteer_name || '').trim().toLowerCase() === cleanName);
+      const matchPhone = cleanPhone && (key === cleanPhone || (ping.volunteer_phone || '').replace(/[^0-9]/g, '') === cleanPhone);
+      if (matchName || matchPhone) {
+        delete this.volunteerLocationPings[key];
+      }
+    }
+    this.save();
+  }
+
+  getActiveVolunteerLocationPings(): Record<string, VolunteerLocationPing> {
+    const now = Date.now();
+    const active: Record<string, VolunteerLocationPing> = {};
+    for (const [key, ping] of Object.entries(this.volunteerLocationPings)) {
+      if (new Date(ping.expires_at).getTime() > now) {
+        active[key] = ping;
       }
     }
     return active;

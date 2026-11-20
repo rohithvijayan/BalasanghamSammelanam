@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { mockStore, getHouseNaturalKey } from './mockData';
-import { StayPortalData, DelegateStatus, LocationPing, Delegate, House, Volunteer } from '../types';
+import { StayPortalData, DelegateStatus, LocationPing, Delegate, House, Volunteer, VolunteerLocationPing } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -273,15 +273,82 @@ export const api = {
         console.warn('Supabase get_my_stay error, falling back to mock store', error);
         return mockStore.getDelegateByToken(token);
       }
+      let resolvedVolunteer = data.volunteer;
+      if (resolvedVolunteer) {
+        const volPings = await api.getActiveVolunteerLocationPings();
+        const cleanName = (resolvedVolunteer.name || '').trim().toLowerCase();
+        const cleanPhone = (resolvedVolunteer.phone || '').replace(/[^0-9]/g, '');
+        const activeLoc = volPings[cleanName] || (cleanPhone ? volPings[cleanPhone] : null);
+        resolvedVolunteer = {
+          ...resolvedVolunteer,
+          active_location: activeLoc || null,
+        };
+      }
       return {
         delegate: data.delegate,
         house: data.house,
-        volunteer: data.volunteer,
+        volunteer: resolvedVolunteer,
         announcements: data.announcements || [],
         helplines: data.helpline || [],
       };
     }
     return mockStore.getDelegateByToken(token);
+  },
+
+  // Share temporary volunteer live location (30 mins)
+  async shareVolunteerLocation(name: string, phone: string, lat: number, lng: number, accuracy?: number): Promise<{ success: boolean }> {
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.rpc('share_volunteer_location', {
+          p_name: name,
+          p_phone: phone,
+          p_lat: lat,
+          p_lng: lng,
+          p_accuracy: accuracy || null,
+        });
+        if (!error && data?.success) {
+          mockStore.recordVolunteerLocationPing(name, phone, lat, lng, accuracy);
+          return { success: true };
+        }
+      } catch (err) {
+        console.warn('Supabase share_volunteer_location failed, falling back to mock store', err);
+      }
+    }
+    mockStore.recordVolunteerLocationPing(name, phone, lat, lng, accuracy);
+    return { success: true };
+  },
+
+  // Clear/stop volunteer live location sharing
+  async clearVolunteerLocation(name: string, phone?: string): Promise<{ success: boolean }> {
+    mockStore.clearVolunteerLocationPing(name, phone);
+    return { success: true };
+  },
+
+  // Fetch active volunteer location pings (for delegates and admins)
+  async getActiveVolunteerLocationPings(): Promise<Record<string, VolunteerLocationPing>> {
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('volunteer_location_pings')
+          .select('id, volunteer_name, volunteer_phone, lat, lng, accuracy, created_at, expires_at')
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          const pings: Record<string, VolunteerLocationPing> = {};
+          data.forEach((p: any) => {
+            const cleanName = (p.volunteer_name || '').trim().toLowerCase();
+            const cleanPhone = (p.volunteer_phone || '').replace(/[^0-9]/g, '');
+            if (cleanName && !pings[cleanName]) pings[cleanName] = p;
+            if (cleanPhone && !pings[cleanPhone]) pings[cleanPhone] = p;
+          });
+          return pings;
+        }
+      } catch (err) {
+        console.warn('Failed to query volunteer_location_pings from Supabase, fallback to store', err);
+      }
+    }
+    return mockStore.getActiveVolunteerLocationPings();
   },
 
   // Share temporary location ping (30 mins)

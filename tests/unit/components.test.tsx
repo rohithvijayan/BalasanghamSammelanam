@@ -6,10 +6,11 @@ import { Header } from '../../src/components/Header';
 import { ProtectedRoute } from '../../src/auth/ProtectedRoute';
 import { HelplineSupportCard } from '../../src/components/HelplineSupportCard';
 import { StayCard } from '../../src/components/StayCard';
+import { VolunteerCard } from '../../src/components/VolunteerCard';
 import { InteractiveGuideModal } from '../../src/components/InteractiveGuideModal';
 import { I18nProvider } from '../../src/i18n/i18nContext';
 import { AuthProvider } from '../../src/auth/AuthContext';
-import { Delegate, House, HelplineItem } from '../../src/types';
+import { Delegate, House, HelplineItem, Volunteer } from '../../src/types';
 
 describe('React Components Unit Tests', () => {
   beforeEach(() => {
@@ -271,6 +272,44 @@ describe('React Components Unit Tests', () => {
       expect(screen.getByText('കെ. രാഘവൻ')).toBeInTheDocument();
       expect(screen.getByText('+91 94471 23456')).toBeInTheDocument();
       expect(screen.getByText(/റൂട്ട് മാപ്പ് കാണുക/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('<VolunteerCard />', () => {
+    const mockVol: Volunteer = {
+      name: 'രേഷ്മ പി.',
+      phone: '+91 98460 78901',
+      unit: 'നീലേശ്വരം ഈസ്റ്റ്',
+    };
+
+    it('renders volunteer contacts and call button', () => {
+      renderWithProviders(<VolunteerCard volunteer={mockVol} />);
+
+      expect(screen.getByText('രേഷ്മ പി.')).toBeInTheDocument();
+      expect(screen.getByText(/നീലേശ്വരം ഈസ്റ്റ്/i)).toBeInTheDocument();
+      expect(screen.getByText(/വിളിക്കുക/i)).toBeInTheDocument();
+      // No live radar should be visible when inactive
+      expect(screen.queryByText(/വളണ്ടിയറുടെ ലൈവ് ലൊക്കേഷൻ സജീവമാണ്/i)).not.toBeInTheDocument();
+    });
+
+    it('renders live location radar and Google Maps link when volunteer is broadcasting', () => {
+      const liveVol: Volunteer = {
+        ...mockVol,
+        active_location: {
+          volunteer_name: 'രേഷ്മ പി.',
+          volunteer_phone: '+91 98460 78901',
+          lat: 12.2531,
+          lng: 75.1292,
+          created_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        },
+      };
+
+      renderWithProviders(<VolunteerCard volunteer={liveVol} />);
+
+      expect(screen.getByText(/വളണ്ടിയറുടെ ലൈവ് ലൊക്കേഷൻ സജീവമാണ്!/i)).toBeInTheDocument();
+      expect(screen.getByText('30 min')).toBeInTheDocument();
+      expect(screen.getByText(/മാപ്പിൽ വഴി കാണുക/i)).toBeInTheDocument();
     });
   });
 

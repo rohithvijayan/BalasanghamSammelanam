@@ -31,10 +31,22 @@ export interface House {
   notes?: string;
 }
 
+export interface VolunteerLocationPing {
+  id?: string;
+  volunteer_name: string;
+  volunteer_phone: string;
+  lat: number;
+  lng: number;
+  accuracy?: number;
+  created_at: string;
+  expires_at: string;
+}
+
 export interface Volunteer {
   name: string;
   phone: string;
   unit?: string;
+  active_location?: VolunteerLocationPing | null;
 }
 
 export interface Delegate {
