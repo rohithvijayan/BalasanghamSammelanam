@@ -8,17 +8,23 @@ interface StayCardProps {
 }
 
 export const StayCard: React.FC<StayCardProps> = ({ house }) => {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
 
   if (!house) {
     return (
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-amber-200 bg-amber-50/50 flex flex-col gap-3">
         <div className="flex items-center gap-2 text-amber-800 font-bold text-sm">
           <MapPin className="w-4 h-4 text-amber-600" />
-          <span>താമസസ്ഥലം അനുവദിച്ചുവരുന്നു</span>
+          <span>
+            {language === 'ml'
+              ? 'താമസസ്ഥലം അനുവദിച്ചുവരുന്നു'
+              : 'Accommodation Arrangement in Progress'}
+          </span>
         </div>
         <p className="text-xs text-amber-900/80 leading-relaxed">
-          നിങ്ങളുടെ താമസസ്ഥലം അഡ്മിൻ ഡെസ്ക് ക്രമീകരിച്ചു വരികയാണ്. വിശദാംശങ്ങൾ ഉടൻ ഇവിടെ അപ്‌ഡേറ്റ് ചെയ്യപ്പെടും.
+          {language === 'ml'
+            ? 'നിങ്ങളുടെ താമസസ്ഥലം അഡ്മിൻ ഡെസ്ക് ക്രമീകരിച്ചു വരികയാണ്. വിശദാംശങ്ങൾ ഉടൻ ഇവിടെ അപ്‌ഡേറ്റ് ചെയ്യപ്പെടും.'
+            : 'Your accommodation is being assigned by the reception desk. Details will be updated here shortly.'}
         </p>
       </div>
     );
@@ -73,10 +79,10 @@ export const StayCard: React.FC<StayCardProps> = ({ house }) => {
             {t('room_no')}
           </span>
           <span className="text-sm font-bold text-slate-800 truncate mt-0.5">
-            മുറി 2 (1st Floor)
+            {language === 'ml' ? 'മുറി 2 (1st Floor)' : 'Room 2 (1st Floor)'}
           </span>
           <span className="text-xs font-medium text-slate-500 truncate">
-            {house.capacity} പേർക്ക് സൗകര്യം
+            {language === 'ml' ? `${house.capacity} പേർക്ക് സൗകര്യം` : `Capacity for ${house.capacity} persons`}
           </span>
         </div>
       </div>
@@ -110,15 +116,15 @@ export const StayCard: React.FC<StayCardProps> = ({ house }) => {
       <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100">
           <Droplet className="w-3.5 h-3.5 text-sky-500" />
-          <span>കുടിവെള്ളം (RO)</span>
+          <span>{language === 'ml' ? 'കുടിവെള്ളം (RO)' : 'Drinking Water (RO)'}</span>
         </span>
         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100">
           <Wind className="w-3.5 h-3.5 text-teal-500" />
-          <span>ഫാൻ & വെന്റിലേഷൻ</span>
+          <span>{language === 'ml' ? 'ഫാൻ & വെന്റിലേഷൻ' : 'Fan & Ventilation'}</span>
         </span>
         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-          <span>ഫസ്റ്റ് എയ്ഡ് സൗകര്യം</span>
+          <span>{language === 'ml' ? 'ഫസ്റ്റ് എയ്ഡ് സൗകര്യം' : 'First Aid Facility'}</span>
         </span>
       </div>
     </div>

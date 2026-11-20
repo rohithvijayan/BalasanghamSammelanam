@@ -99,8 +99,8 @@ export const Header: React.FC = () => {
             >
               <LogIn className="w-3.5 h-3.5 text-primary-300" />
               <span>
-                <span className="sm:hidden">ലോഗിൻ</span>
-                <span className="hidden sm:inline">ലോഗിൻ (Login)</span>
+                <span className="sm:hidden">{language === 'ml' ? 'ലോഗിൻ' : 'Login'}</span>
+                <span className="hidden sm:inline">{language === 'ml' ? 'ലോഗിൻ (Login)' : 'Login'}</span>
               </span>
             </Link>
           ) : (

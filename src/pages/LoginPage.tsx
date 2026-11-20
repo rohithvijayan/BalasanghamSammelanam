@@ -6,7 +6,7 @@ import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -42,7 +42,7 @@ export const LoginPage: React.FC = () => {
       }
       navigate(targetPath, { replace: true });
     } else {
-      setError(result.error || 'ലോഗിൻ പരാജയപ്പെട്ടു');
+      setError(result.error || (language === 'ml' ? 'ലോഗിൻ പരാജയപ്പെട്ടു' : 'Login failed'));
     }
   };
 
@@ -58,10 +58,12 @@ export const LoginPage: React.FC = () => {
             <img src="/images/logo.png" alt="Balasangham Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-xl sm:text-2xl font-malayalam-bold text-slate-900 mt-1">
-            സ്റ്റാഫ് ലോഗിൻ (Staff Sign In)
+            {language === 'ml' ? 'സ്റ്റാഫ് ലോഗിൻ (Staff Sign In)' : 'Staff Sign In'}
           </h1>
           <p className="text-xs text-slate-500">
-            ബാലസംഘം സംസ്ഥാന സമ്മേളനം • കൺട്രോൾ റൂം & അഡ്മിൻ പാനൽ
+            {language === 'ml'
+              ? 'ബാലസംഘം സംസ്ഥാന സമ്മേളനം • കൺട്രോൾ റൂം & അഡ്മിൻ പാനൽ'
+              : 'Balasangham State Conference • Control Room & Admin Portal'}
           </p>
         </div>
 
@@ -76,7 +78,9 @@ export const LoginPage: React.FC = () => {
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-700">ഇമെയിൽ വിലാസം (Email)</label>
+            <label className="text-xs font-bold text-slate-700">
+              {language === 'ml' ? 'ഇമെയിൽ വിലാസം (Email)' : 'Email Address'}
+            </label>
             <div className="relative">
               <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
               <input
@@ -91,7 +95,9 @@ export const LoginPage: React.FC = () => {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-700">പാസ്‌വേഡ് (Password)</label>
+            <label className="text-xs font-bold text-slate-700">
+              {language === 'ml' ? 'പാസ്‌വേഡ് (Password)' : 'Password'}
+            </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
               <input
@@ -114,7 +120,7 @@ export const LoginPage: React.FC = () => {
               <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
             ) : (
               <>
-                <span>ലോഗിൻ ചെയ്യുക (Sign In)</span>
+                <span>{language === 'ml' ? 'ലോഗിൻ ചെയ്യുക (Sign In)' : 'Sign In'}</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
@@ -124,7 +130,9 @@ export const LoginPage: React.FC = () => {
         {/* Footer note for staff support */}
         <div className="pt-2 border-t border-slate-100 text-center">
           <p className="text-[11px] text-slate-400">
-            ലോഗിൻ വിവരങ്ങൾക്ക് സ്വാഗതസംഘം കൺട്രോൾ റൂമുമായി ബന്ധപ്പെടുക.
+            {language === 'ml'
+              ? 'ലോഗിൻ വിവരങ്ങൾക്ക് സ്വാഗതസംഘം കൺട്രോൾ റൂമുമായി ബന്ധപ്പെടുക.'
+              : 'For login credentials, contact the Reception Committee Control Room.'}
           </p>
         </div>
       </div>

@@ -96,7 +96,7 @@ export const AdminWorkbench: React.FC = () => {
   // Assign delegate(s) to house
   const handleAssignToHouse = (house: House) => {
     if (selectedDelegateIds.length === 0) {
-      alert('ദയവായി ആദ്യം അലോട്ട് ചെയ്യേണ്ട പ്രതിനിധികളെ തിരഞ്ഞെടുക്കുക.');
+      alert(language === 'ml' ? 'ദയവായി ആദ്യം അലോട്ട് ചെയ്യേണ്ട പ്രതിനിധികളെ തിരഞ്ഞെടുക്കുക.' : 'Please select delegates to allot first.');
       return;
     }
 
@@ -106,14 +106,16 @@ export const AdminWorkbench: React.FC = () => {
     // Soft over-capacity warning (FR-ASN-3)
     if (newTotal > house.capacity) {
       const confirmOverride = window.confirm(
-        `മുന്നറിയിപ്പ്: ഈ വീടിന്റെ കപ്പാസിറ്റി ${house.capacity} ആണ്. ഇപ്പോൾ ${newTotal} പേരാകും. തുടരണോ?`
+        language === 'ml'
+          ? `മുന്നറിയിപ്പ്: ഈ വീടിന്റെ കപ്പാസിറ്റി ${house.capacity} ആണ്. ഇപ്പോൾ ${newTotal} പേരാകും. തുടരണോ?`
+          : `Warning: This house capacity is ${house.capacity}. Total will become ${newTotal}. Do you wish to continue?`
       );
       if (!confirmOverride) return;
     }
 
     mockStore.bulkAssign(selectedDelegateIds, house.id);
     setSelectedDelegateIds([]);
-    setWarningMessage(`വിജയകരമായി ${house.name}-ലേക്ക് അലോട്ട് ചെയ്തു!`);
+    setWarningMessage(language === 'ml' ? `വിജയകരമായി ${house.name}-ലേക്ക് അലോട്ട് ചെയ്തു!` : `Successfully allotted to ${house.name}!`);
     setTimeout(() => setWarningMessage(null), 4000);
   };
 
@@ -134,20 +136,22 @@ export const AdminWorkbench: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-primary uppercase tracking-wider">
               {isDistrictCoordinator
-                ? `${user?.district_name || 'ജില്ലാ'} കോർഡിനേഷൻ പാനൽ`
-                : 'സംസ്ഥാന അഡ്മിൻ വർക്ക് ബെഞ്ച്'}
+                ? (language === 'ml' ? `${user?.district_name || 'ജില്ലാ'} കോർഡിനേഷൻ പാനൽ` : `${user?.district_name || 'District'} Coordination Panel`)
+                : (language === 'ml' ? 'സംസ്ഥാന അഡ്മിൻ വർക്ക് ബെഞ്ച്' : 'State Admin Workbench')}
             </span>
             <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200">
-              {user?.role === 'admin' ? 'State Admin' : 'District Level'}
+              {user?.role === 'admin'
+                ? (language === 'ml' ? 'സംസ്ഥാന അഡ്മിൻ' : 'State Admin')
+                : (language === 'ml' ? 'ജില്ലാ തലം' : 'District Level')}
             </span>
           </div>
           <h1 className="text-xl md:text-2xl font-malayalam-bold text-slate-900 leading-tight mt-0.5">
             {isDistrictCoordinator
-              ? `${user?.district_name || 'ജില്ലാ'} പ്രതിനിധികളും താമസ അലോട്ട്മെന്റും`
-              : 'താമസ അലോട്ട്മെന്റ് & കൺട്രോൾ പാനൽ'}
+              ? (language === 'ml' ? `${user?.district_name || 'ജില്ലാ'} പ്രതിനിധികളും താമസ അലോട്ട്മെന്റും` : `${user?.district_name || 'District'} Delegates & Housing Allotment`)
+              : (language === 'ml' ? 'താമസ അലോട്ട്മെന്റ് & കൺട്രോൾ പാനൽ' : 'Housing Allotment & Control Panel')}
           </h1>
           <span className="text-xs text-slate-500">
-            8-ാമത് ബാലസംഘം സംസ്ഥാന സമ്മേളനം • നീലേശ്വരം, പാലായി
+            {language === 'ml' ? '8-ാമത് ബാലസംഘം സംസ്ഥാന സമ്മേളനം • നീലേശ്വരം, പാലായി' : '8th Balasangham State Conference • Nileshwaram, Palayi'}
           </span>
         </div>
 
@@ -159,7 +163,7 @@ export const AdminWorkbench: React.FC = () => {
           {isDistrictCoordinator ? (
             <div className="px-4 py-2 rounded-xl bg-primary-50 text-primary-800 text-xs font-bold border border-primary-200 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-              <span>{user?.district_name || 'ജില്ല'} (ലോക്ക് ചെയ്തത്)</span>
+              <span>{user?.district_name || (language === 'ml' ? 'ജില്ല' : 'District')} ({language === 'ml' ? 'ലോക്ക് ചെയ്തത്' : 'Locked'})</span>
             </div>
           ) : (
             <select
@@ -167,7 +171,7 @@ export const AdminWorkbench: React.FC = () => {
               onChange={(e) => setSelectedDistrict(e.target.value)}
               className="px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
             >
-              <option value="all">എല്ലാ ജില്ലകളും (All Districts)</option>
+              <option value="all">{language === 'ml' ? 'എല്ലാ ജില്ലകളും (All Districts)' : 'All Districts'}</option>
               {initialDistricts.map((dist) => (
                 <option key={dist.id} value={dist.id.toString()}>
                   {language === 'ml' ? dist.name_ml : dist.name_en}
@@ -183,27 +187,27 @@ export const AdminWorkbench: React.FC = () => {
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col">
           <span className="text-xs font-semibold text-slate-400">{t('total_delegates')}</span>
           <span className="text-2xl font-black text-slate-900 mt-1">{totalCount}</span>
-          <span className="text-[11px] text-slate-500">14 ജില്ലകൾ</span>
+          <span className="text-[11px] text-slate-500">{language === 'ml' ? '14 ജില്ലകൾ' : '14 Districts'}</span>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col">
           <span className="text-xs font-semibold text-slate-400">{t('accommodated')}</span>
           <span className="text-2xl font-black text-primary mt-1">{accommodatedCount}</span>
           <span className="text-[11px] text-emerald-600 font-bold">
-            {Math.round((accommodatedCount / (totalCount || 1)) * 100)}% പൂർത്തിയായി
+            {Math.round((accommodatedCount / (totalCount || 1)) * 100)}% {language === 'ml' ? 'പൂർത്തിയായി' : 'Completed'}
           </span>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col">
           <span className="text-xs font-semibold text-slate-400">{t('checked_in')}</span>
           <span className="text-2xl font-black text-emerald-600 mt-1">{checkedInCount}</span>
-          <span className="text-[11px] text-slate-500">ഹാജർ നില</span>
+          <span className="text-[11px] text-slate-500">{language === 'ml' ? 'ഹാജർ നില' : 'Attendance Status'}</span>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col">
           <span className="text-xs font-semibold text-slate-400">{t('pending_arrival')}</span>
           <span className="text-2xl font-black text-amber-600 mt-1">{pendingCount}</span>
-          <span className="text-[11px] text-slate-500">വഴിയിലാണ്</span>
+          <span className="text-[11px] text-slate-500">{language === 'ml' ? 'വഴിയിലാണ്' : 'En Route'}</span>
         </div>
       </div>
 
@@ -228,7 +232,7 @@ export const AdminWorkbench: React.FC = () => {
             </div>
             {selectedDelegateIds.length > 0 && (
               <span className="px-2.5 py-0.5 rounded-full bg-primary-100 text-primary-800 text-[11px] font-bold">
-                {selectedDelegateIds.length} പേരെ തിരഞ്ഞെടുത്തു
+                {selectedDelegateIds.length} {language === 'ml' ? 'പേരെ തിരഞ്ഞെടുത്തു' : 'selected'}
               </span>
             )}
           </div>
@@ -241,7 +245,7 @@ export const AdminWorkbench: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="പേരോ ഫോണോ തിരയുക..."
+                placeholder={language === 'ml' ? 'പേരോ ഫോണോ തിരയുക...' : 'Search name or phone...'}
                 className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -252,7 +256,7 @@ export const AdminWorkbench: React.FC = () => {
                   genderFilter === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'
                 }`}
               >
-                എല്ലാം
+                {language === 'ml' ? 'എല്ലാം' : 'All'}
               </button>
               <button
                 onClick={() => setGenderFilter('boy')}
@@ -260,7 +264,7 @@ export const AdminWorkbench: React.FC = () => {
                   genderFilter === 'boy' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600'
                 }`}
               >
-                ആൺകുട്ടികൾ
+                {language === 'ml' ? 'ആൺകുട്ടികൾ' : 'Boys'}
               </button>
               <button
                 onClick={() => setGenderFilter('girl')}
@@ -268,7 +272,7 @@ export const AdminWorkbench: React.FC = () => {
                   genderFilter === 'girl' ? 'bg-pink-600 text-white' : 'bg-slate-100 text-slate-600'
                 }`}
               >
-                പെൺകുട്ടികൾ
+                {language === 'ml' ? 'പെൺകുട്ടികൾ' : 'Girls'}
               </button>
             </div>
           </div>
@@ -277,7 +281,7 @@ export const AdminWorkbench: React.FC = () => {
           <div className="flex flex-col gap-2.5 max-h-[520px] overflow-y-auto pr-1">
             {unassignedDelegates.length === 0 ? (
               <div className="py-12 text-center text-xs text-slate-400 font-medium">
-                എല്ലാ പ്രതിനിധികൾക്കും താമസസ്ഥലം അനുവദിച്ചു!
+                {language === 'ml' ? 'എല്ലാ പ്രതിനിധികൾക്കും താമസസ്ഥലം അനുവദിച്ചു!' : 'All delegates have been accommodated!'}
               </div>
             ) : (
               unassignedDelegates.map((del) => {
@@ -304,7 +308,7 @@ export const AdminWorkbench: React.FC = () => {
                           {del.full_name}
                         </span>
                         <span className="text-[11px] text-slate-500 truncate">
-                          {language === 'ml' ? del.district_ml : del.district_en} • {del.phone || 'ഫോൺ ഇല്ല'}
+                          {language === 'ml' ? del.district_ml : del.district_en} • {del.phone || (language === 'ml' ? 'ഫോൺ ഇല്ല' : 'No phone')}
                         </span>
                       </div>
                     </div>
@@ -316,7 +320,7 @@ export const AdminWorkbench: React.FC = () => {
                           : 'bg-sky-100 text-sky-700'
                       }`}
                     >
-                      {del.gender === 'girl' ? 'പെൺകുട്ടി' : 'ആൺകുട്ടി'}
+                      {del.gender === 'girl' ? (language === 'ml' ? 'പെൺകുട്ടി' : 'Girl') : (language === 'ml' ? 'ആൺകുട്ടി' : 'Boy')}
                     </span>
                   </div>
                 );
@@ -335,7 +339,7 @@ export const AdminWorkbench: React.FC = () => {
               </h2>
             </div>
             <span className="text-xs text-slate-400">
-              {accommodatedCount} പേർക്ക് അനുവദിച്ചു
+              {accommodatedCount} {language === 'ml' ? 'പേർക്ക് അനുവദിച്ചു' : 'accommodated'}
             </span>
           </div>
 
@@ -367,12 +371,14 @@ export const AdminWorkbench: React.FC = () => {
                                 : 'bg-sky-100 text-sky-700'
                             }`}
                           >
-                            {house.gender_restriction === 'girls' ? 'Girls Only' : 'Boys Only'}
+                            {house.gender_restriction === 'girls'
+                              ? (language === 'ml' ? 'പെൺകുട്ടികൾക്ക് മാത്രം' : 'Girls Only')
+                              : (language === 'ml' ? 'ആൺകുട്ടികൾക്ക് മാത്രം' : 'Boys Only')}
                           </span>
                         )}
                       </div>
                       <span className="text-xs text-slate-500 truncate mt-0.5">
-                        {house.address} • ആതിഥേയൻ: {house.host_name} ({house.host_phone})
+                        {house.address} • {language === 'ml' ? 'ആതിഥേയൻ:' : 'Host:'} {house.host_name} ({house.host_phone})
                       </span>
                     </div>
 
@@ -391,7 +397,7 @@ export const AdminWorkbench: React.FC = () => {
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between text-xs font-bold">
                       <span className="text-slate-600">
-                        കപ്പാസിറ്റി: {count} / {house.capacity} പേർ
+                        {language === 'ml' ? `കപ്പാസിറ്റി: ${count} / ${house.capacity} പേർ` : `Capacity: ${count} / ${house.capacity} persons`}
                       </span>
                       <span className={isFull ? 'text-amber-600' : 'text-emerald-600'}>
                         {isFull ? t('capacity_full') : `${house.capacity - count} ${t('slots_free')}`}
@@ -411,7 +417,7 @@ export const AdminWorkbench: React.FC = () => {
                   {currentOccupants.length > 0 && (
                     <div className="pt-2 border-t border-slate-200/60 flex flex-col gap-1.5">
                       <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                        ഇവിടെ താമസിക്കുന്നവർ ({currentOccupants.length}):
+                        {language === 'ml' ? `ഇവിടെ താമസിക്കുന്നവർ (${currentOccupants.length}):` : `Current Residents (${currentOccupants.length}):`}
                       </span>
                       <div className="flex flex-wrap gap-2">
                         {currentOccupants.map((occ) => (
@@ -432,7 +438,7 @@ export const AdminWorkbench: React.FC = () => {
                             </button>
                             <span className="font-bold font-malayalam-bold">{occ.full_name}</span>
                             <span className="text-[10px] text-slate-400">
-                              ({occ.district_ml || occ.district_en})
+                              ({language === 'ml' ? (occ.district_ml || occ.district_en) : (occ.district_en || occ.district_ml)})
                             </span>
                             <button
                               onClick={() => handleUnassign(occ.id)}

@@ -8,7 +8,7 @@ import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Download, ArrowRigh
 import { useNavigate } from 'react-router-dom';
 
 export const CSVImporter: React.FC = () => {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const navigate = useNavigate();
 
   const [importType, setImportType] = useState<'delegates' | 'houses'>('delegates');
@@ -132,10 +132,10 @@ export const CSVImporter: React.FC = () => {
     try {
       if (importType === 'delegates') {
         const res = await api.importDelegates(parsedRows as Delegate[]);
-        setSuccessMsg(`വിജയകരമായി ${res.count} പ്രതിനിധികളെ സേവ് ചെയ്തു!`);
+        setSuccessMsg(language === 'ml' ? `വിജയകരമായി ${res.count} പ്രതിനിധികളെ സേവ് ചെയ്തു!` : `Successfully saved ${res.count} delegates!`);
       } else {
         const res = await api.importHouses(parsedRows as House[]);
-        setSuccessMsg(`വിജയകരമായി ${res.count} വീടുകൾ സേവ് ചെയ്തു!`);
+        setSuccessMsg(language === 'ml' ? `വിജയകരമായി ${res.count} വീടുകൾ സേവ് ചെയ്തു!` : `Successfully saved ${res.count} houses!`);
       }
 
       setParsedRows([]);
@@ -144,7 +144,7 @@ export const CSVImporter: React.FC = () => {
       }, 1500);
     } catch (err: any) {
       console.error('Import failed', err);
-      setErrors(['ഡാറ്റാബേസിലേക്ക് സേവ് ചെയ്യാൻ സാധിച്ചില്ല: ' + (err.message || 'Unknown error')]);
+      setErrors([language === 'ml' ? ('ഡാറ്റാബേസിലേക്ക് സേവ് ചെയ്യാൻ സാധിച്ചില്ല: ' + (err.message || 'Unknown error')) : ('Could not save to database: ' + (err.message || 'Unknown error'))]);
     } finally {
       setIsCommitting(false);
     }
@@ -164,11 +164,13 @@ export const CSVImporter: React.FC = () => {
       setCloudCount(cloudData.length);
 
       setSuccessMsg(
-        `വിജയകരമായി ${res.count} പ്രതിനിധികളെ Supabase ക്ലൗഡ് ഡാറ്റാബേസിലേക്ക് സിങ്ക് ചെയ്തു! ലോക്കൽ കാഷെ ക്ലൗഡുമായി പൊരുത്തപ്പെടുത്തി.`
+        language === 'ml'
+          ? `വിജയകരമായി ${res.count} പ്രതിനിധികളെ Supabase ക്ലൗഡ് ഡാറ്റാബേസിലേക്ക് സിങ്ക് ചെയ്തു! ലോക്കൽ കാഷെ ക്ലൗഡുമായി പൊരുത്തപ്പെടുത്തി.`
+          : `Successfully synced ${res.count} delegates to Supabase cloud database! Local cache updated.`
       );
     } catch (err: any) {
       console.error('Sync failed', err);
-      setErrors(['Supabase സിങ്ക് പരാജയപ്പെട്ടു: ' + (err.message || 'Unknown error')]);
+      setErrors([language === 'ml' ? ('Supabase സിങ്ക് പരാജയപ്പെട്ടു: ' + (err.message || 'Unknown error')) : ('Supabase sync failed: ' + (err.message || 'Unknown error'))]);
     } finally {
       setIsSyncing(false);
     }
@@ -187,17 +189,21 @@ export const CSVImporter: React.FC = () => {
           if (cloudData && cloudData.length > 0) {
             mockStore.setDelegates(cloudData);
             setCloudCount(cloudData.length);
-            setSuccessMsg(`ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു, ക്ലൗഡിൽ നിന്നുള്ള ${cloudData.length} പ്രതിനിധികളെ പുതുക്കി ലോഡ് ചെയ്തു.`);
+            setSuccessMsg(
+              language === 'ml'
+                ? `ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു, ക്ലൗഡിൽ നിന്നുള്ള ${cloudData.length} പ്രതിനിധികളെ പുതുക്കി ലോഡ് ചെയ്തു.`
+                : `Local cache cleared and refreshed with ${cloudData.length} delegates from cloud.`
+            );
             return;
           }
         } catch {
           // fall through
         }
       }
-      setSuccessMsg('ഈ ഡിവൈസിലെ ലോക്കൽ കാഷെ വിജയകരമായി ക്ലിയർ ചെയ്തു.');
+      setSuccessMsg(language === 'ml' ? 'ഈ ഡിവൈസിലെ ലോക്കൽ കാഷെ വിജയകരമായി ക്ലിയർ ചെയ്തു.' : 'Local cache on this device cleared successfully.');
     } catch (err: any) {
       mockStore.clearLocalDelegates();
-      setSuccessMsg('ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു.');
+      setSuccessMsg(language === 'ml' ? 'ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു.' : 'Local cache cleared.');
     } finally {
       setIsClearing(false);
     }
@@ -208,13 +214,17 @@ export const CSVImporter: React.FC = () => {
       {/* Header */}
       <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col gap-2">
         <span className="text-xs font-bold text-primary uppercase tracking-wider">
-          {t('import_csv')} (FR-IMP-1)
+          {t('import_csv')}
         </span>
         <h1 className="text-2xl font-malayalam-bold text-slate-900">
-          പ്രതിനിധികളുടെയും വീടുകളുടെയും വിവരങ്ങൾ ഇമ്പോർട്ട് ചെയ്യുക
+          {language === 'ml'
+            ? 'പ്രതിനിധികളുടെയും വീടുകളുടെയും വിവരങ്ങൾ ഇമ്പോർട്ട് ചെയ്യുക'
+            : 'Import Delegates & Host Houses (CSV)'}
         </h1>
         <p className="text-xs text-slate-500">
-          മലയാളം യൂണികോഡ് (UTF-8) പിന്തുണയ്ക്കുന്നു. അപ്‌ലോഡ് ചെയ്യുന്നതിന് മുൻപ് ഡാറ്റ പ്രിവ്യൂ കാണാം.
+          {language === 'ml'
+            ? 'മലയാളം യൂണികോഡ് (UTF-8) പിന്തുണയ്ക്കുന്നു. അപ്‌ലോഡ് ചെയ്യുന്നതിന് മുൻപ് ഡാറ്റ പ്രിവ്യൂ കാണാം.'
+            : 'Supports Malayalam Unicode & UTF-8. You can preview data before committing.'}
         </p>
       </div>
 
@@ -228,16 +238,24 @@ export const CSVImporter: React.FC = () => {
             <div className="flex flex-col">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-bold text-amber-900 font-malayalam-bold">
-                  ഈ ഡിവൈസിൽ {uniqueLocalDelegates.length} പ്രതിനിധികൾ നിലവിലുണ്ട്
+                  {language === 'ml'
+                    ? `ഈ ഡിവൈസിൽ ${uniqueLocalDelegates.length} പ്രതിനിധികൾ നിലവിലുണ്ട്`
+                    : `${uniqueLocalDelegates.length} delegates currently stored on this device`}
                 </span>
                 <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-300">
-                  {cloudCount !== null && cloudCount >= uniqueLocalDelegates.length ? 'ക്ലൗഡിൽ ലഭ്യമാണ്' : 'ലോക്കൽ ഡാറ്റ'}
+                  {cloudCount !== null && cloudCount >= uniqueLocalDelegates.length
+                    ? (language === 'ml' ? 'ക്ലൗഡിൽ ലഭ്യമാണ്' : 'Synced to Cloud')
+                    : (language === 'ml' ? 'ലോക്കൽ ഡാറ്റ' : 'Local Data')}
                 </span>
               </div>
               <p className="text-xs text-amber-700 mt-0.5">
                 {cloudCount !== null && cloudCount >= uniqueLocalDelegates.length
-                  ? `Supabase ക്ലൗഡിൽ നിലവിൽ ${cloudCount} പ്രതിനിധികളുണ്ട്. എല്ലാ ഡിവൈസുകളിലും ഒരേ ഡാറ്റ കാണാം.`
-                  : 'മറ്റു ഡിവൈസുകളിലും ഫോണുകളിലും കാണാൻ ഇവരെ Supabase ക്ലൗഡ് ഡാറ്റാബേസിലേക്ക് ഒറ്റ ക്ലിക്കിൽ സിങ്ക് ചെയ്യാം.'}
+                  ? (language === 'ml'
+                      ? `Supabase ക്ലൗഡിൽ നിലവിൽ ${cloudCount} പ്രതിനിധികളുണ്ട്. എല്ലാ ഡിവൈസുകളിലും ഒരേ ഡാറ്റ കാണാം.`
+                      : `Currently ${cloudCount} delegates exist in Supabase cloud. Synced across all devices.`)
+                  : (language === 'ml'
+                      ? 'മറ്റു ഡിവൈസുകളിലും ഫോണുകളിലും കാണാൻ ഇവരെ Supabase ക്ലൗഡ് ഡാറ്റാബേസിലേക്ക് ഒറ്റ ക്ലിക്കിൽ സിങ്ക് ചെയ്യാം.'
+                      : 'Sync these delegates to Supabase cloud to make them accessible on all phones and devices.')}
               </p>
             </div>
           </div>
@@ -248,16 +266,20 @@ export const CSVImporter: React.FC = () => {
               className="touch-target px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-95 disabled:opacity-50 shrink-0"
             >
               <CloudUpload className={`w-4 h-4 ${isSyncing ? 'animate-bounce' : ''}`} />
-              <span>{isSyncing ? 'ക്ലൗഡിലേക്ക് സിങ്ക് ചെയ്യുന്നു...' : 'Supabase-ലേക്ക് സിങ്ക് ചെയ്യുക'}</span>
+              <span>
+                {isSyncing
+                  ? (language === 'ml' ? 'ക്ലൗഡിലേക്ക് സിങ്ക് ചെയ്യുന്നു...' : 'Syncing to Cloud...')
+                  : (language === 'ml' ? 'Supabase-ലേക്ക് സിങ്ക് ചെയ്യുക' : 'Sync to Supabase')}
+              </span>
             </button>
             <button
               onClick={handleClearLocalCache}
               disabled={isClearing || isSyncing}
-              title="ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്ത് ക്ലൗഡിൽ നിന്നുള്ള വിവരങ്ങൾ പുതുക്കുക"
+              title={language === 'ml' ? 'ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്ത് ക്ലൗഡിൽ നിന്നുള്ള വിവരങ്ങൾ പുതുക്കുക' : 'Clear local device cache and refresh from cloud'}
               className="touch-target px-4 py-2.5 rounded-xl bg-white hover:bg-amber-100/70 text-amber-900 border border-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95 disabled:opacity-50 shrink-0"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isClearing ? 'animate-spin' : ''}`} />
-              <span>റീസെറ്റ് / കാഷെ ക്ലിയർ</span>
+              <span>{language === 'ml' ? 'റീസെറ്റ് / കാഷെ ക്ലിയർ' : 'Reset / Clear Cache'}</span>
             </button>
           </div>
         </div>
@@ -275,7 +297,7 @@ export const CSVImporter: React.FC = () => {
               importType === 'delegates' ? 'bg-white text-primary shadow-xs' : 'text-slate-600'
             }`}
           >
-            പ്രതിനിധികൾ (Delegates CSV)
+            {language === 'ml' ? 'പ്രതിനിധികൾ (Delegates CSV)' : 'Delegates (CSV)'}
           </button>
           <button
             onClick={() => {
@@ -286,7 +308,7 @@ export const CSVImporter: React.FC = () => {
               importType === 'houses' ? 'bg-white text-primary shadow-xs' : 'text-slate-600'
             }`}
           >
-            വീടുകൾ (Houses CSV)
+            {language === 'ml' ? 'വീടുകൾ (Houses CSV)' : 'Host Houses (CSV)'}
           </button>
         </div>
 
@@ -301,7 +323,7 @@ export const CSVImporter: React.FC = () => {
           className="px-4 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors self-start sm:self-auto"
         >
           <Download className="w-3.5 h-3.5" />
-          <span>മാതൃകാ CSV ഡൗൺലോഡ് (Download Template)</span>
+          <span>{language === 'ml' ? 'മാതൃകാ CSV ഡൗൺലോഡ് (Download Template)' : 'Download Sample CSV Template'}</span>
         </a>
       </div>
 
@@ -315,11 +337,11 @@ export const CSVImporter: React.FC = () => {
             {t('drag_drop_csv')}
           </span>
           <span className="text-xs text-slate-400">
-            .csv ഫയലുകൾ മാത്രം (UTF-8 Encoded)
+            {language === 'ml' ? '.csv ഫയലുകൾ മാത്രം (UTF-8 Encoded)' : '.csv files only (UTF-8 Encoded)'}
           </span>
         </div>
         <label className="cursor-pointer px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-sm hover:bg-primary-600 transition-all">
-          <span>ഫയൽ തിരഞ്ഞെടുക്കുക (Browse File)</span>
+          <span>{language === 'ml' ? 'ഫയൽ തിരഞ്ഞെടുക്കുക (Browse File)' : 'Browse CSV File'}</span>
           <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
         </label>
       </div>
@@ -336,7 +358,7 @@ export const CSVImporter: React.FC = () => {
         <div className="p-4 rounded-2xl bg-red-50 text-red-800 border border-red-200 text-xs flex flex-col gap-2">
           <div className="flex items-center gap-1.5 font-bold">
             <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-            <span>തെറ്റുകൾ കണ്ടെത്തി:</span>
+            <span>{language === 'ml' ? 'തെറ്റുകൾ കണ്ടെത്തി:' : 'Errors Found:'}</span>
           </div>
           {errors.map((err, i) => (
             <span key={i} className="pl-5">• {err}</span>
@@ -345,10 +367,12 @@ export const CSVImporter: React.FC = () => {
             <div className="mt-2 p-3 bg-white/80 rounded-xl border border-red-300 text-red-950 flex flex-col gap-1.5">
               <span className="font-bold flex items-center gap-1.5">
                 <Database className="w-4 h-4 text-red-700" />
-                Supabase പെർമിഷൻ പരിഹാരം:
+                {language === 'ml' ? 'Supabase പെർമിഷൻ പരിഹാരം:' : 'Supabase Permission Resolution:'}
               </span>
               <p className="text-[11px] text-slate-700 leading-relaxed">
-                Supabase Dashboard-ൽ <b>SQL Editor</b> തുറന്ന് പ്രോജക്റ്റിലെ <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-red-800">supabase/fix_permissions.sql</code> ഫയലിലെ കോഡ് പേസ്റ്റ് ചെയ്ത് <b>Run</b> ചെയ്യുക. ഇത് ഡാറ്റാബേസിലേക്ക് പ്രതിനിധികളെ അപ്‌ലോഡ് ചെയ്യാനുള്ള പൂർണ്ണ അനുമതി നൽകും.
+                {language === 'ml'
+                  ? <>Supabase Dashboard-ൽ <b>SQL Editor</b> തുറന്ന് പ്രോജക്റ്റിലെ <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-red-800">supabase/fix_permissions.sql</code> ഫയലിലെ കോഡ് പേസ്റ്റ് ചെയ്ത് <b>Run</b> ചെയ്യുക. ഇത് ഡാറ്റാബേസിലേക്ക് പ്രതിനിധികളെ അപ്‌ലോഡ് ചെയ്യാനുള്ള പൂർണ്ണ അനുമതി നൽകും.</>
+                  : <>Open <b>SQL Editor</b> in your Supabase Dashboard, paste the code from <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-red-800">supabase/fix_permissions.sql</code> and click <b>Run</b>. This grants full table access to upload delegates.</>}
               </p>
             </div>
           )}
@@ -361,7 +385,9 @@ export const CSVImporter: React.FC = () => {
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-900">
-                {t('preview_data')}: {parsedRows.length} വരികൾ കണ്ടെത്തി
+                {language === 'ml'
+                  ? `${t('preview_data')}: ${parsedRows.length} വരികൾ കണ്ടെത്തി`
+                  : `${t('preview_data')}: ${parsedRows.length} rows detected`}
               </span>
             </div>
             <button
@@ -369,7 +395,7 @@ export const CSVImporter: React.FC = () => {
               disabled={isCommitting}
               className="touch-target px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-primary-600 transition-transform active:scale-95 disabled:opacity-50"
             >
-              <span>{isCommitting ? 'Supabase-ലേക്ക് സേവ് ചെയ്യുന്നു...' : `${t('save_data')} (${parsedRows.length})`}</span>
+              <span>{isCommitting ? (language === 'ml' ? 'Supabase-ലേക്ക് സേവ് ചെയ്യുന്നു...' : 'Saving to Supabase...') : `${t('save_data')} (${parsedRows.length})`}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -379,10 +405,10 @@ export const CSVImporter: React.FC = () => {
               <thead>
                 <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
                   <th className="p-2.5">#</th>
-                  <th className="p-2.5">പേര് (Name)</th>
-                  <th className="p-2.5">{importType === 'delegates' ? 'ജില്ല' : 'വിലാസം'}</th>
-                  <th className="p-2.5">{importType === 'delegates' ? 'ഫോൺ' : 'ആതിഥേയൻ'}</th>
-                  <th className="p-2.5">{importType === 'delegates' ? 'ടോക്കൺ ലിങ്ക്' : 'കപ്പാസിറ്റി'}</th>
+                  <th className="p-2.5">{language === 'ml' ? 'പേര് (Name)' : 'Full Name'}</th>
+                  <th className="p-2.5">{importType === 'delegates' ? (language === 'ml' ? 'ജില്ല' : 'District') : (language === 'ml' ? 'വിലാസം' : 'Address')}</th>
+                  <th className="p-2.5">{importType === 'delegates' ? (language === 'ml' ? 'ഫോൺ' : 'Phone') : (language === 'ml' ? 'ആതിഥേയൻ' : 'Host')}</th>
+                  <th className="p-2.5">{importType === 'delegates' ? (language === 'ml' ? 'ടോക്കൺ ലിങ്ക്' : 'Token Link') : (language === 'ml' ? 'കപ്പാസിറ്റി' : 'Capacity')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -393,13 +419,13 @@ export const CSVImporter: React.FC = () => {
                       {row.full_name || row.name}
                     </td>
                     <td className="p-2.5">
-                      {row.district_ml || row.address || '—'}
+                      {language === 'ml' ? (row.district_ml || row.address || '—') : (row.district_en || row.address || '—')}
                     </td>
                     <td className="p-2.5">
                       {row.phone || row.host_name || '—'}
                     </td>
                     <td className="p-2.5 font-mono text-[11px] text-primary">
-                      {row.token ? `/d/${row.token}` : `${row.capacity} പേർ`}
+                      {row.token ? `/d/${row.token}` : `${row.capacity} ${language === 'ml' ? 'പേർ' : 'persons'}`}
                     </td>
                   </tr>
                 ))}
@@ -408,7 +434,7 @@ export const CSVImporter: React.FC = () => {
           </div>
           {parsedRows.length > 10 && (
             <span className="text-[11px] text-slate-400 italic">
-              ...മറ്റു {parsedRows.length - 10} വരികൾ കൂടിയുണ്ട്
+              ...{language === 'ml' ? `മറ്റു ${parsedRows.length - 10} വരികൾ കൂടിയുണ്ട്` : `${parsedRows.length - 10} more rows below`}
             </span>
           )}
         </div>

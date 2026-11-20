@@ -47,10 +47,10 @@ export const LandingPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-bold text-primary uppercase tracking-wider">
                     {user.role === 'admin'
-                      ? 'സംസ്ഥാന അഡ്മിൻ ലോഗിൻ സജീവം'
+                      ? (language === 'ml' ? 'സംസ്ഥാന അഡ്മിൻ ലോഗിൻ സജീവം' : 'State Admin Session Active')
                       : user.role === 'district'
-                      ? `${user.district_name || 'ജില്ലാ'} കോർഡിനേറ്റർ ലോഗിൻ സജീവം`
-                      : 'വളണ്ടിയർ ലോഗിൻ സജീവം'}
+                      ? (language === 'ml' ? `${user.district_name || 'ജില്ലാ'} കോർഡിനേറ്റർ ലോഗിൻ സജീവം` : `${user.district_name || 'District'} Coordinator Active`)
+                      : (language === 'ml' ? 'വളണ്ടിയർ ലോഗിൻ സജീവം' : 'Volunteer Session Active')}
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
                     Active
@@ -68,7 +68,7 @@ export const LandingPage: React.FC = () => {
                   to="/volunteer"
                   className="touch-target w-full sm:w-auto px-4 py-2.5 rounded-xl bg-primary text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm hover:bg-primary-600 transition-colors shrink-0"
                 >
-                  <span>വളണ്ടിയർ ഡെസ്ക് തുറക്കുക</span>
+                  <span>{language === 'ml' ? 'വളണ്ടിയർ ഡെസ്ക് തുറക്കുക' : 'Open Volunteer Desk'}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               ) : (
@@ -78,8 +78,8 @@ export const LandingPage: React.FC = () => {
                 >
                   <span>
                     {user.role === 'district'
-                      ? `${user.district_name || 'ജില്ലാ'} വർക്ക് ബെഞ്ച്`
-                      : 'അഡ്മിൻ വർക്ക് ബെഞ്ച്'}
+                      ? (language === 'ml' ? `${user.district_name || 'ജില്ലാ'} വർക്ക് ബെഞ്ച്` : `${user.district_name || 'District'} Workbench`)
+                      : (language === 'ml' ? 'അഡ്മിൻ വർക്ക് ബെഞ്ച്' : 'Admin Workbench')}
                   </span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
@@ -95,10 +95,12 @@ export const LandingPage: React.FC = () => {
               </div>
               <div className="flex flex-col">
                 <h3 className="text-sm font-bold text-slate-900 font-malayalam-bold">
-                  സംഘാടകരും വളണ്ടിയർമാരുമാണോ? (Staff & Volunteers)
+                  {language === 'ml' ? 'സംഘാടകരും വളണ്ടിയർമാരുമാണോ? (Staff & Volunteers)' : 'Staff & Volunteers Sign In'}
                 </h3>
                 <span className="text-xs text-slate-500">
-                  അഡ്മിൻ, ജില്ലാ ഭാരവാഹികൾ, ഹെൽപ്പ് ഡെസ്ക് വളണ്ടിയർമാർ എന്നിവർക്ക് ലോഗിൻ ചെയ്യാം.
+                  {language === 'ml'
+                    ? 'അഡ്മിൻ, ജില്ലാ ഭാരവാഹികൾ, ഹെൽപ്പ് ഡെസ്ക് വളണ്ടിയർമാർ എന്നിവർക്ക് ലോഗിൻ ചെയ്യാം.'
+                    : 'Log in for State Admin, District Conveners, and Help Desk Volunteers.'}
                 </span>
               </div>
             </div>
@@ -106,7 +108,7 @@ export const LandingPage: React.FC = () => {
               to="/login"
               className="touch-target w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-98 shrink-0"
             >
-              <span>ലോഗിൻ ചെയ്യുക (Sign In)</span>
+              <span>{language === 'ml' ? 'ലോഗിൻ ചെയ്യുക (Sign In)' : 'Sign In'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -120,10 +122,10 @@ export const LandingPage: React.FC = () => {
             </div>
             <div className="flex flex-col">
               <h2 className="text-base sm:text-lg font-bold text-slate-900 font-malayalam-bold">
-                താമസ വിവരങ്ങൾ എങ്ങനെ അറിയാം?
+                {language === 'ml' ? 'താമസ വിവരങ്ങൾ എങ്ങനെ അറിയാം?' : 'How to Access Your Accommodation Details?'}
               </h2>
               <span className="text-xs text-slate-500">
-                സമ്മേളന പ്രതിനിധികൾക്കും രക്ഷിതാക്കൾക്കുമുള്ള നിർദ്ദേശങ്ങൾ
+                {language === 'ml' ? 'സമ്മേളന പ്രതിനിധികൾക്കും രക്ഷിതാക്കൾക്കുമുള്ള നിർദ്ദേശങ്ങൾ' : 'Instructions for Conference Delegates and Parents'}
               </span>
             </div>
           </div>
@@ -136,10 +138,12 @@ export const LandingPage: React.FC = () => {
                 <MessageSquare className="w-4 h-4" />
               </div>
               <h3 className="text-sm font-bold text-slate-900 font-malayalam-bold">
-                1. വാട്ട്‌സ്ആപ്പ് ലിങ്ക്
+                {language === 'ml' ? '1. വാട്ട്‌സ്ആപ്പ് ലിങ്ക്' : '1. WhatsApp Link'}
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                രജിസ്റ്റർ ചെയ്ത മൊബൈൽ നമ്പറിലേക്ക് അയച്ച വ്യക്തിഗത ലിങ്ക് വഴി ലോഗിൻ ചെയ്യാതെ തന്നെ നേരിട്ട് വിവരങ്ങൾ കാണാം.
+                {language === 'ml'
+                  ? 'രജിസ്റ്റർ ചെയ്ത മൊബൈൽ നമ്പറിലേക്ക് അയച്ച വ്യക്തിഗത ലിങ്ക് വഴി ലോഗിൻ ചെയ്യാതെ തന്നെ നേരിട്ട് വിവരങ്ങൾ കാണാം.'
+                  : 'Access your stay portal directly without login via the personalized link sent to your registered mobile number.'}
               </p>
             </div>
 
@@ -149,10 +153,12 @@ export const LandingPage: React.FC = () => {
                 <Home className="w-4 h-4" />
               </div>
               <h3 className="text-sm font-bold text-slate-900 font-malayalam-bold">
-                2. ആതിഥേയരും വഴിയും
+                {language === 'ml' ? '2. ആതിഥേയരും വഴിയും' : '2. Host & Route'}
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                താമസസ്ഥലത്തെ ആതിഥേയരെ ഫോണിൽ വിളിക്കാനും, ഗൂഗിൾ മാപ്പ് വഴി താമസകേന്ദ്രത്തിലേക്ക് എത്തിച്ചേരാനും സാധിക്കും.
+                {language === 'ml'
+                  ? 'താമസസ്ഥലത്തെ ആതിഥേയരെ ഫോണിൽ വിളിക്കാനും, ഗൂഗിൾ മാപ്പ് വഴി താമസകേന്ദ്രത്തിലേക്ക് എത്തിച്ചേരാനും സാധിക്കും.'
+                  : 'Directly call your host family and navigate to the accommodation house with one click via Google Maps.'}
               </p>
             </div>
 
@@ -162,10 +168,12 @@ export const LandingPage: React.FC = () => {
                 <Phone className="w-4 h-4" />
               </div>
               <h3 className="text-sm font-bold text-slate-900 font-malayalam-bold">
-                3. സഹായ കേന്ദ്രം
+                {language === 'ml' ? '3. സഹായ കേന്ദ്രം' : '3. Help Desk'}
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                ലിങ്ക് ലഭിക്കാത്തവർക്കോ റൂട്ട് സംശയങ്ങൾക്കോ കൺട്രോൾ റൂം ഹെൽപ്പ് ഡെസ്കുമായി നേരിട്ട് ബന്ധപ്പെടാം.
+                {language === 'ml'
+                  ? 'ലിങ്ക് ലഭിക്കാത്തവർക്കോ റൂട്ട് സംശയങ്ങൾക്കോ കൺട്രോൾ റൂം ഹെൽപ്പ് ഡെസ്കുമായി നേരിട്ട് ബന്ധപ്പെടാം.'
+                  : 'If you lost your link or have any questions on the way, contact our 24/7 Control Room helpline.'}
               </p>
             </div>
           </div>
@@ -179,11 +187,11 @@ export const LandingPage: React.FC = () => {
                 <Phone className="w-4 h-4 fill-current" />
               </div>
               <h3 className="text-sm font-bold text-slate-900 font-malayalam-bold">
-                സഹായ ഹെൽപ്പ് ലൈൻ നമ്പറുകൾ (24/7 Helplines)
+                {language === 'ml' ? 'സഹായ ഹെൽപ്പ് ലൈൻ നമ്പറുകൾ (24/7 Helplines)' : 'Emergency Helplines (24/7)'}
               </h3>
             </div>
             <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-              റൗണ്ട് ദ ക്ലോക്ക്
+              {language === 'ml' ? 'റൗണ്ട് ദ ക്ലോക്ക്' : '24x7 Active'}
             </span>
           </div>
 
@@ -203,7 +211,7 @@ export const LandingPage: React.FC = () => {
                   </span>
                 </div>
                 <span className="text-[11px] font-bold text-slate-500 bg-white px-2 py-1 rounded border border-slate-200">
-                  വിളിക്കുക
+                  {language === 'ml' ? 'വിളിക്കുക' : 'Call'}
                 </span>
               </a>
             ))}
@@ -214,7 +222,11 @@ export const LandingPage: React.FC = () => {
         <footer className="text-center py-8 flex flex-col items-center gap-3 text-xs text-slate-400 border-t border-slate-200/60 mt-6">
           <div className="flex items-center gap-2 text-slate-700 font-bold font-malayalam-bold">
             <img src="/images/logo.png" alt="Logo" className="w-6 h-6 object-contain" />
-            <span>ബാലസംഘം സംസ്ഥാന സ്വാഗതസംഘം ഓഫീസ് • നീലേശ്വരം, പാലായി</span>
+            <span>
+              {language === 'ml'
+                ? 'ബാലസംഘം സംസ്ഥാന സ്വാഗതസംഘം ഓഫീസ് • നീലേശ്വരം, പാലായി'
+                : 'Balasangham State Reception Committee Office • Nileshwaram, Palayi'}
+            </span>
           </div>
 
           {/* Discreet Staff Portal link */}
@@ -224,7 +236,7 @@ export const LandingPage: React.FC = () => {
               className="text-[11px] text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1 mt-1 opacity-70 hover:opacity-100"
             >
               <Lock className="w-3 h-3" />
-              <span>സ്റ്റാഫ് പ്രവേശനം (Staff Portal)</span>
+              <span>{language === 'ml' ? 'സ്റ്റാഫ് പ്രവേശനം (Staff Portal)' : 'Staff Portal'}</span>
             </Link>
           ) : (
             <Link
@@ -232,7 +244,7 @@ export const LandingPage: React.FC = () => {
               className="text-xs font-bold text-primary hover:underline flex items-center gap-1 mt-1"
             >
               <Shield className="w-3.5 h-3.5" />
-              <span>അഡ്മിൻ വർക്ക് ബെഞ്ചിലേക്ക് പോവുക</span>
+              <span>{language === 'ml' ? 'അഡ്മിൻ വർക്ക് ബെഞ്ചിലേക്ക് പോവുക' : 'Go to Admin Workbench'}</span>
             </Link>
           )}
         </footer>

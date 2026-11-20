@@ -103,9 +103,9 @@ export const VolunteerDesk: React.FC = () => {
     mockStore.updateStatus(delegate.id, newStatus);
 
     if (newStatus === 'checked_in') {
-      setSuccessToast(`${delegate.full_name} - ഹാജർ രേഖപ്പെടുത്തി!`);
+      setSuccessToast(language === 'ml' ? `${delegate.full_name} - ഹാജർ രേഖപ്പെടുത്തി!` : `${delegate.full_name} - Checked In!`);
     } else {
-      setSuccessToast(`${delegate.full_name} - ഹാജർ ഒഴിവാക്കി.`);
+      setSuccessToast(language === 'ml' ? `${delegate.full_name} - ഹാജർ ഒഴിവാക്കി.` : `${delegate.full_name} - Check-In Undone.`);
     }
     setTimeout(() => setSuccessToast(null), 3000);
   };
@@ -113,7 +113,9 @@ export const VolunteerDesk: React.FC = () => {
   // WhatsApp stay link sharing
   const handleShareWhatsApp = (delegate: Delegate) => {
     const stayUrl = `${window.location.origin}/d/${delegate.token}`;
-    const text = `പ്രിയപ്പെട്ട ${delegate.full_name}, ബാലസംഘം സംസ്ഥാന സമ്മേളനത്തിലെ നിങ്ങളുടെ താമസ വിവരങ്ങളും റൂട്ട് മാപ്പും കാണാൻ ഈ ലിങ്ക് ക്ലിക്ക് ചെയ്യുക:\n${stayUrl}`;
+    const text = language === 'ml'
+      ? `പ്രിയപ്പെട്ട ${delegate.full_name}, ബാലസംഘം സംസ്ഥാന സമ്മേളനത്തിലെ നിങ്ങളുടെ താമസ വിവരങ്ങളും റൂട്ട് മാപ്പും കാണാൻ ഈ ലിങ്ക് ക്ലിക്ക് ചെയ്യുക:\n${stayUrl}`
+      : `Dear ${delegate.full_name}, click this link to view your stay details and route map for the Balasangham State Conference:\n${stayUrl}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -136,17 +138,17 @@ export const VolunteerDesk: React.FC = () => {
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-primary uppercase tracking-wider">
-                വളണ്ടിയർ ഹെൽപ്പ് ഡെസ്ക്
+                {language === 'ml' ? 'വളണ്ടിയർ ഹെൽപ്പ് ഡെസ്ക്' : 'Volunteer Help Desk'}
               </span>
               <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
-                സജീവം (Active)
+                {language === 'ml' ? 'സജീവം (Active)' : 'Active'}
               </span>
             </div>
             <h1 className="text-xl md:text-2xl font-malayalam-bold text-slate-900 leading-tight">
-              പ്രതിനിധി സ്വീകരണവും ഹാജർ നിലയും
+              {language === 'ml' ? 'പ്രതിനിധി സ്വീകരണവും ഹാജർ നിലയും' : 'Delegate Reception & Attendance Tracker'}
             </h1>
             <span className="text-xs text-slate-500">
-              ലോഗിൻ ചെയ്തത്: <strong className="text-slate-800">{user?.full_name || 'വളണ്ടിയർ'}</strong> • 8-ാമത് സംസ്ഥാന സമ്മേളനം, നീലേശ്വരം
+              {language === 'ml' ? 'ലോഗിൻ ചെയ്തത്:' : 'Logged in as:'} <strong className="text-slate-800">{user?.full_name || (language === 'ml' ? 'വളണ്ടിയർ' : 'Volunteer')}</strong> • {language === 'ml' ? '8-ാമത് സംസ്ഥാന സമ്മേളനം, നീലേശ്വരം' : '8th State Conference, Nileshwaram'}
             </span>
           </div>
         </div>
@@ -158,14 +160,14 @@ export const VolunteerDesk: React.FC = () => {
             className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-200"
           >
             <Phone className="w-3.5 h-3.5 text-primary" />
-            <span>കൺട്രോൾ റൂം: 04985 201201</span>
+            <span>{language === 'ml' ? 'കൺട്രോൾ റൂം: 04985 201201' : 'Control Room: 04985 201201'}</span>
           </a>
           <a
             href="tel:9447123456"
             className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-200"
           >
             <Phone className="w-3.5 h-3.5 text-emerald-600" />
-            <span>അക്കോമഡേഷൻ കൺവീനർ</span>
+            <span>{language === 'ml' ? 'അക്കോമഡേഷൻ കൺവീനർ' : 'Accommodation Convener'}</span>
           </a>
         </div>
       </div>
@@ -173,27 +175,43 @@ export const VolunteerDesk: React.FC = () => {
       {/* Metrics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col">
-          <span className="text-xs font-semibold text-slate-400">ആകെ പ്രതിനിധികൾ</span>
+          <span className="text-xs font-semibold text-slate-400">
+            {language === 'ml' ? 'ആകെ പ്രതിനിധികൾ' : 'Total Delegates'}
+          </span>
           <span className="text-2xl font-black text-slate-900 mt-1">{totalCount}</span>
-          <span className="text-[11px] text-slate-500">രജിസ്റ്റർ ചെയ്തവർ</span>
+          <span className="text-[11px] text-slate-500">
+            {language === 'ml' ? 'രജിസ്റ്റർ ചെയ്തവർ' : 'Registered'}
+          </span>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col">
-          <span className="text-xs font-semibold text-slate-400">ഹാജരായവർ (Checked In)</span>
+          <span className="text-xs font-semibold text-slate-400">
+            {language === 'ml' ? 'ഹാജരായവർ (Checked In)' : 'Checked In'}
+          </span>
           <span className="text-2xl font-black text-emerald-600 mt-1">{checkedInCount}</span>
-          <span className="text-[11px] text-emerald-600 font-bold">{checkinPercentage}% എത്തിയവർ</span>
+          <span className="text-[11px] text-emerald-600 font-bold">
+            {checkinPercentage}% {language === 'ml' ? 'എത്തിയവർ' : 'Arrived'}
+          </span>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col">
-          <span className="text-xs font-semibold text-slate-400">ഇനി എത്താനുള്ളവർ</span>
+          <span className="text-xs font-semibold text-slate-400">
+            {language === 'ml' ? 'ഇനി എത്താനുള്ളവർ' : 'Pending Arrival'}
+          </span>
           <span className="text-2xl font-black text-amber-600 mt-1">{pendingCount}</span>
-          <span className="text-[11px] text-amber-600 font-medium">വഴിയിലുള്ളവർ</span>
+          <span className="text-[11px] text-amber-600 font-medium">
+            {language === 'ml' ? 'വഴിയിലുള്ളവർ' : 'On the Way'}
+          </span>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col">
-          <span className="text-xs font-semibold text-slate-400">ആതിഥേയ വീടുകൾ</span>
+          <span className="text-xs font-semibold text-slate-400">
+            {language === 'ml' ? 'ആതിഥേയ വീടുകൾ' : 'Host Houses'}
+          </span>
           <span className="text-2xl font-black text-primary mt-1">{houses.length}</span>
-          <span className="text-[11px] text-slate-500">താമസ കേന്ദ്രങ്ങൾ</span>
+          <span className="text-[11px] text-slate-500">
+            {language === 'ml' ? 'താമസ കേന്ദ്രങ്ങൾ' : 'Accommodations'}
+          </span>
         </div>
       </div>
 
@@ -208,7 +226,11 @@ export const VolunteerDesk: React.FC = () => {
           }`}
         >
           <UserCheck className="w-4 h-4" />
-          <span>പ്രതിനിധികളുടെ ഹാജർ പട്ടിക ({filteredDelegates.length})</span>
+          <span>
+            {language === 'ml'
+              ? `പ്രതിനിധികളുടെ ഹാജർ പട്ടിക (${filteredDelegates.length})`
+              : `Delegate Attendance List (${filteredDelegates.length})`}
+          </span>
         </button>
 
         <button
@@ -220,7 +242,11 @@ export const VolunteerDesk: React.FC = () => {
           }`}
         >
           <Home className="w-4 h-4" />
-          <span>ആതിഥേയ വീടുകൾ ({houses.length})</span>
+          <span>
+            {language === 'ml'
+              ? `ആതിഥേയ വീടുകൾ (${houses.length})`
+              : `Host Houses (${houses.length})`}
+          </span>
         </button>
       </div>
 
@@ -237,12 +263,14 @@ export const VolunteerDesk: React.FC = () => {
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-amber-900 font-malayalam-bold">
-                      📍 {activePingCount} പ്രതിനിധി(കൾ) തത്സമയ ലൊക്കേഷൻ ഷെയർ ചെയ്തിട്ടുണ്ട്
+                      📍 {activePingCount} {language === 'ml' ? 'പ്രതിനിധി(കൾ) തത്സമയ ലൊക്കേഷൻ ഷെയർ ചെയ്തിട്ടുണ്ട്' : 'delegate(s) shared live GPS location'}
                     </span>
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   </div>
                   <span className="text-[11px] text-amber-700">
-                    വഴിയിലുള്ള പ്രതിനിധികളുടെ തത്സമയ ജി.പി.എസ് ലൊക്കേഷൻ Google Maps-ൽ നേരിട്ട് പരിശോധിക്കാം.
+                    {language === 'ml'
+                      ? 'വഴിയിലുള്ള പ്രതിനിധികളുടെ തത്സമയ ജി.പി.എസ് ലൊക്കേഷൻ Google Maps-ൽ നേരിട്ട് പരിശോധിക്കാം.'
+                      : 'View real-time GPS locations of arriving delegates directly on Google Maps.'}
                   </span>
                 </div>
               </div>
@@ -250,7 +278,9 @@ export const VolunteerDesk: React.FC = () => {
                 onClick={() => setStatusFilter(statusFilter === 'with_location' ? 'all' : 'with_location')}
                 className="px-3.5 py-2 rounded-xl bg-amber-200/80 hover:bg-amber-300 text-amber-900 text-xs font-bold transition-colors self-start sm:self-auto shrink-0"
               >
-                {statusFilter === 'with_location' ? 'എല്ലാം കാണിക്കുക' : 'ലൊക്കേഷനുള്ളവരെ മാത്രം കാണുക'}
+                {statusFilter === 'with_location'
+                  ? (language === 'ml' ? 'എല്ലാം കാണിക്കുക' : 'Show All')
+                  : (language === 'ml' ? 'ലൊക്കേഷനുള്ളവരെ മാത്രം കാണുക' : 'Show With Location Only')}
               </button>
             </div>
           )}
@@ -264,7 +294,7 @@ export const VolunteerDesk: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="പേര്, ഫോൺ നമ്പർ, അല്ലെങ്കിൽ ടോക്കൺ തിരയുക..."
+                placeholder={language === 'ml' ? 'പേര്, ഫോൺ നമ്പർ, അല്ലെങ്കിൽ ടോക്കൺ തിരയുക...' : 'Search name, phone, or token...'}
                 className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -277,7 +307,7 @@ export const VolunteerDesk: React.FC = () => {
                   statusFilter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
                 }`}
               >
-                എല്ലാം
+                {language === 'ml' ? 'എല്ലാം' : 'All'}
               </button>
               <button
                 onClick={() => setStatusFilter('pending')}
@@ -285,7 +315,7 @@ export const VolunteerDesk: React.FC = () => {
                   statusFilter === 'pending' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600'
                 }`}
               >
-                എത്താനുള്ളവർ ({pendingCount})
+                {language === 'ml' ? `എത്താനുള്ളവർ (${pendingCount})` : `Pending (${pendingCount})`}
               </button>
               <button
                 onClick={() => setStatusFilter('checked_in')}
@@ -293,7 +323,7 @@ export const VolunteerDesk: React.FC = () => {
                   statusFilter === 'checked_in' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600'
                 }`}
               >
-                ഹാജരായവർ ({checkedInCount})
+                {language === 'ml' ? `ഹാജരായവർ (${checkedInCount})` : `Checked In (${checkedInCount})`}
               </button>
               {activePingCount > 0 && (
                 <button
@@ -303,7 +333,7 @@ export const VolunteerDesk: React.FC = () => {
                   }`}
                 >
                   <MapPin className="w-3.5 h-3.5" />
-                  <span>ലൈവ് GPS ({activePingCount})</span>
+                  <span>{language === 'ml' ? `ലൈവ് GPS (${activePingCount})` : `Live GPS (${activePingCount})`}</span>
                 </button>
               )}
             </div>
@@ -314,7 +344,7 @@ export const VolunteerDesk: React.FC = () => {
               onChange={(e) => setDistrictFilter(e.target.value)}
               className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary shrink-0"
             >
-              <option value="all">എല്ലാ ജില്ലകളും</option>
+              <option value="all">{language === 'ml' ? 'എല്ലാ ജില്ലകളും' : 'All Districts'}</option>
               {initialDistricts.map((d) => (
                 <option key={d.id} value={d.id.toString()}>
                   {language === 'ml' ? d.name_ml : d.name_en}
@@ -344,7 +374,7 @@ export const VolunteerDesk: React.FC = () => {
                           {del.full_name}
                         </span>
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                          {del.district_ml || del.district_en}
+                          {language === 'ml' ? (del.district_ml || del.district_en) : (del.district_en || del.district_ml)}
                         </span>
                         {del.gender && (
                           <span
@@ -354,18 +384,18 @@ export const VolunteerDesk: React.FC = () => {
                                 : 'bg-blue-50 text-blue-700 border border-blue-200'
                             }`}
                           >
-                            {del.gender === 'girl' ? 'പെൺകുട്ടി' : 'ആൺകുട്ടി'}
+                            {del.gender === 'girl' ? (language === 'ml' ? 'പെൺകുട്ടി' : 'Girl') : (language === 'ml' ? 'ആൺകുട്ടി' : 'Boy')}
                           </span>
                         )}
                         {ping && (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 animate-pulse">
                             <MapPin className="w-3 h-3 text-primary fill-primary" />
-                            <span>GPS ഷെയർ ചെയ്തു</span>
+                            <span>{language === 'ml' ? 'GPS ഷെയർ ചെയ്തു' : 'GPS Shared'}</span>
                           </span>
                         )}
                       </div>
                       <span className="text-xs font-mono text-slate-400 mt-0.5">
-                        ടോക്കൺ: {del.token}
+                        {language === 'ml' ? 'ടോക്കൺ:' : 'Token:'} {del.token}
                       </span>
                     </div>
 
@@ -380,12 +410,12 @@ export const VolunteerDesk: React.FC = () => {
                       {isCheckedIn ? (
                         <>
                           <CheckCircle2 className="w-3 h-3" />
-                          <span>ഹാജരായി</span>
+                          <span>{language === 'ml' ? 'ഹാജരായി' : 'Checked In'}</span>
                         </>
                       ) : (
                         <>
                           <Clock className="w-3 h-3" />
-                          <span>വഴിയിലാണ്</span>
+                          <span>{language === 'ml' ? 'വഴിയിലാണ്' : 'En Route'}</span>
                         </>
                       )}
                     </span>
@@ -394,19 +424,25 @@ export const VolunteerDesk: React.FC = () => {
                   {/* House & Accommodation Details */}
                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex flex-col gap-1.5 text-xs text-slate-700">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-500">താമസസ്ഥലം:</span>
+                      <span className="font-semibold text-slate-500">
+                        {language === 'ml' ? 'താമസസ്ഥലം:' : 'Accommodation:'}
+                      </span>
                       <strong className="text-slate-900">
-                        {assignedHouse ? assignedHouse.name : 'അലോട്ട് ചെയ്തിട്ടില്ല'}
+                        {assignedHouse ? assignedHouse.name : (language === 'ml' ? 'അലോട്ട് ചെയ്തിട്ടില്ല' : 'Not Assigned')}
                       </strong>
                     </div>
                     {assignedHouse && (
                       <>
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-500">ആതിഥേയൻ:</span>
+                          <span className="text-slate-500">
+                            {language === 'ml' ? 'ആതിഥേയൻ:' : 'Host:'}
+                          </span>
                           <span>{assignedHouse.host_name}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-500">ഫോൺ:</span>
+                          <span className="text-slate-500">
+                            {language === 'ml' ? 'ഫോൺ:' : 'Phone:'}
+                          </span>
                           <a
                             href={`tel:${assignedHouse.host_phone}`}
                             className="font-mono font-bold text-primary hover:underline flex items-center gap-1"
@@ -419,7 +455,9 @@ export const VolunteerDesk: React.FC = () => {
                     )}
                     {del.emergency_phone && (
                       <div className="flex items-center justify-between border-t border-slate-200/50 pt-1 text-[11px]">
-                        <span className="text-slate-500">രക്ഷാകർത്താവ് ({del.emergency_name}):</span>
+                        <span className="text-slate-500">
+                          {language === 'ml' ? `രക്ഷാകർത്താവ് (${del.emergency_name}):` : `Guardian (${del.emergency_name}):`}
+                        </span>
                         <a
                           href={`tel:${del.emergency_phone}`}
                           className="font-mono font-bold text-slate-700 hover:text-primary"
@@ -438,10 +476,10 @@ export const VolunteerDesk: React.FC = () => {
                         <div className="flex flex-col text-left">
                           <span className="text-xs font-bold text-amber-950 flex items-center gap-1 font-malayalam-bold">
                             <Navigation className="w-3.5 h-3.5 text-primary" />
-                            <span>തത്സമയ ലൊക്കേഷൻ ലഭ്യമാണ് (Live GPS)</span>
+                            <span>{language === 'ml' ? 'തത്സമയ ലൊക്കേഷൻ ലഭ്യമാണ് (Live GPS)' : 'Live GPS Location Available'}</span>
                           </span>
                           <span className="text-[11px] text-amber-800 font-mono">
-                            30 മിനിറ്റ് ട്രാക്കിംഗ് • {ping.lat.toFixed(4)}, {ping.lng.toFixed(4)}
+                            {language === 'ml' ? '30 മിനിറ്റ് ട്രാക്കിംഗ്' : '30-min tracking'} • {ping.lat.toFixed(4)}, {ping.lng.toFixed(4)}
                           </span>
                         </div>
                       </div>
@@ -452,7 +490,7 @@ export const VolunteerDesk: React.FC = () => {
                         className="touch-target px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-transform active:scale-95 shrink-0"
                       >
                         <MapPin className="w-3.5 h-3.5" />
-                        <span>Google Maps-ൽ കാണുക</span>
+                        <span>{language === 'ml' ? 'Google Maps-ൽ കാണുക' : 'Open in Google Maps'}</span>
                       </a>
                     </div>
                   )}
@@ -468,12 +506,16 @@ export const VolunteerDesk: React.FC = () => {
                       }`}
                     >
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>{isCheckedIn ? 'ഹാജർ ഒഴിവാക്കുക' : 'ഹാജർ രേഖപ്പെടുത്തുക (Check In)'}</span>
+                      <span>
+                        {isCheckedIn
+                          ? (language === 'ml' ? 'ഹാജർ ഒഴിവാക്കുക' : 'Undo Check-In')
+                          : (language === 'ml' ? 'ഹാജർ രേഖപ്പെടുത്തുക (Check In)' : 'Mark Checked In')}
+                      </span>
                     </button>
 
                     <button
                       onClick={() => handleShareWhatsApp(del)}
-                      title="WhatsApp-ൽ ലിങ്ക് ഷെയർ ചെയ്യുക"
+                      title={language === 'ml' ? 'WhatsApp-ൽ ലിങ്ക് ഷെയർ ചെയ്യുക' : 'Share Link on WhatsApp'}
                       className="touch-target p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-colors"
                     >
                       <Share2 className="w-4 h-4" />
@@ -487,8 +529,12 @@ export const VolunteerDesk: React.FC = () => {
           {filteredDelegates.length === 0 && (
             <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center flex flex-col items-center gap-2">
               <Users className="w-10 h-10 text-slate-300" />
-              <span className="text-sm font-bold text-slate-700">പ്രതിനിധികളെ കണ്ടെത്താനായില്ല</span>
-              <span className="text-xs text-slate-400">തിരഞ്ഞെടുത്ത ഫിൽട്ടറുകൾ മാറ്റി ശ്രമിക്കുക</span>
+              <span className="text-sm font-bold text-slate-700">
+                {language === 'ml' ? 'പ്രതിനിധികളെ കണ്ടെത്താനായില്ല' : 'No Delegates Found'}
+              </span>
+              <span className="text-xs text-slate-400">
+                {language === 'ml' ? 'തിരഞ്ഞെടുത്ത ഫിൽട്ടറുകൾ മാറ്റി ശ്രമിക്കുക' : 'Try adjusting your search or filters'}
+              </span>
             </div>
           )}
         </div>
@@ -512,7 +558,7 @@ export const VolunteerDesk: React.FC = () => {
                       {house.name}
                     </h3>
                     <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-primary-50 text-primary-800 border border-primary-200 shrink-0">
-                      കപ്പാസിറ്റി: {occupants.length} / {house.capacity}
+                      {language === 'ml' ? 'കപ്പാസിറ്റി:' : 'Capacity:'} {occupants.length} / {house.capacity}
                     </span>
                   </div>
 
@@ -523,11 +569,15 @@ export const VolunteerDesk: React.FC = () => {
 
                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex flex-col gap-1.5 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500">ആതിഥേയൻ:</span>
+                      <span className="text-slate-500">
+                        {language === 'ml' ? 'ആതിഥേയൻ:' : 'Host:'}
+                      </span>
                       <strong className="text-slate-900">{house.host_name}</strong>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500">ഫോൺ നമ്പർ:</span>
+                      <span className="text-slate-500">
+                        {language === 'ml' ? 'ഫോൺ നമ്പർ:' : 'Phone Number:'}
+                      </span>
                       <a
                         href={`tel:${house.host_phone}`}
                         className="font-mono font-bold text-primary hover:underline flex items-center gap-1"
@@ -541,7 +591,9 @@ export const VolunteerDesk: React.FC = () => {
                   {/* Residents list in this house */}
                   <div className="mt-2 flex flex-col gap-1.5">
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                      താമസിക്കുന്ന പ്രതിനിധികൾ ({occupants.length}):
+                      {language === 'ml'
+                        ? `താമസിക്കുന്ന പ്രതിനിധികൾ (${occupants.length}):`
+                        : `Assigned Residents (${occupants.length}):`}
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {occupants.map((occ) => (
@@ -557,7 +609,9 @@ export const VolunteerDesk: React.FC = () => {
                         </span>
                       ))}
                       {occupants.length === 0 && (
-                        <span className="text-xs text-slate-400 italic">ആരെയും അലോട്ട് ചെയ്തിട്ടില്ല</span>
+                        <span className="text-xs text-slate-400 italic">
+                          {language === 'ml' ? 'ആരെയും അലോട്ട് ചെയ്തിട്ടില്ല' : 'No delegates assigned yet'}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -572,7 +626,7 @@ export const VolunteerDesk: React.FC = () => {
                     className="touch-target py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center gap-2 border border-slate-300 transition-colors"
                   >
                     <Navigation className="w-4 h-4 text-primary" />
-                    <span>റൂട്ട് മാപ്പ് കാണുക (Google Maps)</span>
+                    <span>{language === 'ml' ? 'റൂട്ട് മാപ്പ് കാണുക (Google Maps)' : 'Open in Google Maps'}</span>
                   </a>
                 )}
               </div>

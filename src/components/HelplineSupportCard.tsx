@@ -30,7 +30,11 @@ export const HelplineSupportCard: React.FC<HelplineSupportCardProps> = ({ token,
       setTimeout(() => setLocationSuccessMsg(false), 5000);
     } catch (err) {
       console.error('Location share failed', err);
-      alert('ലൊക്കേഷൻ എടുക്കാൻ സാധിച്ചില്ല. GPS ഓൺ ആണെന്ന് ഉറപ്പുവരുത്തുക.');
+      alert(
+        language === 'ml'
+          ? 'ലൊക്കേഷൻ എടുക്കാൻ സാധിച്ചില്ല. GPS ഓൺ ആണെന്ന് ഉറപ്പുവരുത്തുക.'
+          : 'Could not access location. Please ensure GPS is turned on.'
+      );
     } finally {
       setIsSharingLocation(false);
     }
@@ -49,7 +53,7 @@ export const HelplineSupportCard: React.FC<HelplineSupportCardProps> = ({ token,
           </span>
         </div>
         <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-          24x7 സജീവം
+          {language === 'ml' ? '24x7 സജീവം' : '24x7 Active'}
         </span>
       </div>
 
@@ -83,7 +87,7 @@ export const HelplineSupportCard: React.FC<HelplineSupportCardProps> = ({ token,
               </div>
             </div>
             <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 shrink-0">
-              വിളിക്കുക
+              {language === 'ml' ? 'വിളിക്കുക' : 'Call'}
             </span>
           </a>
         ))}
@@ -106,7 +110,7 @@ export const HelplineSupportCard: React.FC<HelplineSupportCardProps> = ({ token,
           className="touch-target px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 shrink-0"
         >
           <MapPin className="w-3.5 h-3.5 text-primary" />
-          <span>{isSharingLocation ? 'ഷെയർ ചെയ്യുന്നു...' : t('share_location')}</span>
+          <span>{isSharingLocation ? (language === 'ml' ? 'ഷെയർ ചെയ്യുന്നു...' : 'Sharing...') : t('share_location')}</span>
         </button>
       </div>
     </div>

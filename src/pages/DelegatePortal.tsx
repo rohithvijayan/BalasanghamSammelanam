@@ -63,7 +63,9 @@ export const DelegatePortal: React.FC = () => {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 gap-3">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-        <span className="text-sm font-bold text-slate-500">താമസ വിവരങ്ങൾ ലഭ്യമാക്കുന്നു...</span>
+        <span className="text-sm font-bold text-slate-500">
+          {language === 'ml' ? 'താമസ വിവരങ്ങൾ ലഭ്യമാക്കുന്നു...' : 'Loading stay information...'}
+        </span>
       </div>
     );
   }
@@ -78,14 +80,16 @@ export const DelegatePortal: React.FC = () => {
           {t('error_invalid_token')}
         </h2>
         <p className="text-xs text-slate-500 leading-relaxed">
-          നിങ്ങളുടെ രജിസ്ട്രേഷൻ ലിങ്ക് പരിശോധിക്കുകയോ അല്ലെങ്കിൽ ഹെൽപ്പ് ഡെസ്ക് കൺട്രോൾ റൂമുമായി ബന്ധപ്പെടുകയോ ചെയ്യുക.
+          {language === 'ml'
+            ? 'നിങ്ങളുടെ രജിസ്ട്രേഷൻ ലിങ്ക് പരിശോധിക്കുകയോ അല്ലെങ്കിൽ ഹെൽപ്പ് ഡെസ്ക് കൺട്രോൾ റൂമുമായി ബന്ധപ്പെടുകയോ ചെയ്യുക.'
+            : 'Please verify your registration link or contact the help desk control room.'}
         </p>
         <Link
           to="/"
           className="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-2 shadow-sm"
         >
           <Home className="w-3.5 h-3.5" />
-          <span>തിരികെ പ്രധാന പേജിലേക്ക് (Home)</span>
+          <span>{language === 'ml' ? 'തിരികെ പ്രധാന പേജിലേക്ക് (Home)' : 'Back to Home'}</span>
         </Link>
       </div>
     );
