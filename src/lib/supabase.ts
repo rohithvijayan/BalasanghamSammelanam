@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { mockStore, getHouseNaturalKey } from './mockData';
-import { StayPortalData, DelegateStatus, LocationPing, Delegate, House } from '../types';
+import { StayPortalData, DelegateStatus, LocationPing, Delegate, House, Volunteer } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -368,6 +368,18 @@ export const api = {
       if (!error) return true;
     }
     mockStore.bulkAssign(delegateIds, houseId);
+    return true;
+  },
+
+  // Assign volunteer to delegate (Admin)
+  async assignVolunteer(delegateId: string, volunteer: Volunteer | null): Promise<boolean> {
+    mockStore.assignVolunteer(delegateId, volunteer);
+    return true;
+  },
+
+  // Bulk assign volunteer to multiple delegates (Admin)
+  async bulkAssignVolunteer(delegateIds: string[], volunteer: Volunteer | null): Promise<boolean> {
+    mockStore.bulkAssignVolunteer(delegateIds, volunteer);
     return true;
   },
 

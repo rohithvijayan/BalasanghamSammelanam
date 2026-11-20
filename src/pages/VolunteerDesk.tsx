@@ -482,6 +482,19 @@ export const VolunteerDesk: React.FC = () => {
                         </div>
                       </>
                     )}
+                    {del.volunteer && (
+                      <div className="flex items-center justify-between border-t border-slate-200/50 pt-1 text-[11px]">
+                        <span className="text-slate-500 font-semibold">
+                          {language === 'ml' ? 'വളണ്ടിയർ:' : 'Volunteer In-Charge:'}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <strong className="text-indigo-900">{del.volunteer.name}</strong>
+                          <a href={`tel:${del.volunteer.phone}`} className="text-primary font-mono font-bold hover:underline">
+                            {del.volunteer.phone}
+                          </a>
+                        </div>
+                      </div>
+                    )}
                     {del.emergency_phone && (
                       <div className="flex items-center justify-between border-t border-slate-200/50 pt-1 text-[11px]">
                         <span className="text-slate-500">

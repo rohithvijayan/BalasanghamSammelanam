@@ -339,4 +339,24 @@ describe('mockStore - State Conference Data Store', () => {
     const updatedDel = mockStore.getDelegates().find((d) => d.id === 'del-occ-1');
     expect(updatedDel?.house_id).toBe('h-canon-1');
   });
+
+  it('should assign a volunteer to a delegate and bulk assign to multiple delegates', () => {
+    const d1: Delegate = { id: 'del-v-1', token: 'tok-v-1', full_name: 'Child 1', district_id: 1, gender: 'boy', status: 'pending' };
+    const d2: Delegate = { id: 'del-v-2', token: 'tok-v-2', full_name: 'Child 2', district_id: 1, gender: 'girl', status: 'pending' };
+    mockStore.importDelegates([d1, d2]);
+
+    const volunteer = { name: 'Reshma P.', phone: '+91 98460 78901', unit: 'Nileshwaram East' };
+    mockStore.assignVolunteer('del-v-1', volunteer);
+
+    const updated1 = mockStore.getDelegates().find((d) => d.id === 'del-v-1');
+    expect(updated1?.volunteer?.name).toBe('Reshma P.');
+    expect(updated1?.volunteer?.phone).toBe('+91 98460 78901');
+
+    // Bulk assign
+    const vol2 = { name: 'Vipin Das', phone: '+91 94472 33445', unit: 'Station Desk' };
+    mockStore.bulkAssignVolunteer(['del-v-1', 'del-v-2'], vol2);
+
+    const batch = mockStore.getDelegates().filter((d) => ['del-v-1', 'del-v-2'].includes(d.id));
+    expect(batch.every((d) => d.volunteer?.name === 'Vipin Das')).toBe(true);
+  });
 });

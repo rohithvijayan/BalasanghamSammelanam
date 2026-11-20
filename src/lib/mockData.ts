@@ -1,4 +1,4 @@
-import { District, House, Delegate, Announcement, HelplineItem, StayPortalData, LocationPing } from '../types';
+import { District, House, Delegate, Announcement, HelplineItem, StayPortalData, LocationPing, Volunteer } from '../types';
 
 export const initialDistricts: District[] = [
   { id: 1, name_en: 'Kasaragod', name_ml: 'കാസർഗോഡ്' },
@@ -108,6 +108,14 @@ export const helplinesList: HelplineItem[] = [
   { title_ml: 'കൺട്രോൾ റൂം (24/7)', title_en: 'Control Room Desk', phone: '04985201201' },
   { title_ml: 'മെഡിക്കൽ എയ്ഡ് & ആംബുലൻസ്', title_en: 'Medical Emergency', phone: '9400011223' },
   { title_ml: 'റെസ്ക്യൂ & വളണ്ടിയർ വിങ്', title_en: 'Volunteer Dispatch', phone: '9447123456' }
+];
+
+export const defaultVolunteers: Volunteer[] = [
+  { name: 'രേഷ്മ പി. (Reshma P.)', phone: '+91 98460 78901', unit: 'നീലേശ്വരം ഈസ്റ്റ്' },
+  { name: 'അഞ്ജലി കൃഷ്ണൻ (Anjali Krishnan)', phone: '+91 98461 99012', unit: 'കോളേജ് വാർഡ്' },
+  { name: 'വിപിൻ ദാസ് (Vipin Das)', phone: '+91 94472 33445', unit: 'റെയിൽവേ സ്റ്റേഷൻ ഡെസ്ക്' },
+  { name: 'രാഹുൽ രാജ് (Rahul Raj)', phone: '+91 97455 66778', unit: 'സമ്മേളന നഗരി' },
+  { name: 'സ്നേഹ കെ. (Sneha K.)', phone: '+91 94951 22334', unit: 'ഭക്ഷണശാല കൺട്രോൾ' },
 ];
 
 export const initialDelegates: Delegate[] = [];
@@ -387,11 +395,7 @@ class MockStore {
       return {
         delegate,
         house: demoHouse,
-        volunteer: delegate.volunteer || {
-          name: 'രേഷ്മ പി. (Reshma P.)',
-          phone: '+91 98460 78901',
-          unit: 'യൂണിറ്റ് വളണ്ടിയർ • നീലേശ്വരം',
-        },
+        volunteer: delegate.volunteer || null,
         announcements: this.announcements,
         helplines: helplinesList,
       };
@@ -402,14 +406,21 @@ class MockStore {
     return {
       delegate,
       house,
-      volunteer: delegate.volunteer || {
-        name: 'രേഷ്മ പി. (Reshma P.)',
-        phone: '+91 98460 78901',
-        unit: 'യൂണിറ്റ് വളണ്ടിയർ • നീലേശ്വരം',
-      },
+      volunteer: delegate.volunteer || null,
       announcements: this.announcements,
       helplines: helplinesList,
     };
+  }
+
+  assignVolunteer(delegateId: string, volunteer: Volunteer | null) {
+    this.delegates = this.delegates.map((d) => (d.id === delegateId ? { ...d, volunteer } : d));
+    this.save();
+  }
+
+  bulkAssignVolunteer(delegateIds: string[], volunteer: Volunteer | null) {
+    const idSet = new Set(delegateIds);
+    this.delegates = this.delegates.map((d) => (idSet.has(d.id) ? { ...d, volunteer } : d));
+    this.save();
   }
 
   assignHouse(delegateId: string, houseId: string | null) {

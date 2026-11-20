@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Delegate } from '../types';
-import { initialDistricts } from '../lib/mockData';
+import { Delegate, Volunteer } from '../types';
+import { initialDistricts, defaultVolunteers } from '../lib/mockData';
 import { useI18n } from '../i18n/i18nContext';
-import { X, Check, User, Phone, MapPin, Shield } from 'lucide-react';
+import { X, Check, User, Phone, MapPin, Shield, UserCheck } from 'lucide-react';
 
 interface EditDelegateModalProps {
   delegate: Delegate | null;
@@ -26,6 +26,9 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
   const [emergencyName, setEmergencyName] = useState('');
   const [emergencyPhone, setEmergencyPhone] = useState('');
   const [notes, setNotes] = useState('');
+  const [volunteerName, setVolunteerName] = useState('');
+  const [volunteerPhone, setVolunteerPhone] = useState('');
+  const [volunteerUnit, setVolunteerUnit] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -37,10 +40,35 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
       setEmergencyName(delegate.emergency_name || '');
       setEmergencyPhone(delegate.emergency_phone || '');
       setNotes(delegate.notes || '');
+      if (delegate.volunteer) {
+        setVolunteerName(delegate.volunteer.name || '');
+        setVolunteerPhone(delegate.volunteer.phone || '');
+        setVolunteerUnit(delegate.volunteer.unit || '');
+      } else {
+        setVolunteerName('');
+        setVolunteerPhone('');
+        setVolunteerUnit('');
+      }
     }
   }, [delegate]);
 
   if (!isOpen || !delegate) return null;
+
+  const handleSelectDefaultVolunteer = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    if (!val) {
+      setVolunteerName('');
+      setVolunteerPhone('');
+      setVolunteerUnit('');
+      return;
+    }
+    const found = defaultVolunteers.find((v) => v.name === val);
+    if (found) {
+      setVolunteerName(found.name);
+      setVolunteerPhone(found.phone);
+      setVolunteerUnit(found.unit || '');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,6 +88,13 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
       emergency_name: emergencyName.trim(),
       emergency_phone: emergencyPhone.trim(),
       notes: notes.trim(),
+      volunteer: volunteerName.trim()
+        ? {
+            name: volunteerName.trim(),
+            phone: volunteerPhone.trim(),
+            unit: volunteerUnit.trim(),
+          }
+        : null,
     };
 
     try {
@@ -201,6 +236,60 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
                   value={emergencyPhone}
                   onChange={(e) => setEmergencyPhone(e.target.value)}
                   placeholder="+91 94460 00000"
+                  className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Assigned Volunteer In-Charge */}
+          <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 flex flex-col gap-3">
+            <span className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+              <UserCheck className="w-3.5 h-3.5 text-indigo-700" />
+              {language === 'ml' ? 'ചുമതലയുള്ള വളണ്ടിയർ (Volunteer In-Charge)' : 'Assigned Volunteer In-Charge'}
+            </span>
+
+            {/* Quick Pick from default volunteers */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-slate-600">
+                {language === 'ml' ? 'വളണ്ടിയറെ തിരഞ്ഞെടുക്കുക' : 'Choose Registered Volunteer'}
+              </label>
+              <select
+                value={defaultVolunteers.some((v) => v.name === volunteerName) ? volunteerName : ''}
+                onChange={handleSelectDefaultVolunteer}
+                className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">{language === 'ml' ? '-- വളണ്ടിയർ ഇല്ല / സ്വയം ടൈപ്പ് ചെയ്യുക --' : '-- No Volunteer / Custom Volunteer --'}</option>
+                {defaultVolunteers.map((vol) => (
+                  <option key={vol.name} value={vol.name}>
+                    {vol.name} ({vol.phone}) - {vol.unit}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-semibold text-slate-600">
+                  {language === 'ml' ? 'വളണ്ടിയറുടെ പേര്' : 'Volunteer Name'}
+                </label>
+                <input
+                  type="text"
+                  value={volunteerName}
+                  onChange={(e) => setVolunteerName(e.target.value)}
+                  placeholder="e.g. Reshma P."
+                  className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-semibold text-slate-600">
+                  {language === 'ml' ? 'വളണ്ടിയറുടെ ഫോൺ' : 'Volunteer Phone'}
+                </label>
+                <input
+                  type="tel"
+                  value={volunteerPhone}
+                  onChange={(e) => setVolunteerPhone(e.target.value)}
+                  placeholder="+91 98460 00000"
                   className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>

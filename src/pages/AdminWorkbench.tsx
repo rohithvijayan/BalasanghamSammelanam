@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { mockStore, initialDistricts } from '../lib/mockData';
-import { Delegate, House } from '../types';
+import { mockStore, initialDistricts, defaultVolunteers } from '../lib/mockData';
+import { Delegate, House, Volunteer } from '../types';
 import { api } from '../lib/supabase';
 import { useI18n } from '../i18n/i18nContext';
 import { useAuth } from '../auth/AuthContext';
@@ -149,6 +149,20 @@ export const AdminWorkbench: React.FC = () => {
     await loadData();
   };
 
+  const handleBulkAssignVolunteer = async (volunteer: Volunteer | null) => {
+    if (selectedDelegateIds.length === 0) return;
+    await api.bulkAssignVolunteer(selectedDelegateIds, volunteer);
+    const count = selectedDelegateIds.length;
+    setSelectedDelegateIds([]);
+    setWarningMessage(
+      language === 'ml'
+        ? `${count} പ്രതിനിധികൾക്ക് ${volunteer ? volunteer.name : 'വളണ്ടിയറെ'} ചുമതലപ്പെടുത്തി!`
+        : `Assigned ${count} delegates to ${volunteer ? volunteer.name : 'volunteer'}!`
+    );
+    setTimeout(() => setWarningMessage(null), 3000);
+    await loadData();
+  };
+
   const handleSaveHouse = async (houseData: House) => {
     if (editingHouse) {
       await api.updateHouse(houseData);
@@ -272,9 +286,28 @@ export const AdminWorkbench: React.FC = () => {
               </h2>
             </div>
             {selectedDelegateIds.length > 0 && (
-              <span className="px-2.5 py-0.5 rounded-full bg-primary-100 text-primary-800 text-[11px] font-bold">
-                {selectedDelegateIds.length} {language === 'ml' ? 'പേരെ തിരഞ്ഞെടുത്തു' : 'selected'}
-              </span>
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                <span className="px-2.5 py-0.5 rounded-full bg-primary-100 text-primary-800 text-[11px] font-bold">
+                  {selectedDelegateIds.length} {language === 'ml' ? 'തിരഞ്ഞെടുത്തു' : 'selected'}
+                </span>
+                <select
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) return;
+                    const found = defaultVolunteers.find((v) => v.name === val);
+                    handleBulkAssignVolunteer(found || null);
+                    e.target.value = '';
+                  }}
+                  className="px-2 py-0.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-900 text-[11px] font-bold focus:outline-none cursor-pointer"
+                >
+                  <option value="">{language === 'ml' ? '+ വളണ്ടിയറെ നൽകുക' : '+ Assign Volunteer'}</option>
+                  {defaultVolunteers.map((vol) => (
+                    <option key={vol.name} value={vol.name}>
+                      {vol.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
           </div>
 
@@ -348,8 +381,13 @@ export const AdminWorkbench: React.FC = () => {
                         <span className="text-xs font-bold text-slate-900 truncate font-malayalam-bold">
                           {del.full_name}
                         </span>
-                        <span className="text-[11px] text-slate-500 truncate">
-                          {language === 'ml' ? del.district_ml : del.district_en} • {del.phone || (language === 'ml' ? 'ഫോൺ ഇല്ല' : 'No phone')}
+                        <span className="text-[11px] text-slate-500 truncate flex items-center gap-1.5 flex-wrap">
+                          <span>{language === 'ml' ? del.district_ml : del.district_en} • {del.phone || (language === 'ml' ? 'ഫോൺ ഇല്ല' : 'No phone')}</span>
+                          {del.volunteer && (
+                            <span className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded font-medium">
+                              👤 {del.volunteer.name}
+                            </span>
+                          )}
                         </span>
                       </div>
                     </div>
@@ -521,6 +559,11 @@ export const AdminWorkbench: React.FC = () => {
                             <span className="text-[10px] text-slate-400">
                               ({language === 'ml' ? (occ.district_ml || occ.district_en) : (occ.district_en || occ.district_ml)})
                             </span>
+                            {occ.volunteer && (
+                              <span className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-1 py-0.2 rounded font-medium">
+                                👤 {occ.volunteer.name}
+                              </span>
+                            )}
                             <button
                               type="button"
                               onClick={() => setEditingDelegate(occ)}
