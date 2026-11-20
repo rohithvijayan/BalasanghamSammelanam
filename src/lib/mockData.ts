@@ -373,6 +373,34 @@ class MockStore {
     this.save();
   }
 
+  updateDelegate(updated: Partial<Delegate> & { id: string }) {
+    this.delegates = this.delegates.map((d) =>
+      d.id === updated.id ? { ...d, ...updated } : d
+    );
+    this.save();
+  }
+
+  updateHouse(updated: Partial<House> & { id: string }) {
+    this.houses = this.houses.map((h) =>
+      h.id === updated.id ? { ...h, ...updated } : h
+    );
+    this.save();
+  }
+
+  addHouse(house: Omit<House, 'id'> & { id?: string }): House {
+    const fullHouse: House = {
+      ...house,
+      id: house.id || 'h-' + Date.now(),
+    };
+    if (!this.houses.some((h) => h.id === fullHouse.id)) {
+      this.houses = [...this.houses, fullHouse];
+    } else {
+      this.houses = this.houses.map((h) => (h.id === fullHouse.id ? fullHouse : h));
+    }
+    this.save();
+    return fullHouse;
+  }
+
   importDelegates(newDelegates: Delegate[]) {
     const tokenMap = new Map<string, Delegate>();
     // Exclude mock demo delegates from existing

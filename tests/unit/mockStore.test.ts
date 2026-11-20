@@ -202,4 +202,72 @@ describe('mockStore - State Conference Data Store', () => {
     mockStore.updateStatus('del-notif', 'pending');
     expect(listener).toHaveBeenCalledTimes(2);
   });
+
+  it('should update delegate details and persist', () => {
+    const testDel: Delegate = {
+      id: 'del-edit-1',
+      token: 'token-edit-1',
+      full_name: 'Original Name',
+      phone: '9876543210',
+      district_id: 1,
+      gender: 'boy',
+      status: 'pending',
+    };
+    mockStore.importDelegates([testDel]);
+
+    mockStore.updateDelegate({
+      ...testDel,
+      full_name: 'Updated Name',
+      phone: '9998887776',
+      notes: 'Vegetarian food required',
+    });
+
+    const updated = mockStore.getDelegates().find((d) => d.id === 'del-edit-1');
+    expect(updated?.full_name).toBe('Updated Name');
+    expect(updated?.phone).toBe('9998887776');
+    expect(updated?.notes).toBe('Vegetarian food required');
+  });
+
+  it('should update house details and persist', () => {
+    const testHouse: House = {
+      id: 'house-edit-1',
+      name: 'Original House',
+      address: 'Address 1',
+      host_name: 'Host 1',
+      host_phone: '9447100000',
+      capacity: 4,
+      gender_restriction: 'boys',
+    };
+    mockStore.importHouses([testHouse]);
+
+    mockStore.updateHouse({
+      ...testHouse,
+      name: 'Renamed House',
+      capacity: 6,
+      host_phone: '9447200000',
+    });
+
+    const updated = mockStore.getHouses().find((h) => h.id === 'house-edit-1');
+    expect(updated?.name).toBe('Renamed House');
+    expect(updated?.capacity).toBe(6);
+    expect(updated?.host_phone).toBe('9447200000');
+  });
+
+  it('should add a new house via addHouse', () => {
+    const newHouse = mockStore.addHouse({
+      name: 'New Added House',
+      address: 'Nileshwaram North',
+      host_name: 'Comrade Sasi',
+      host_phone: '9447333333',
+      capacity: 5,
+      gender_restriction: 'girls',
+    });
+
+    expect(newHouse.id).toBeDefined();
+    expect(newHouse.name).toBe('New Added House');
+
+    const found = mockStore.getHouses().find((h) => h.id === newHouse.id);
+    expect(found).toBeDefined();
+    expect(found?.capacity).toBe(5);
+  });
 });

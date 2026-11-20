@@ -4,6 +4,8 @@ import { Delegate, House } from '../types';
 import { api } from '../lib/supabase';
 import { useI18n } from '../i18n/i18nContext';
 import { useAuth } from '../auth/AuthContext';
+import { EditDelegateModal } from '../components/EditDelegateModal';
+import { EditHouseModal } from '../components/EditHouseModal';
 import {
   Users,
   Home,
@@ -16,7 +18,9 @@ import {
   X,
   Phone,
   UserCheck,
-  AlertTriangle
+  AlertTriangle,
+  Edit2,
+  Plus
 } from 'lucide-react';
 
 export const AdminWorkbench: React.FC = () => {
@@ -38,6 +42,10 @@ export const AdminWorkbench: React.FC = () => {
   const [genderFilter, setGenderFilter] = useState<'all' | 'boy' | 'girl'>('all');
   const [selectedDelegateIds, setSelectedDelegateIds] = useState<string[]>([]);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
+
+  const [editingDelegate, setEditingDelegate] = useState<Delegate | null>(null);
+  const [editingHouse, setEditingHouse] = useState<House | null>(null);
+  const [isAddingHouse, setIsAddingHouse] = useState<boolean>(false);
 
   const loadData = async () => {
     try {
@@ -128,6 +136,37 @@ export const AdminWorkbench: React.FC = () => {
   const handleToggleCheckin = (delegateId: string, currentStatus: Delegate['status']) => {
     const nextStatus = currentStatus === 'checked_in' ? 'pending' : 'checked_in';
     mockStore.updateStatus(delegateId, nextStatus);
+  };
+
+  const handleSaveDelegate = async (updated: Delegate) => {
+    await api.updateDelegate(updated);
+    setWarningMessage(
+      language === 'ml'
+        ? `${updated.full_name} വിവരങ്ങൾ വിജയകരമായി സേവ് ചെയ്തു!`
+        : `Successfully updated ${updated.full_name}!`
+    );
+    setTimeout(() => setWarningMessage(null), 3000);
+    await loadData();
+  };
+
+  const handleSaveHouse = async (houseData: House) => {
+    if (editingHouse) {
+      await api.updateHouse(houseData);
+      setWarningMessage(
+        language === 'ml'
+          ? `${houseData.name} വിവരങ്ങൾ വിജയകരമായി സേവ് ചെയ്തു!`
+          : `Successfully updated ${houseData.name}!`
+      );
+    } else {
+      await api.addHouse(houseData);
+      setWarningMessage(
+        language === 'ml'
+          ? `${houseData.name} വിജയകരമായി ചേർത്തു!`
+          : `Successfully added ${houseData.name}!`
+      );
+    }
+    setTimeout(() => setWarningMessage(null), 3000);
+    await loadData();
   };
 
   return (
@@ -315,15 +354,28 @@ export const AdminWorkbench: React.FC = () => {
                       </div>
                     </div>
 
-                    <span
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase shrink-0 ${
-                        del.gender === 'girl'
-                          ? 'bg-pink-100 text-pink-700'
-                          : 'bg-sky-100 text-sky-700'
-                      }`}
-                    >
-                      {del.gender === 'girl' ? (language === 'ml' ? 'പെൺകുട്ടി' : 'Girl') : (language === 'ml' ? 'ആൺകുട്ടി' : 'Boy')}
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingDelegate(del);
+                        }}
+                        title={language === 'ml' ? 'വിവരങ്ങൾ തിരുത്തുക' : 'Edit Delegate'}
+                        className="p-1 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-200 transition-colors"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <span
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase shrink-0 ${
+                          del.gender === 'girl'
+                            ? 'bg-pink-100 text-pink-700'
+                            : 'bg-sky-100 text-sky-700'
+                        }`}
+                      >
+                        {del.gender === 'girl' ? (language === 'ml' ? 'പെൺകുട്ടി' : 'Girl') : (language === 'ml' ? 'ആൺകുട്ടി' : 'Boy')}
+                      </span>
+                    </div>
                   </div>
                 );
               })
@@ -340,9 +392,22 @@ export const AdminWorkbench: React.FC = () => {
                 {t('houses_capacity')} ({houses.length})
               </h2>
             </div>
-            <span className="text-xs text-slate-400">
-              {accommodatedCount} {language === 'ml' ? 'പേർക്ക് അനുവദിച്ചു' : 'accommodated'}
-            </span>
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs text-slate-400 hidden sm:inline">
+                {accommodatedCount} {language === 'ml' ? 'പേർക്ക് അനുവദിച്ചു' : 'accommodated'}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingHouse(null);
+                  setIsAddingHouse(true);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-transform active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{language === 'ml' ? 'വീട് ചേർക്കുക' : 'Add House'}</span>
+              </button>
+            </div>
           </div>
 
           {/* Houses List */}
@@ -384,15 +449,29 @@ export const AdminWorkbench: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Assign Action Button */}
-                    <button
-                      onClick={() => handleAssignToHouse(house)}
-                      disabled={selectedDelegateIds.length === 0}
-                      className="touch-target px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold shrink-0 shadow-xs transition-transform active:scale-95 flex items-center gap-1.5"
-                    >
-                      <ArrowRight className="w-3.5 h-3.5" />
-                      <span>{t('assign_here')}</span>
-                    </button>
+                    {/* Actions: Edit House Details & Assign Button */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingHouse(house);
+                          setIsAddingHouse(true);
+                        }}
+                        title={language === 'ml' ? 'വീടിന്റെ വിവരങ്ങൾ തിരുത്തുക' : 'Edit House Details'}
+                        className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-primary transition-colors flex items-center gap-1 text-xs font-semibold"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">{language === 'ml' ? 'തിരുത്തുക' : 'Edit'}</span>
+                      </button>
+                      <button
+                        onClick={() => handleAssignToHouse(house)}
+                        disabled={selectedDelegateIds.length === 0}
+                        className="touch-target px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold shrink-0 shadow-xs transition-transform active:scale-95 flex items-center gap-1.5"
+                      >
+                        <ArrowRight className="w-3.5 h-3.5" />
+                        <span>{t('assign_here')}</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Capacity Bar */}
@@ -443,6 +522,14 @@ export const AdminWorkbench: React.FC = () => {
                               ({language === 'ml' ? (occ.district_ml || occ.district_en) : (occ.district_en || occ.district_ml)})
                             </span>
                             <button
+                              type="button"
+                              onClick={() => setEditingDelegate(occ)}
+                              title={language === 'ml' ? 'വിവരങ്ങൾ തിരുത്തുക' : 'Edit Delegate'}
+                              className="text-slate-400 hover:text-primary p-0.5 rounded transition-colors"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                            <button
                               onClick={() => handleUnassign(occ.id)}
                               title="Unassign"
                               className="text-slate-400 hover:text-red-600 p-0.5 rounded transition-colors"
@@ -460,6 +547,25 @@ export const AdminWorkbench: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit Delegate Modal */}
+      <EditDelegateModal
+        delegate={editingDelegate}
+        isOpen={!!editingDelegate}
+        onClose={() => setEditingDelegate(null)}
+        onSave={handleSaveDelegate}
+      />
+
+      {/* Edit / Add House Modal */}
+      <EditHouseModal
+        house={editingHouse}
+        isOpen={isAddingHouse}
+        onClose={() => {
+          setIsAddingHouse(false);
+          setEditingHouse(null);
+        }}
+        onSave={handleSaveHouse}
+      />
     </div>
   );
 };

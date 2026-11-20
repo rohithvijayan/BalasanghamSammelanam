@@ -4,6 +4,8 @@ import { Delegate, House, LocationPing } from '../types';
 import { api } from '../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/i18nContext';
+import { EditDelegateModal } from '../components/EditDelegateModal';
+import { EditHouseModal } from '../components/EditHouseModal';
 import {
   UserCheck,
   Clock,
@@ -17,7 +19,8 @@ import {
   Users,
   Navigation,
   Shield,
-  Filter
+  Filter,
+  Edit2
 } from 'lucide-react';
 
 export const VolunteerDesk: React.FC = () => {
@@ -28,6 +31,8 @@ export const VolunteerDesk: React.FC = () => {
   const [houses, setHouses] = useState<House[]>(() => mockStore.getHouses());
   const [activeTab, setActiveTab] = useState<'attendance' | 'houses'>('attendance');
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingDelegate, setEditingDelegate] = useState<Delegate | null>(null);
+  const [editingHouse, setEditingHouse] = useState<House | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'checked_in' | 'with_location'>('all');
   const [districtFilter, setDistrictFilter] = useState<string>('all');
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -119,6 +124,28 @@ export const VolunteerDesk: React.FC = () => {
       ? `പ്രിയപ്പെട്ട ${delegate.full_name}, ബാലസംഘം സംസ്ഥാന സമ്മേളനത്തിലെ നിങ്ങളുടെ താമസ വിവരങ്ങളും റൂട്ട് മാപ്പും കാണാൻ ഈ ലിങ്ക് ക്ലിക്ക് ചെയ്യുക:\n${stayUrl}`
       : `Dear ${delegate.full_name}, click this link to view your stay details and route map for the Balasangham State Conference:\n${stayUrl}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleSaveDelegate = async (updated: Delegate) => {
+    await api.updateDelegate(updated);
+    setSuccessToast(
+      language === 'ml'
+        ? `${updated.full_name} വിവരങ്ങൾ സേവ് ചെയ്തു!`
+        : `Saved ${updated.full_name}!`
+    );
+    setTimeout(() => setSuccessToast(null), 3000);
+    await loadData();
+  };
+
+  const handleSaveHouse = async (houseData: House) => {
+    await api.updateHouse(houseData);
+    setSuccessToast(
+      language === 'ml'
+        ? `${houseData.name} വിവരങ്ങൾ സേവ് ചെയ്തു!`
+        : `Saved ${houseData.name}!`
+    );
+    setTimeout(() => setSuccessToast(null), 3000);
+    await loadData();
   };
 
   return (
@@ -522,6 +549,15 @@ export const VolunteerDesk: React.FC = () => {
                     >
                       <Share2 className="w-4 h-4" />
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setEditingDelegate(del)}
+                      title={language === 'ml' ? 'വിവരങ്ങൾ തിരുത്തുക' : 'Edit Delegate'}
+                      className="touch-target p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-primary border border-slate-200 transition-colors"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               );
@@ -559,9 +595,19 @@ export const VolunteerDesk: React.FC = () => {
                     <h3 className="text-base font-bold text-slate-900 font-malayalam-bold">
                       {house.name}
                     </h3>
-                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-primary-50 text-primary-800 border border-primary-200 shrink-0">
-                      {language === 'ml' ? 'കപ്പാസിറ്റി:' : 'Capacity:'} {occupants.length} / {house.capacity}
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-primary-50 text-primary-800 border border-primary-200">
+                        {language === 'ml' ? 'കപ്പാസിറ്റി:' : 'Capacity:'} {occupants.length} / {house.capacity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setEditingHouse(house)}
+                        title={language === 'ml' ? 'വീടിന്റെ വിവരങ്ങൾ തിരുത്തുക' : 'Edit House'}
+                        className="p-1 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 transition-colors"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <p className="text-xs text-slate-500 leading-relaxed flex items-start gap-1.5">
@@ -636,6 +682,21 @@ export const VolunteerDesk: React.FC = () => {
           })}
         </div>
       )}
+
+      {/* Edit Modals */}
+      <EditDelegateModal
+        delegate={editingDelegate}
+        isOpen={!!editingDelegate}
+        onClose={() => setEditingDelegate(null)}
+        onSave={handleSaveDelegate}
+      />
+
+      <EditHouseModal
+        house={editingHouse}
+        isOpen={!!editingHouse}
+        onClose={() => setEditingHouse(null)}
+        onSave={handleSaveHouse}
+      />
     </div>
   );
 };

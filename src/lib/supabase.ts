@@ -330,5 +330,96 @@ export const api = {
     }
     mockStore.bulkAssign(delegateIds, houseId);
     return true;
+  },
+
+  // Edit delegate details (Admin)
+  async updateDelegate(delegate: Partial<Delegate> & { id: string }): Promise<boolean> {
+    mockStore.updateDelegate(delegate);
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('delegates')
+          .update({
+            full_name: delegate.full_name,
+            phone: delegate.phone,
+            district_id: delegate.district_id,
+            gender: delegate.gender,
+            emergency_name: delegate.emergency_name,
+            emergency_phone: delegate.emergency_phone,
+            notes: delegate.notes,
+          })
+          .eq('id', delegate.id);
+        if (error) {
+          console.warn('Supabase updateDelegate error:', error);
+        }
+      } catch (e) {
+        console.warn('Failed to update delegate in Supabase', e);
+      }
+    }
+    return true;
+  },
+
+  // Edit house details (Admin)
+  async updateHouse(house: Partial<House> & { id: string }): Promise<boolean> {
+    mockStore.updateHouse(house);
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('houses')
+          .update({
+            name: house.name,
+            address: house.address,
+            map_url: house.map_url,
+            host_name: house.host_name,
+            host_phone: house.host_phone,
+            capacity: house.capacity,
+            gender_restriction: house.gender_restriction,
+            notes: house.notes,
+          })
+          .eq('id', house.id);
+        if (error) {
+          console.warn('Supabase updateHouse error:', error);
+        }
+      } catch (e) {
+        console.warn('Failed to update house in Supabase', e);
+      }
+    }
+    return true;
+  },
+
+  // Add new house (Admin)
+  async addHouse(houseData: Omit<House, 'id'> & { id?: string }): Promise<House> {
+    const newHouse: House = {
+      ...houseData,
+      id: houseData.id || 'h-' + Date.now(),
+    };
+    mockStore.addHouse(newHouse);
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('houses')
+          .insert({
+            name: newHouse.name,
+            address: newHouse.address,
+            map_url: newHouse.map_url,
+            host_name: newHouse.host_name,
+            host_phone: newHouse.host_phone,
+            capacity: newHouse.capacity,
+            gender_restriction: newHouse.gender_restriction,
+            notes: newHouse.notes,
+          })
+          .select()
+          .single();
+        if (!error && data) {
+          return {
+            ...newHouse,
+            id: data.id,
+          };
+        }
+      } catch (e) {
+        console.warn('Failed to insert house into Supabase', e);
+      }
+    }
+    return newHouse;
   }
 };
