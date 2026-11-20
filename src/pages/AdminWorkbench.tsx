@@ -54,10 +54,12 @@ export const AdminWorkbench: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    const interval = setInterval(loadData, 15000); // Auto-sync from cloud every 15s
     const unsubscribe = mockStore.subscribe(() => {
       loadData();
     });
     return () => {
+      clearInterval(interval);
       unsubscribe();
     };
   }, []);

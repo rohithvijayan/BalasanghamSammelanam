@@ -58,13 +58,15 @@ export const VolunteerDesk: React.FC = () => {
   useEffect(() => {
     loadData();
     refreshPings();
-    const interval = setInterval(refreshPings, 10000); // Poll every 10s for live GPS updates
+    const pingsInterval = setInterval(refreshPings, 10000); // Poll every 10s for live GPS updates
+    const dataInterval = setInterval(loadData, 15000); // Auto-sync from cloud every 15s
     const unsubscribe = mockStore.subscribe(() => {
       loadData();
       refreshPings();
     });
     return () => {
-      clearInterval(interval);
+      clearInterval(pingsInterval);
+      clearInterval(dataInterval);
       unsubscribe();
     };
   }, []);
