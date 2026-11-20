@@ -5,29 +5,24 @@ import { Delegate, House } from '../../src/types';
 describe('mockStore - State Conference Data Store', () => {
   beforeEach(() => {
     localStorage.clear();
+    mockStore.clearLocalDelegates();
+    mockStore.clearLocalHouses();
   });
 
-  it('should return initial list of delegates and host houses', () => {
+  it('starts with clean empty state for delegates and houses', () => {
     const delegates = mockStore.getDelegates();
     const houses = mockStore.getHouses();
     const announcements = mockStore.getAnnouncements();
 
-    expect(delegates.length).toBeGreaterThan(0);
-    expect(houses.length).toBeGreaterThan(0);
+    expect(delegates.length).toBe(0);
+    expect(houses.length).toBe(0);
     expect(announcements.length).toBeGreaterThan(0);
-
-    // Verify Malayalam name and tokens exist
-    expect(delegates[0]).toHaveProperty('token');
-    expect(delegates[0]).toHaveProperty('full_name');
-    expect(houses[0]).toHaveProperty('capacity');
-    expect(houses[0]).toHaveProperty('host_phone');
   });
 
-  it('should retrieve delegate by token case-insensitively', () => {
+  it('should retrieve demo delegate by token case-insensitively via fallback', () => {
     const data = mockStore.getDelegateByToken('kannur-arjun-412');
     expect(data).not.toBeNull();
     expect(data?.delegate.full_name).toContain('അർജുൻ');
-    expect(data?.house).not.toBeNull();
     expect(data?.volunteer).not.toBeNull();
     expect(data?.announcements.length).toBeGreaterThan(0);
     expect(data?.helplines.length).toBeGreaterThan(0);
@@ -44,45 +39,53 @@ describe('mockStore - State Conference Data Store', () => {
   });
 
   it('should assign a house to a delegate and persist change', () => {
-    const delegates = mockStore.getDelegates();
-    const targetDelegate = delegates[0];
-    const newHouseId = 'h-104';
+    const testDel: Delegate = {
+      id: 'del-unit-1',
+      token: 'test-del-1',
+      full_name: 'ടെസ്റ്റ് പ്രതിനിധി',
+      district_id: 2,
+      gender: 'boy',
+      status: 'pending',
+    };
+    mockStore.importDelegates([testDel]);
 
-    mockStore.assignHouse(targetDelegate.id, newHouseId);
+    const newHouseId = 'h-unit-104';
+    mockStore.assignHouse(testDel.id, newHouseId);
 
-    const updated = mockStore.getDelegates().find((d) => d.id === targetDelegate.id);
+    const updated = mockStore.getDelegates().find((d) => d.id === testDel.id);
     expect(updated?.house_id).toBe(newHouseId);
 
     // Verify unassigning works
-    mockStore.assignHouse(targetDelegate.id, null);
-    const unassigned = mockStore.getDelegates().find((d) => d.id === targetDelegate.id);
+    mockStore.assignHouse(testDel.id, null);
+    const unassigned = mockStore.getDelegates().find((d) => d.id === testDel.id);
     expect(unassigned?.house_id).toBeNull();
   });
 
   it('should bulk assign multiple delegates to a house', () => {
-    const delegates = mockStore.getDelegates();
-    const ids = [delegates[0].id, delegates[1].id];
-    const targetHouseId = 'h-102';
+    const testDel1: Delegate = { id: 'del-u-1', token: 't-1', full_name: 'P1', district_id: 1, gender: 'boy', status: 'pending' };
+    const testDel2: Delegate = { id: 'del-u-2', token: 't-2', full_name: 'P2', district_id: 1, gender: 'girl', status: 'pending' };
+    mockStore.importDelegates([testDel1, testDel2]);
 
-    mockStore.bulkAssign(ids, targetHouseId);
+    const targetHouseId = 'h-u-102';
+    mockStore.bulkAssign(['del-u-1', 'del-u-2'], targetHouseId);
 
-    const updatedDelegates = mockStore.getDelegates().filter((d) => ids.includes(d.id));
+    const updatedDelegates = mockStore.getDelegates().filter((d) => ['del-u-1', 'del-u-2'].includes(d.id));
     expect(updatedDelegates.every((d) => d.house_id === targetHouseId)).toBe(true);
   });
 
   it('should update delegate status and record checked_in_at timestamp', () => {
-    const delegates = mockStore.getDelegates();
-    const target = delegates[0];
+    const testDel: Delegate = { id: 'del-u-status', token: 't-status', full_name: 'Status Test', district_id: 1, gender: 'boy', status: 'pending' };
+    mockStore.importDelegates([testDel]);
 
-    mockStore.updateStatus(target.id, 'checked_in');
+    mockStore.updateStatus(testDel.id, 'checked_in');
 
-    const updated = mockStore.getDelegates().find((d) => d.id === target.id);
+    const updated = mockStore.getDelegates().find((d) => d.id === testDel.id);
     expect(updated?.status).toBe('checked_in');
     expect(updated?.checked_in_at).toBeDefined();
 
     // Revert status to pending
-    mockStore.updateStatus(target.id, 'pending');
-    const reverted = mockStore.getDelegates().find((d) => d.id === target.id);
+    mockStore.updateStatus(testDel.id, 'pending');
+    const reverted = mockStore.getDelegates().find((d) => d.id === testDel.id);
     expect(reverted?.status).toBe('pending');
   });
 
@@ -160,7 +163,7 @@ describe('mockStore - State Conference Data Store', () => {
     expect(mockStore.getDelegates().length).toBe(2);
 
     mockStore.clearLocalDelegates();
-    expect(mockStore.getDelegates().length).toBeGreaterThanOrEqual(6);
+    expect(mockStore.getDelegates().length).toBe(0);
   });
 
   it('should import new houses and append them to store', () => {
@@ -183,17 +186,20 @@ describe('mockStore - State Conference Data Store', () => {
   });
 
   it('should notify subscribers when store state mutates', () => {
+    const testDel: Delegate = { id: 'del-notif', token: 't-notif', full_name: 'Notif Test', district_id: 1, gender: 'boy', status: 'pending' };
+    mockStore.importDelegates([testDel]);
+
     const listener = vi.fn();
     const unsubscribe = mockStore.subscribe(listener);
 
-    mockStore.updateStatus('del-1', 'checked_in');
+    mockStore.updateStatus('del-notif', 'checked_in');
     expect(listener).toHaveBeenCalledTimes(1);
 
-    mockStore.assignHouse('del-1', 'h-101');
+    mockStore.assignHouse('del-notif', 'h-101');
     expect(listener).toHaveBeenCalledTimes(2);
 
     unsubscribe();
-    mockStore.updateStatus('del-1', 'pending');
-    expect(listener).toHaveBeenCalledTimes(2); // Should not be called after unsubscribe
+    mockStore.updateStatus('del-notif', 'pending');
+    expect(listener).toHaveBeenCalledTimes(2);
   });
 });

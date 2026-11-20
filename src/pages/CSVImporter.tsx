@@ -48,7 +48,7 @@ export const CSVImporter: React.FC = () => {
     return Array.from(map.values());
   }, [delegates]);
 
-  const hasLocalDelegates = uniqueLocalDelegates.length > 6;
+  const hasLocalDelegates = uniqueLocalDelegates.length > 0;
 
   const processRows = (rawData: any[]) => {
     const validationErrors: string[] = [];

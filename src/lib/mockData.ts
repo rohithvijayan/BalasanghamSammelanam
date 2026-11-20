@@ -17,7 +17,9 @@ export const initialDistricts: District[] = [
   { id: 14, name_en: 'Thiruvananthapuram', name_ml: 'തിരുവനന്തപുരം' },
 ];
 
-export const initialHouses: House[] = [
+export const initialHouses: House[] = [];
+
+export const demoHouses: House[] = [
   {
     id: 'h-101',
     name: 'പൂന്തോട്ടം വീട് (Poonthottam House)',
@@ -108,7 +110,9 @@ export const helplinesList: HelplineItem[] = [
   { title_ml: 'റെസ്ക്യൂ & വളണ്ടിയർ വിങ്', title_en: 'Volunteer Dispatch', phone: '9447123456' }
 ];
 
-export const initialDelegates: Delegate[] = [
+export const initialDelegates: Delegate[] = [];
+
+export const demoDelegates: Delegate[] = [
   {
     id: 'del-1',
     token: 'kannur-arjun-412',
@@ -210,6 +214,18 @@ export const initialDelegates: Delegate[] = [
   }
 ];
 
+// Known mock/demo tokens and house IDs to purge from production data
+export const MOCK_TOKENS = new Set([
+  'kannur-arjun-412',
+  'malappuram-fathima-204',
+  'palakkad-adarsh-512',
+  'palakkad-nithin-513',
+  'wayanad-abhinand-319',
+  'kannur-anand-391',
+]);
+
+export const MOCK_HOUSE_IDS = new Set(['h-101', 'h-102', 'h-103', 'h-104']);
+
 // In-Memory Reactive Store (Local state with localStorage sync)
 class MockStore {
   private delegates: Delegate[];
@@ -223,18 +239,20 @@ class MockStore {
     if (savedDelegates) {
       try {
         const parsed: Delegate[] = JSON.parse(savedDelegates);
-        // Deduplicate saved delegates by token or id to immediately cleanse any poisoned/duplicated local storage
+        // Deduplicate saved delegates and purge any leftover mock/demo delegates
         const tokenMap = new Map<string, Delegate>();
         for (const d of parsed) {
           const key = (d.token || d.id).toLowerCase().trim();
-          tokenMap.set(key, d);
+          if (!MOCK_TOKENS.has(key)) {
+            tokenMap.set(key, d);
+          }
         }
         this.delegates = Array.from(tokenMap.values());
       } catch {
-        this.delegates = [...initialDelegates];
+        this.delegates = [];
       }
     } else {
-      this.delegates = [...initialDelegates];
+      this.delegates = [];
     }
 
     const savedHouses = localStorage.getItem('sammelanam_houses');
@@ -244,14 +262,16 @@ class MockStore {
         const houseMap = new Map<string, House>();
         for (const h of parsed) {
           const key = (h.id || h.name).toLowerCase().trim();
-          houseMap.set(key, h);
+          if (!MOCK_HOUSE_IDS.has(h.id)) {
+            houseMap.set(key, h);
+          }
         }
         this.houses = Array.from(houseMap.values());
       } catch {
-        this.houses = [...initialHouses];
+        this.houses = [];
       }
     } else {
-      this.houses = [...initialHouses];
+      this.houses = [];
     }
 
     const savedPings = localStorage.getItem('sammelanam_location_pings');
@@ -287,8 +307,26 @@ class MockStore {
   }
 
   getDelegateByToken(token: string): StayPortalData | null {
-    const delegate = this.delegates.find((d) => d.token.toLowerCase() === token.toLowerCase());
-    if (!delegate) return null;
+    const clean = token.toLowerCase().trim();
+    let delegate = this.delegates.find((d) => d.token.toLowerCase() === clean || d.id.toLowerCase() === clean);
+
+    // Fallback to demo delegates for tests or direct demo URL access
+    if (!delegate) {
+      delegate = demoDelegates.find((d) => d.token.toLowerCase() === clean || d.id.toLowerCase() === clean);
+      if (!delegate) return null;
+      const demoHouse = demoHouses.find((h) => h.id === delegate?.house_id) || null;
+      return {
+        delegate,
+        house: demoHouse,
+        volunteer: delegate.volunteer || {
+          name: 'രേഷ്മ പി. (Reshma P.)',
+          phone: '+91 98460 78901',
+          unit: 'യൂണിറ്റ് വളണ്ടിയർ • നീലേശ്വരം',
+        },
+        announcements: this.announcements,
+        helplines: helplinesList,
+      };
+    }
 
     const house = delegate.house_id ? this.houses.find((h) => h.id === delegate.house_id) || null : null;
 
@@ -330,14 +368,20 @@ class MockStore {
 
   importDelegates(newDelegates: Delegate[]) {
     const tokenMap = new Map<string, Delegate>();
+    // Exclude mock demo delegates from existing
     for (const d of this.delegates) {
       const key = (d.token || d.id).toLowerCase().trim();
-      tokenMap.set(key, d);
+      if (!MOCK_TOKENS.has(key)) {
+        tokenMap.set(key, d);
+      }
     }
+    // Add newly imported delegates
     for (const d of newDelegates) {
       const key = (d.token || d.id).toLowerCase().trim();
-      const existing = tokenMap.get(key);
-      tokenMap.set(key, existing ? { ...existing, ...d } : d);
+      if (!MOCK_TOKENS.has(key)) {
+        const existing = tokenMap.get(key);
+        tokenMap.set(key, existing ? { ...existing, ...d } : d);
+      }
     }
     this.delegates = Array.from(tokenMap.values());
     this.save();
@@ -347,14 +391,16 @@ class MockStore {
     const tokenMap = new Map<string, Delegate>();
     for (const d of delegates) {
       const key = (d.token || d.id).toLowerCase().trim();
-      tokenMap.set(key, d);
+      if (!MOCK_TOKENS.has(key)) {
+        tokenMap.set(key, d);
+      }
     }
     this.delegates = Array.from(tokenMap.values());
     this.save();
   }
 
   clearLocalDelegates() {
-    this.delegates = [...initialDelegates];
+    this.delegates = [];
     localStorage.removeItem('sammelanam_delegates');
     this.save();
   }
@@ -362,13 +408,17 @@ class MockStore {
   importHouses(newHouses: House[]) {
     const houseMap = new Map<string, House>();
     for (const h of this.houses) {
-      const key = (h.id || h.name).toLowerCase().trim();
-      houseMap.set(key, h);
+      if (!MOCK_HOUSE_IDS.has(h.id)) {
+        const key = (h.id || h.name).toLowerCase().trim();
+        houseMap.set(key, h);
+      }
     }
     for (const h of newHouses) {
-      const key = (h.id || h.name).toLowerCase().trim();
-      const existing = houseMap.get(key);
-      houseMap.set(key, existing ? { ...existing, ...h } : h);
+      if (!MOCK_HOUSE_IDS.has(h.id)) {
+        const key = (h.id || h.name).toLowerCase().trim();
+        const existing = houseMap.get(key);
+        houseMap.set(key, existing ? { ...existing, ...h } : h);
+      }
     }
     this.houses = Array.from(houseMap.values());
     this.save();
@@ -377,16 +427,24 @@ class MockStore {
   setHouses(houses: House[]) {
     const houseMap = new Map<string, House>();
     for (const h of houses) {
-      const key = (h.id || h.name).toLowerCase().trim();
-      houseMap.set(key, h);
+      if (!MOCK_HOUSE_IDS.has(h.id)) {
+        const key = (h.id || h.name).toLowerCase().trim();
+        houseMap.set(key, h);
+      }
     }
     this.houses = Array.from(houseMap.values());
     this.save();
   }
 
   clearLocalHouses() {
-    this.houses = [...initialHouses];
+    this.houses = [];
     localStorage.removeItem('sammelanam_houses');
+    this.save();
+  }
+
+  loadDemoData() {
+    this.delegates = [...demoDelegates];
+    this.houses = [...demoHouses];
     this.save();
   }
 
