@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useI18n } from '../i18n/i18nContext';
 import { useAuth } from '../auth/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -407,11 +408,16 @@ export const InteractiveGuideModal: React.FC<InteractiveGuideModalProps> = ({
     navigate(current.route);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-auto">
+  const modalContent = (
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
+    >
+      <div className="bg-white w-full max-w-xl max-h-[90vh] rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-auto animate-in zoom-in-95 duration-150">
         {/* Modal Top Bar */}
-        <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center font-bold">
               <HelpCircle className="w-4 h-4" />
@@ -439,7 +445,7 @@ export const InteractiveGuideModal: React.FC<InteractiveGuideModalProps> = ({
         </div>
 
         {/* Role Switcher Tabs */}
-        <div className="bg-slate-100 p-2 border-b border-slate-200 flex items-center gap-2">
+        <div className="bg-slate-100 p-2 border-b border-slate-200 flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -473,7 +479,7 @@ export const InteractiveGuideModal: React.FC<InteractiveGuideModalProps> = ({
         </div>
 
         {/* Step Content */}
-        <div className="p-5 sm:p-6 flex flex-col gap-4">
+        <div className="p-5 sm:p-6 flex flex-col gap-4 overflow-y-auto">
           <div className="flex items-center justify-between">
             <span className="px-2.5 py-1 rounded-full bg-primary-50 text-primary-800 border border-primary-200 text-xs font-bold">
               {language === 'ml' ? current.badge_ml : current.badge_en}
@@ -509,7 +515,7 @@ export const InteractiveGuideModal: React.FC<InteractiveGuideModalProps> = ({
         </div>
 
         {/* Footer Navigation Dots & Buttons */}
-        <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+        <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
           <button
             type="button"
             onClick={handlePrev}
@@ -550,4 +556,6 @@ export const InteractiveGuideModal: React.FC<InteractiveGuideModalProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
