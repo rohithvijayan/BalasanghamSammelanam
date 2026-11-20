@@ -88,7 +88,7 @@ export const VolunteerDesk: React.FC = () => {
       statusFilter === 'all'
         ? true
         : statusFilter === 'with_location'
-        ? Boolean(locationPings[d.id])
+        ? Boolean(locationPings[d.id] || (d.token && locationPings[d.token.toLowerCase()]))
         : d.status === statusFilter;
 
     const matchesDistrict =
@@ -387,7 +387,7 @@ export const VolunteerDesk: React.FC = () => {
             {filteredDelegates.map((del) => {
               const assignedHouse = houses.find((h) => h.id === del.house_id);
               const isCheckedIn = del.status === 'checked_in';
-              const ping = locationPings[del.id];
+              const ping = locationPings[del.id] || (del.token ? locationPings[del.token.toLowerCase()] : undefined);
 
               return (
                 <div

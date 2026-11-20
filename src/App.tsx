@@ -23,6 +23,7 @@ export const App: React.FC = () => {
                 {/* Public Delegate Routes (No login required - FR-AUTH-3) */}
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/d/:token" element={<DelegatePortal />} />
+                <Route path="/stay/:token" element={<DelegatePortal />} />
                 <Route path="/login" element={<LoginPage />} />
 
                 {/* Protected Staff / Admin Routes (Supabase Auth - FR-AUTH-1, FR-AUTH-2) */}

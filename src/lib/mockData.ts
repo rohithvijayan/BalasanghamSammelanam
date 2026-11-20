@@ -180,6 +180,22 @@ export const demoDelegates: Delegate[] = [
     status: 'pending',
   },
   {
+    id: 'del-wayanad-kg4jio',
+    token: 'wayanad-kg4jio',
+    full_name: 'അഭിനന്ദ് സി.വി. (Abhinand C.V.)',
+    phone: '+91 94000 77112',
+    district_id: 3,
+    district_en: 'Wayanad',
+    district_ml: 'വയനാട്',
+    gender: 'boy',
+    emergency_name: 'ചന്ദ്രൻ സി.വി. (അച്ഛൻ)',
+    emergency_phone: '+91 98460 33441',
+    notes: 'മാനന്തവാടി ഏരിയ • വയനാട്',
+    house_id: 'h-101',
+    volunteer: { name: 'രേഷ്മ പി.', phone: '+91 98460 78901', unit: 'നീലേശ്വരം ഈസ്റ്റ്' },
+    status: 'pending',
+  },
+  {
     id: 'del-5',
     token: 'wayanad-abhinand-319',
     full_name: 'അഭിനന്ദ് സി.വി. (Abhinand C.V.)',
@@ -566,20 +582,28 @@ class MockStore {
   }
 
   recordLocationPing(tokenOrId: string, lat: number, lng: number, accuracy?: number) {
-    const delegate = this.delegates.find(
-      (d) => d.token.toLowerCase() === tokenOrId.toLowerCase() || d.id === tokenOrId
+    const clean = tokenOrId.toLowerCase().trim();
+    let delegate = this.delegates.find(
+      (d) => d.token.toLowerCase() === clean || d.id === tokenOrId
     );
-    if (!delegate) return;
+    if (!delegate) {
+      delegate = demoDelegates.find(
+        (d) => d.token.toLowerCase() === clean || d.id === tokenOrId
+      );
+    }
+    const delId = delegate ? delegate.id : tokenOrId;
     const now = new Date();
     const expires = new Date(now.getTime() + 30 * 60 * 1000);
-    this.locationPings[delegate.id] = {
-      delegate_id: delegate.id,
+    const pingObj: LocationPing = {
+      delegate_id: delId,
       lat,
       lng,
       accuracy,
       created_at: now.toISOString(),
       expires_at: expires.toISOString(),
     };
+    this.locationPings[delId] = pingObj;
+    this.locationPings[clean] = pingObj;
     this.save();
   }
 
