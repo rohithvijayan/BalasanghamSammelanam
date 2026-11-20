@@ -24,13 +24,17 @@ export const HelplineSupportCard: React.FC<HelplineSupportCardProps> = ({ token,
       if (navigator.geolocation) {
         try {
           const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000 });
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0,
+            });
           });
           lat = pos.coords.latitude;
           lng = pos.coords.longitude;
           accuracy = pos.coords.accuracy;
         } catch (geoErr) {
-          console.warn('Physical GPS unavailable, using conference Nileshwaram area fallback', geoErr);
+          console.warn('Physical GPS unavailable or timed out, using conference venue fallback', geoErr);
         }
       }
 
