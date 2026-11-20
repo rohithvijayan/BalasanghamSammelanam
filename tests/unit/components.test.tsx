@@ -308,5 +308,67 @@ describe('React Components Unit Tests', () => {
       fireEvent.click(closeBtn);
       expect(handleClose).toHaveBeenCalledTimes(1);
     });
+
+    it('simulates exact Admin Workbench Step 2 (allocation) and Step 3 (in-line edit modal)', () => {
+      renderWithProviders(
+        <InteractiveGuideModal isOpen={true} onClose={vi.fn()} initialRole="admin" />
+      );
+
+      // Start on Step 1, click Next to go to Step 2
+      const nextBtn = screen.getByText('അടുത്തത്');
+      fireEvent.click(nextBtn);
+
+      // Verify Step 2 is active: Allocation
+      expect(screen.getByText(/ഘട്ടം 2: അലോട്ട്മെന്റ്/i)).toBeInTheDocument();
+      expect(screen.getByText('പൂന്തോട്ടം വീട്')).toBeInTheDocument();
+      expect(screen.getByText(/കപ്പാസിറ്റി: 2 \/ 4 പേർ/i)).toBeInTheDocument();
+
+      // "Assign Here" should be initially disabled before selection
+      const assignHereBtn = screen.getByRole('button', { name: /ഇവിടെ അലോട്ട് ചെയ്യുക/i });
+      expect(assignHereBtn).toBeDisabled();
+
+      // Click the delegate row to select
+      const delegateRow = screen.getByText(/അഭിനന്ദ് സി\.വി\./i);
+      fireEvent.click(delegateRow);
+
+      // Now "Assign Here" button is enabled
+      expect(assignHereBtn).not.toBeDisabled();
+
+      // Click "Assign Here" to allot
+      fireEvent.click(assignHereBtn);
+
+      // Capacity should now update to 3 / 4 and show accommodated confirmation
+      expect(screen.getByText(/കപ്പാസിറ്റി: 3 \/ 4 പേർ/i)).toBeInTheDocument();
+      expect(screen.getByText(/എല്ലാ പ്രതിനിധികൾക്കും താമസസ്ഥലം അനുവദിച്ചു!/i)).toBeInTheDocument();
+
+      // Proceed to Step 3: In-Line Edits
+      fireEvent.click(screen.getByText('അടുത്തത്'));
+      expect(screen.getByText(/ഘട്ടം 3: തത്സമയ മാറ്റങ്ങൾ/i)).toBeInTheDocument();
+
+      // Check delegate card
+      expect(screen.getByText('അർജുൻ കെ.')).toBeInTheDocument();
+      expect(screen.getByText(/kannur-412/i)).toBeInTheDocument();
+
+      // Click Edit pencil button to open exact Edit Modal
+      const editBtn = screen.getByRole('button', { name: /വിവരങ്ങൾ തിരുത്തുക/i });
+      fireEvent.click(editBtn);
+
+      // Mini edit modal should be open
+      expect(screen.getByText(/വിവരങ്ങൾ തിരുത്തുക \(Edit Modal\)/i)).toBeInTheDocument();
+      expect(screen.getByText(/പൂർണ്ണ പേര് \*/i)).toBeInTheDocument();
+
+      // Click quick fill test number
+      const testFillBtn = screen.getByRole('button', { name: /ടെസ്റ്റ് നമ്പർ/i });
+      fireEvent.click(testFillBtn);
+
+      // Click Save Changes in modal
+      const saveBtn = screen.getByRole('button', { name: /സേവ് ചെയ്യുക/i });
+      fireEvent.click(saveBtn);
+
+      // Verify modal closed and success toast appeared
+      expect(screen.queryByText(/വിവരങ്ങൾ തിരുത്തുക \(Edit Modal\)/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/വിവരങ്ങൾ വിജയകരമായി സേവ് ചെയ്തു!/i)).toBeInTheDocument();
+      expect(screen.getByText(/\+91 94471 23456/i)).toBeInTheDocument();
+    });
   });
 });

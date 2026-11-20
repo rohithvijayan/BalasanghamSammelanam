@@ -20,7 +20,8 @@ import {
   RefreshCw,
   HelpCircle,
   UserCheck,
-  Check
+  Check,
+  RotateCcw
 } from 'lucide-react';
 
 interface InteractiveGuideModalProps {
@@ -44,8 +45,20 @@ export const InteractiveGuideModal: React.FC<InteractiveGuideModalProps> = ({
 
   // Mini-simulator states
   const [simAdminImportDone, setSimAdminImportDone] = useState(false);
-  const [simAdminChecked, setSimAdminChecked] = useState(false);
-  const [simAdminEdited, setSimAdminEdited] = useState(false);
+
+  // Step 2 Simulator States (Exact Admin Workbench Allocation workflow)
+  const [simStep2Selected, setSimStep2Selected] = useState<string[]>([]);
+  const [simStep2Allotted, setSimStep2Allotted] = useState(false);
+  const [simStep2Volunteer, setSimStep2Volunteer] = useState<string>('');
+
+  // Step 3 Simulator States (Exact EditDelegateModal workflow)
+  const [simStep3ModalOpen, setSimStep3ModalOpen] = useState(false);
+  const [simStep3Name, setSimStep3Name] = useState('അർജുൻ കെ.');
+  const [simStep3Phone, setSimStep3Phone] = useState('+91 98470 11223');
+  const [simStep3Gender, setSimStep3Gender] = useState<'boy' | 'girl'>('boy');
+  const [simStep3Volunteer, setSimStep3Volunteer] = useState('പ്രണവ് എം.');
+  const [simStep3SavedToast, setSimStep3SavedToast] = useState(false);
+
   const [simVolSearch, setSimVolSearch] = useState('');
   const [simVolCheckedIn, setSimVolCheckedIn] = useState(false);
   const [simWhatsAppPreview, setSimWhatsAppPreview] = useState(false);
@@ -99,87 +112,428 @@ export const InteractiveGuideModal: React.FC<InteractiveGuideModalProps> = ({
       badge_en: 'Step 2: Assign Housing & Volunteers',
       title_ml: 'പ്രതിനിധികളെ വീടുകളിലേക്കും വളണ്ടിയർമാർക്കും നൽകുക',
       title_en: 'Assign Delegates to Beds & Squad Volunteers',
-      desc_ml: 'പ്രതിനിധികളുടെ ചെക്ക്ബോക്സ് സെലക്ട് ചെയ്ത് വീടുകളിൽ "Assign Here" ക്ലിക്ക് ചെയ്യുക. വളണ്ടിയർമാരെയും ഒന്നിച്ച് ചുമതലപ്പെടുത്താം.',
-      desc_en: 'Check boxes next to delegates and tap "Assign Here" on a host home. Assign squad captain volunteers in bulk.',
+      desc_ml: 'പ്രതിനിധികളുടെ ചെക്ക്ബോക്സ് സെലക്ട് ചെയ്യുമ്പോൾ വീടുകളിലെ "Assign Here" ബട്ടൺ ആക്ടീവാകും. വളണ്ടിയർമാരെയും ഒന്നിച്ച് ചുമതലപ്പെടുത്താം.',
+      desc_en: 'Select delegate checkboxes to activate "Assign Here" on houses. Bulk-assign squad volunteers with one tap.',
       action_ml: 'വർക്ക് ബെഞ്ചിലേക്ക് പോവുക',
       action_en: 'Go to Admin Workbench (/admin)',
-      renderSim: () => (
-        <div className="p-4 rounded-2xl bg-indigo-50/80 border border-indigo-200/90 flex flex-col gap-3">
-          <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
-            <Home className="w-4 h-4 text-indigo-700" />
-            {language === 'ml' ? 'ലൈവ് അലോട്ട്മെന്റ് സിമുലേറ്റർ:' : 'Live Allocation Simulator:'}
-          </span>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            <div
-              onClick={() => setSimAdminChecked(!simAdminChecked)}
-              className={`p-2.5 rounded-xl border cursor-pointer flex items-center justify-between transition-all ${
-                simAdminChecked ? 'bg-indigo-100 border-indigo-400 font-bold' : 'bg-white border-slate-200'
-              }`}
-            >
-              <span>{language === 'ml' ? 'അഭിനന്ദ് സി.വി. (വയനാട്)' : 'Abhinand C.V. (Wayanad)'}</span>
-              <div className={`w-4 h-4 rounded border flex items-center justify-center ${simAdminChecked ? 'bg-primary text-white' : 'bg-white'}`}>
-                {simAdminChecked && <Check className="w-3 h-3" />}
+      renderSim: () => {
+        const toggleSelect = (id: string) => {
+          setSimStep2Selected((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+          );
+        };
+
+        const handleAssignHere = () => {
+          if (simStep2Selected.length === 0) return;
+          setSimStep2Allotted(true);
+          setSimStep2Selected([]);
+        };
+
+        const handleResetStep2 = () => {
+          setSimStep2Allotted(false);
+          setSimStep2Selected([]);
+          setSimStep2Volunteer('');
+        };
+
+        return (
+          <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-3">
+            {/* Real Deal Header Bar */}
+            <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
+              <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-primary" />
+                {language === 'ml' ? 'വർക്ക് ബെഞ്ച് അലോട്ട്മെന്റ് സിമുലേറ്റർ' : 'Workbench Allocation Simulator'}
+              </span>
+              {simStep2Allotted && (
+                <button
+                  type="button"
+                  onClick={handleResetStep2}
+                  className="text-[11px] text-primary hover:text-primary-700 font-bold flex items-center gap-1 transition-colors"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>{language === 'ml' ? 'റീസെറ്റ് ചെയ്യുക' : 'Reset Simulator'}</span>
+                </button>
+              )}
+            </div>
+
+            {/* Top / Left: Unassigned Delegates List */}
+            <div className="flex flex-col gap-2 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-900">
+                  {language === 'ml' ? 'അലോട്ട് ചെയ്യേണ്ട പ്രതിനിധികൾ (Unassigned)' : 'Unassigned Delegates'}
+                </span>
+                {simStep2Selected.length > 0 && !simStep2Allotted && (
+                  <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-extrabold animate-pulse">
+                    {simStep2Selected.length} {language === 'ml' ? 'തിരഞ്ഞെടുത്തു' : 'selected'}
+                  </span>
+                )}
+              </div>
+
+              {/* Bulk Volunteer Dropdown (Appears exactly when delegates are selected, like real Workbench) */}
+              {simStep2Selected.length > 0 && !simStep2Allotted && (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-indigo-50 border border-indigo-200 animate-in fade-in">
+                  <UserCheck className="w-3.5 h-3.5 text-indigo-700 shrink-0" />
+                  <select
+                    value={simStep2Volunteer}
+                    onChange={(e) => setSimStep2Volunteer(e.target.value)}
+                    className="w-full text-[11px] font-bold text-indigo-900 bg-white border border-indigo-200 rounded-md px-2 py-1 focus:outline-none cursor-pointer"
+                  >
+                    <option value="">{language === 'ml' ? '+ വളണ്ടിയറെ നൽകുക (Assign Volunteer)' : '+ Assign Volunteer'}</option>
+                    <option value="അർജുൻ കെ.">അർജുൻ കെ. (സൗത്ത് സോൺ)</option>
+                    <option value="പ്രണവ് എം.">പ്രണവ് എം. (സ്റ്റേഷൻ സ്ക്വാഡ്)</option>
+                    <option value="സ്നേഹ പി.">സ്നേഹ പി. (ക്യാമ്പ്)</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Unassigned Delegate Row */}
+              {!simStep2Allotted ? (
+                <div
+                  onClick={() => toggleSelect('del-1')}
+                  className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
+                    simStep2Selected.includes('del-1')
+                      ? 'bg-primary-50 border-primary-300 shadow-2xs'
+                      : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={simStep2Selected.includes('del-1')}
+                      onChange={() => {}}
+                      className="w-4 h-4 rounded text-primary focus:ring-primary shrink-0 cursor-pointer"
+                    />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-bold text-slate-900 font-malayalam-bold truncate">
+                        {language === 'ml' ? 'അഭിനന്ദ് സി.വി.' : 'Abhinand C.V.'}
+                      </span>
+                      <span className="text-[10px] text-slate-500 truncate flex items-center gap-1.5 flex-wrap">
+                        <span>{language === 'ml' ? 'വയനാട് • +91 94471 20000' : 'Wayanad • +91 94471 20000'}</span>
+                        {simStep2Volunteer && (
+                          <span className="text-[9px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-1 rounded font-bold">
+                            👤 {simStep2Volunteer}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-sky-100 text-sky-700 shrink-0">
+                    {language === 'ml' ? 'ആൺകുട്ടി' : 'Boy'}
+                  </span>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center justify-between animate-in fade-in">
+                  <span>{language === 'ml' ? '✓ എല്ലാ പ്രതിനിധികൾക്കും താമസസ്ഥലം അനുവദിച്ചു!' : '✓ All delegates accommodated!'}</span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                </div>
+              )}
+            </div>
+
+            {/* Bottom / Right: House Card with real-deal "Assign Here" Button & Capacity */}
+            <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs flex flex-col gap-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <Home className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span className="text-xs font-bold text-slate-900 font-malayalam-bold truncate">
+                      {language === 'ml' ? 'പൂന്തോട്ടം വീട്' : 'Poonthottam House'}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-sky-100 text-sky-700 shrink-0">
+                      {language === 'ml' ? 'ആൺകുട്ടികൾക്ക് മാത്രം' : 'Boys Only'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 truncate mt-0.5">
+                    {language === 'ml' ? 'നീലേശ്വരം • ആതിഥേയൻ: കെ. രാഘവൻ' : 'Nileshwaram • Host: K. Raghavan'}
+                  </span>
+                </div>
+
+                {/* Real Deal "Assign Here" Button */}
+                <button
+                  type="button"
+                  onClick={handleAssignHere}
+                  disabled={simStep2Selected.length === 0}
+                  className="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-[11px] font-bold shrink-0 shadow-2xs transition-transform active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span>{language === 'ml' ? 'ഇവിടെ അലോട്ട് ചെയ്യുക' : 'Assign Here'}</span>
+                </button>
+              </div>
+
+              {/* Capacity Bar */}
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between text-[11px] font-bold">
+                  <span className="text-slate-600">
+                    {language === 'ml'
+                      ? `കപ്പാസിറ്റി: ${simStep2Allotted ? '3' : '2'} / 4 പേർ`
+                      : `Capacity: ${simStep2Allotted ? '3' : '2'} / 4 persons`}
+                  </span>
+                  <span className={simStep2Allotted ? 'text-amber-600' : 'text-emerald-600'}>
+                    {simStep2Allotted
+                      ? (language === 'ml' ? '1 ഒഴിവ് ബാക്കി' : '1 slot free')
+                      : (language === 'ml' ? '2 ഒഴിവുകൾ ബാക്കി' : '2 slots free')}
+                  </span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      simStep2Allotted ? 'bg-primary w-3/4' : 'bg-primary w-1/2'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Current Residents (ഇവിടെ താമസിക്കുന്നവർ) */}
+              <div className="pt-2 border-t border-slate-100 flex flex-col gap-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  {language === 'ml'
+                    ? `ഇവിടെ താമസിക്കുന്നവർ (${simStep2Allotted ? '3' : '2'}):`
+                    : `Current Residents (${simStep2Allotted ? '3' : '2'}):`}
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-semibold">
+                    {language === 'ml' ? 'അർജുൻ കെ. (കണ്ണൂർ)' : 'Arjun K. (Kannur)'}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-semibold">
+                    {language === 'ml' ? 'മുഹമ്മദ് റിയാസ്' : 'Muhammed Riyas'}
+                  </span>
+                  {simStep2Allotted && (
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center gap-1 border border-emerald-300 animate-in zoom-in-95">
+                      <span>✓ {language === 'ml' ? 'അഭിനന്ദ് സി.വി.' : 'Abhinand C.V.'}</span>
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="p-2.5 rounded-xl bg-white border border-slate-200 flex flex-col gap-1.5">
-              <div className="flex items-center justify-between font-bold text-slate-800">
-                <span>{language === 'ml' ? 'പൂന്തോട്ടം വീട്' : 'Poonthottam House'}</span>
-                <span className="text-primary">{simAdminChecked ? '3 / 4' : '2 / 4'}</span>
-              </div>
-              <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-300"
-                  style={{ width: simAdminChecked ? '75%' : '50%' }}
-                />
-              </div>
-            </div>
+            {/* Dynamic Step Instruction */}
+            <span className="text-[11px] text-center font-medium text-slate-600">
+              {simStep2Allotted
+                ? (language === 'ml'
+                    ? '🎉 അലോട്ട്മെന്റ് പൂർത്തിയായി! കപ്പാസിറ്റി ബാർ തത്സമയം അപ്ഡേറ്റായി.'
+                    : '🎉 Allocation complete! Capacity bar and resident tally live updated.')
+                : simStep2Selected.length > 0
+                ? (language === 'ml'
+                    ? '👉 ഇനി "ഇവിടെ അലോട്ട് ചെയ്യുക" ബട്ടണിൽ ക്ലിക്ക് ചെയ്യുക (അല്ലെങ്കിൽ വളണ്ടിയറെ നൽകുക).'
+                    : '👉 Now click "Assign Here" button on the house card (or pick a squad volunteer).')
+                : (language === 'ml'
+                    ? '1. പ്രതിനിധിയുടെ ചെക്ക്ബോക്സിൽ ക്ലിക്ക് ചെയ്യുക.'
+                    : '1. Click the delegate checkbox above to select.')}
+            </span>
           </div>
-          <span className="text-[11px] text-indigo-700 italic text-center">
-            {simAdminChecked
-              ? (language === 'ml' ? '✓ പ്രതിനിധിയെ വീട്ടിലേക്ക് ചേർത്തു! കപ്പാസിറ്റി 3/4 ആയി.' : '✓ Delegate allocated! Capacity updated to 3/4.')
-              : (language === 'ml' ? 'പ്രതിനിധിയുടെ പേരിൽ ക്ലിക്ക് ചെയ്ത് അലോട്ട്മെന്റ് കാണുക.' : 'Click the delegate name above to simulate assignment.')}
-          </span>
-        </div>
-      ),
+        );
+      },
     },
     {
       id: 'inline_edits',
       route: '/admin',
       badge_ml: 'ഘട്ടം 3: തത്സമയ മാറ്റങ്ങൾ',
       badge_en: 'Step 3: Edit on the Fly',
-      title_ml: 'പെൻസിൽ ഐക്കൺ ഉപയോഗിച്ച് ഫോൺ നമ്പറുകളും വീടുകളും തിരുത്തുക',
+      title_ml: 'പെൻസിൽ ഐക്കൺ ഉപയോഗിച്ച് വിവരങ്ങൾ നേരിട്ട് തിരുത്തുക',
       title_en: 'Instant In-Line Edits (Pencil Icon)',
-      desc_ml: 'പ്രതിനിധികളുടെ ഫോൺ നമ്പർ തെറ്റിയാലോ പുതിയ വീട് ചേർക്കണമെങ്കിലോ എഡിറ്റ് മോഡൽ വഴി സെക്കൻഡുകൾക്കുള്ളിൽ തിരുത്താം.',
-      desc_en: 'Wrong phone number or new host home? Click the pencil icon on any card to update details instantly without re-uploading.',
-      action_ml: 'എഡിറ്റ് ഫീച്ചറുകൾ കാണുക',
+      desc_ml: 'പ്രതിനിധിയുടെ കാർഡിലെ പെൻസിൽ ഐക്കണിൽ ക്ലിക്ക് ചെയ്താൽ എഡിറ്റ് മോഡൽ തുറക്കും. ഫോൺ നമ്പറോ വളണ്ടിയറെയോ മാറ്റി സേവ് ചെയ്യാം.',
+      desc_en: 'Click the pencil icon on any delegate card to open the exact Edit Modal. Update phone numbers or squad volunteer instantly.',
+      action_ml: 'വർക്ക് ബെഞ്ചിൽ പരീക്ഷിക്കുക',
       action_en: 'Explore Admin Workbench',
-      renderSim: () => (
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center gap-3 text-center">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-200 w-full justify-between">
-            <div className="flex flex-col text-left">
-              <span className="text-xs font-bold text-slate-900">{language === 'ml' ? 'അർജുൻ കെ. (കണ്ണൂർ)' : 'Arjun K. (Kannur)'}</span>
-              <span className="text-[11px] text-slate-500 font-mono">
-                {simAdminEdited ? '+91 94471 23456 (Updated)' : '+91 98470 11223'}
+      renderSim: () => {
+        const handleSaveEdit = (e: React.FormEvent) => {
+          e.preventDefault();
+          setSimStep3ModalOpen(false);
+          setSimStep3SavedToast(true);
+          setTimeout(() => setSimStep3SavedToast(false), 4000);
+        };
+
+        return (
+          <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-3 relative">
+            <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+              <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Edit2 className="w-3.5 h-3.5 text-primary" />
+                {language === 'ml' ? 'തത്സമയ എഡിറ്റ് സിമുലേറ്റർ (Edit Modal)' : 'In-Line Edit Simulator'}
               </span>
+              <span className="text-[10px] text-slate-500 font-mono">kannur-412</span>
             </div>
-            <button
-              type="button"
-              onClick={() => setSimAdminEdited(!simAdminEdited)}
-              className="p-2 rounded-xl bg-primary text-white hover:bg-primary-600 text-xs font-bold flex items-center gap-1 shadow-xs transition-transform active:scale-95"
-            >
-              <Edit2 className="w-3.5 h-3.5" />
-              <span>{simAdminEdited ? (language === 'ml' ? 'റീസെറ്റ്' : 'Reset') : (language === 'ml' ? 'തിരുത്തുക' : 'Edit')}</span>
-            </button>
+
+            {/* Delegate Card as seen in real Workbench */}
+            <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-4 h-4 rounded border border-slate-300 bg-slate-100 flex items-center justify-center shrink-0">
+                  <Check className="w-3 h-3 text-slate-400" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-bold text-slate-900 font-malayalam-bold truncate">
+                    {simStep3Name}
+                  </span>
+                  <span className="text-[10px] text-slate-500 truncate flex items-center gap-1.5 flex-wrap">
+                    <span>{language === 'ml' ? 'കണ്ണൂർ' : 'Kannur'} • {simStep3Phone}</span>
+                    <span className="text-[9px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded font-bold">
+                      👤 {simStep3Volunteer}
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setSimStep3ModalOpen(true)}
+                  aria-label={language === 'ml' ? 'വിവരങ്ങൾ തിരുത്തുക' : 'Edit Delegate'}
+                  title={language === 'ml' ? 'വിവരങ്ങൾ തിരുത്തുക' : 'Edit Delegate'}
+                  className="p-1.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-100 border border-slate-200 transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer"
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-primary" />
+                  <span className="hidden sm:inline">{language === 'ml' ? 'തിരുത്തുക' : 'Edit'}</span>
+                </button>
+                <span
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase shrink-0 ${
+                    simStep3Gender === 'girl' ? 'bg-pink-100 text-pink-700' : 'bg-sky-100 text-sky-700'
+                  }`}
+                >
+                  {simStep3Gender === 'girl' ? (language === 'ml' ? 'പെൺകുട്ടി' : 'Girl') : (language === 'ml' ? 'ആൺകുട്ടി' : 'Boy')}
+                </span>
+              </div>
+            </div>
+
+            {/* Saved Toast Notice */}
+            {simStep3SavedToast && (
+              <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>
+                  {language === 'ml'
+                    ? '✓ വിവരങ്ങൾ വിജയകരമായി സേവ് ചെയ്തു! ക്ലൗഡിൽ തത്സമയം അപ്ഡേറ്റായി.'
+                    : '✓ Changes saved! Synced in real-time across all devices.'}
+                </span>
+              </div>
+            )}
+
+            {/* Exact Mini Edit Delegate Modal Overlay */}
+            {simStep3ModalOpen && (
+              <div className="p-4 rounded-2xl bg-white border-2 border-primary shadow-xl flex flex-col gap-3 animate-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                      <Edit2 className="w-3 h-3" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-900 font-malayalam-bold">
+                      {language === 'ml' ? 'വിവരങ്ങൾ തിരുത്തുക (Edit Modal)' : 'Edit Delegate Details'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSimStep3ModalOpen(false)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveEdit} className="flex flex-col gap-2.5 text-left">
+                  {/* Full Name */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-slate-700">
+                      {language === 'ml' ? 'പൂർണ്ണ പേര് *' : 'Full Name *'}
+                    </label>
+                    <input
+                      type="text"
+                      value={simStep3Name}
+                      onChange={(e) => setSimStep3Name(e.target.value)}
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+
+                  {/* Phone Number */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-slate-700">
+                      {language === 'ml' ? 'മൊബൈൽ നമ്പർ' : 'Mobile Number'}
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={simStep3Phone}
+                        onChange={(e) => setSimStep3Phone(e.target.value)}
+                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setSimStep3Phone('+91 94471 23456')}
+                        className="px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 whitespace-nowrap transition-colors"
+                      >
+                        {language === 'ml' ? 'ടെസ്റ്റ് നമ്പർ' : 'Fill Test'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Gender Toggle & Volunteer In-Charge */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-700">
+                        {language === 'ml' ? 'ലിംഗം' : 'Gender'}
+                      </label>
+                      <div className="flex rounded-lg bg-slate-100 p-0.5 border border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => setSimStep3Gender('boy')}
+                          className={`flex-1 py-1 rounded text-[10px] font-bold transition-all ${
+                            simStep3Gender === 'boy' ? 'bg-sky-500 text-white shadow-xs' : 'text-slate-600'
+                          }`}
+                        >
+                          {language === 'ml' ? 'ആൺ' : 'Boy'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSimStep3Gender('girl')}
+                          className={`flex-1 py-1 rounded text-[10px] font-bold transition-all ${
+                            simStep3Gender === 'girl' ? 'bg-pink-500 text-white shadow-xs' : 'text-slate-600'
+                          }`}
+                        >
+                          {language === 'ml' ? 'പെൺ' : 'Girl'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-700">
+                        {language === 'ml' ? 'ചുമതലയുള്ള വളണ്ടിയർ' : 'Volunteer'}
+                      </label>
+                      <select
+                        value={simStep3Volunteer}
+                        onChange={(e) => setSimStep3Volunteer(e.target.value)}
+                        className="px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-800 focus:outline-none"
+                      >
+                        <option value="പ്രണവ് എം.">പ്രണവ് എം.</option>
+                        <option value="അർജുൻ കെ.">അർജുൻ കെ.</option>
+                        <option value="സ്നേഹ പി.">സ്നേഹ പി.</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Modal Action Buttons */}
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setSimStep3ModalOpen(false)}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100"
+                    >
+                      {language === 'ml' ? 'റദ്ദാക്കുക' : 'Cancel'}
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-1.5 rounded-lg bg-primary hover:bg-primary-600 text-white text-xs font-bold shadow-xs transition-transform active:scale-95"
+                    >
+                      {language === 'ml' ? 'സേവ് ചെയ്യുക' : 'Save Changes'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {!simStep3ModalOpen && (
+              <span className="text-[11px] text-center font-medium text-slate-500">
+                {language === 'ml'
+                  ? 'പെൻസിൽ (Edit) ഐക്കണിൽ അമർത്തി എഡിറ്റ് മോഡൽ പരീക്ഷിക്കുക.'
+                  : 'Click the pencil icon above to test the interactive Edit Modal.'}
+              </span>
+            )}
           </div>
-          {simAdminEdited && (
-            <span className="text-xs text-emerald-700 font-bold flex items-center gap-1 animate-in fade-in">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              {language === 'ml' ? 'ഫോൺ നമ്പർ വിജയകരമായി തിരുത്തി ക്ലൗഡിൽ സേവ് ചെയ്തു!' : 'Phone updated and synced to cloud immediately!'}
-            </span>
-          )}
-        </div>
-      ),
+        );
+      },
     },
     {
       id: 'oversight',
