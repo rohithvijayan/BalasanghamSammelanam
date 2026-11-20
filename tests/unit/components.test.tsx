@@ -6,6 +6,7 @@ import { Header } from '../../src/components/Header';
 import { ProtectedRoute } from '../../src/auth/ProtectedRoute';
 import { HelplineSupportCard } from '../../src/components/HelplineSupportCard';
 import { StayCard } from '../../src/components/StayCard';
+import { InteractiveGuideModal } from '../../src/components/InteractiveGuideModal';
 import { I18nProvider } from '../../src/i18n/i18nContext';
 import { AuthProvider } from '../../src/auth/AuthContext';
 import { Delegate, House, HelplineItem } from '../../src/types';
@@ -270,6 +271,42 @@ describe('React Components Unit Tests', () => {
       expect(screen.getByText('കെ. രാഘവൻ')).toBeInTheDocument();
       expect(screen.getByText('+91 94471 23456')).toBeInTheDocument();
       expect(screen.getByText(/റൂട്ട് മാപ്പ് കാണുക/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('<InteractiveGuideModal />', () => {
+    it('renders and allows stepping through interactive guide quests', () => {
+      const handleClose = vi.fn();
+      const { rerender } = renderWithProviders(
+        <InteractiveGuideModal isOpen={true} onClose={handleClose} initialRole="admin" />
+      );
+
+      // Check header and roles
+      expect(screen.getByText(/പ്ലാറ്റ്‌ഫോം ഗൈഡ്/i)).toBeInTheDocument();
+      expect(screen.getByText(/Admin Quest/i)).toBeInTheDocument();
+      expect(screen.getByText(/Volunteer Quest/i)).toBeInTheDocument();
+
+      // Check step 1 content
+      expect(screen.getByText(/ഘട്ടം 1: ഡാറ്റ അപ്‌ലോഡ്/i)).toBeInTheDocument();
+
+      // Switch to Volunteer Quest
+      const volunteerTab = screen.getByText(/Volunteer Quest/i);
+      fireEvent.click(volunteerTab);
+
+      // Step 1 of volunteer should show
+      expect(screen.getByText(/ഘട്ടം 1: തിരച്ചിൽ/i)).toBeInTheDocument();
+
+      // Click Next step
+      const nextBtn = screen.getByText('അടുത്തത്');
+      fireEvent.click(nextBtn);
+
+      // Step 2 of volunteer: Arrival check-in
+      expect(screen.getByText(/ഘട്ടം 2: ഹാജർ രേഖപ്പെടുത്തൽ/i)).toBeInTheDocument();
+
+      // Close modal
+      const closeBtn = screen.getByRole('button', { name: /ഗൈഡ് ക്ലോസ് ചെയ്യുക/i });
+      fireEvent.click(closeBtn);
+      expect(handleClose).toHaveBeenCalledTimes(1);
     });
   });
 });

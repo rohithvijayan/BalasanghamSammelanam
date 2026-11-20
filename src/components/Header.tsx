@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useI18n } from '../i18n/i18nContext';
 import { useAuth } from '../auth/AuthContext';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Upload, Home, LogOut, Shield, LogIn, UserCheck, Menu, X } from 'lucide-react';
+import { Users, Upload, Home, LogOut, Shield, LogIn, UserCheck, Menu, X, HelpCircle } from 'lucide-react';
+import { InteractiveGuideModal } from './InteractiveGuideModal';
 
 export const Header: React.FC = () => {
   const { language, setLanguage, t } = useI18n();
   const { user, isAuthenticated, logout } = useAuth();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
 
   // Close mobile drawer on route navigation
   useEffect(() => {
@@ -136,6 +138,18 @@ export const Header: React.FC = () => {
               </div>
             )
           )}
+
+          {/* How to Use Guide Trigger Button */}
+          <button
+            type="button"
+            onClick={() => setIsGuideOpen(true)}
+            title={language === 'ml' ? 'ഉപയോഗ ഗൈഡ് കാണുക (How to Use)' : 'How to Use Guide'}
+            aria-label="How to Use Guide"
+            className="touch-target px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-[11px] sm:text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-transform active:scale-95 shrink-0"
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+            <span className="hidden sm:inline">{language === 'ml' ? 'ഗൈഡ്' : 'Guide'}</span>
+          </button>
 
           {/* Bilingual Language Switcher Pill */}
           <div className="inline-flex rounded-full bg-slate-100 p-0.5 border border-slate-200 shadow-inner shrink-0">
@@ -312,6 +326,19 @@ export const Header: React.FC = () => {
               </Link>
             )}
 
+            {/* Interactive How to Use Guide Button in Mobile Drawer */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                setIsGuideOpen(true);
+              }}
+              className="p-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold flex items-center gap-2.5 transition-colors text-left shadow-2xs"
+            >
+              <HelpCircle className="w-4 h-4 text-amber-700 shrink-0" />
+              <span>{language === 'ml' ? 'എങ്ങനെ ഉപയോഗിക്കാം (How to Use Guide)' : 'How to Use Guide (Quest)'}</span>
+            </button>
+
             {/* If Not Authenticated, show Login option */}
             {!isAuthenticated && (
               <Link
@@ -326,6 +353,9 @@ export const Header: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Interactive Walkthrough / Guide Modal */}
+      <InteractiveGuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
     </header>
   );
 };
