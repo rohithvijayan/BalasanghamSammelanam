@@ -323,8 +323,8 @@ CREATE OR REPLACE FUNCTION get_my_stay(p_token TEXT)
 RETURNS JSONB AS $$
 DECLARE
     v_delegate RECORD;
-    v_house RECORD;
-    v_volunteer RECORD;
+    v_house JSONB := NULL;
+    v_volunteer JSONB := NULL;
     v_announcements JSONB;
     v_helpline JSONB;
 BEGIN
@@ -341,7 +341,17 @@ BEGIN
 
     -- Fetch house if assigned
     IF v_delegate.house_id IS NOT NULL THEN
-        SELECT id, name, address, map_url, lat, lng, host_name, host_phone, capacity, notes
+        SELECT jsonb_build_object(
+            'id', id,
+            'name', name,
+            'address', address,
+            'map_url', map_url,
+            'lat', lat,
+            'lng', lng,
+            'host_name', host_name,
+            'host_phone', host_phone,
+            'capacity', capacity
+        )
         INTO v_house
         FROM houses
         WHERE id = v_delegate.house_id;
@@ -349,7 +359,10 @@ BEGIN
 
     -- Fetch volunteer if assigned
     IF v_delegate.volunteer_id IS NOT NULL THEN
-        SELECT full_name, phone
+        SELECT jsonb_build_object(
+            'name', full_name,
+            'phone', phone
+        )
         INTO v_volunteer
         FROM profiles
         WHERE id = v_delegate.volunteer_id;
@@ -382,21 +395,8 @@ BEGIN
             'gender', v_delegate.gender,
             'status', v_delegate.status
         ),
-        'house', CASE WHEN v_house.id IS NOT NULL THEN jsonb_build_object(
-            'id', v_house.id,
-            'name', v_house.name,
-            'address', v_house.address,
-            'map_url', v_house.map_url,
-            'lat', v_house.lat,
-            'lng', v_house.lng,
-            'host_name', v_house.host_name,
-            'host_phone', v_house.host_phone,
-            'capacity', v_house.capacity
-        ) ELSE NULL END,
-        'volunteer', CASE WHEN v_volunteer.full_name IS NOT NULL THEN jsonb_build_object(
-            'name', v_volunteer.full_name,
-            'phone', v_volunteer.phone
-        ) ELSE NULL END,
+        'house', v_house,
+        'volunteer', v_volunteer,
         'announcements', v_announcements,
         'helpline', v_helpline
     );
