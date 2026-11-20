@@ -41,7 +41,7 @@ export const api = {
           .order('created_at', { ascending: false });
 
         if (!error && data && data.length > 0) {
-          return data.map((row: any) => ({
+          const mapped = data.map((row: any) => ({
             id: row.id,
             token: row.token,
             full_name: row.full_name,
@@ -57,6 +57,8 @@ export const api = {
             status: row.status,
             checked_in_at: row.checked_in_at,
           }));
+          mockStore.setDelegates(mapped);
+          return mapped;
         }
       } catch (err) {
         console.warn('Failed to fetch delegates from Supabase, falling back to mockStore', err);
@@ -75,7 +77,7 @@ export const api = {
           .order('name', { ascending: true });
 
         if (!error && data && data.length > 0) {
-          return data.map((row: any) => ({
+          const mapped = data.map((row: any) => ({
             id: row.id,
             name: row.name,
             address: row.address,
@@ -88,6 +90,8 @@ export const api = {
             gender_restriction: row.gender_restriction,
             notes: row.notes,
           }));
+          mockStore.setHouses(mapped);
+          return mapped;
         }
       } catch (err) {
         console.warn('Failed to fetch houses from Supabase, falling back to mockStore', err);

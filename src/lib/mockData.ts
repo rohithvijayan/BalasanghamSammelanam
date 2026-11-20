@@ -226,7 +226,10 @@ export const MOCK_TOKENS = new Set([
 
 export const MOCK_HOUSE_IDS = new Set(['h-101', 'h-102', 'h-103', 'h-104']);
 
-// In-Memory Reactive Store (Local state with localStorage sync)
+// Cache Time-To-Live: 10 minutes (prevents stale data from sticking indefinitely)
+export const CACHE_TTL_MS = 10 * 60 * 1000;
+
+// In-Memory Reactive Store (Local state with localStorage sync & TTL)
 class MockStore {
   private delegates: Delegate[];
   private houses: House[];
@@ -235,8 +238,11 @@ class MockStore {
   private listeners: (() => void)[] = [];
 
   constructor() {
+    const cacheTs = parseInt(localStorage.getItem('sammelanam_cache_ts') || '0', 10);
+    const isExpired = Date.now() - cacheTs > CACHE_TTL_MS;
+
     const savedDelegates = localStorage.getItem('sammelanam_delegates');
-    if (savedDelegates) {
+    if (savedDelegates && !isExpired) {
       try {
         const parsed: Delegate[] = JSON.parse(savedDelegates);
         // Deduplicate saved delegates and purge any leftover mock/demo delegates
@@ -256,7 +262,7 @@ class MockStore {
     }
 
     const savedHouses = localStorage.getItem('sammelanam_houses');
-    if (savedHouses) {
+    if (savedHouses && !isExpired) {
       try {
         const parsed: House[] = JSON.parse(savedHouses);
         const houseMap = new Map<string, House>();
@@ -284,6 +290,7 @@ class MockStore {
     localStorage.setItem('sammelanam_delegates', JSON.stringify(this.delegates));
     localStorage.setItem('sammelanam_houses', JSON.stringify(this.houses));
     localStorage.setItem('sammelanam_location_pings', JSON.stringify(this.locationPings));
+    localStorage.setItem('sammelanam_cache_ts', Date.now().toString());
     this.listeners.forEach((cb) => cb());
   }
 
@@ -402,6 +409,7 @@ class MockStore {
   clearLocalDelegates() {
     this.delegates = [];
     localStorage.removeItem('sammelanam_delegates');
+    localStorage.removeItem('sammelanam_cache_ts');
     this.save();
   }
 
