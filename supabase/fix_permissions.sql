@@ -42,6 +42,7 @@ REVOKE ALL ON TABLE audit_log FROM anon;
 -- Grant only necessary minimal privileges to authenticated users
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE delegates TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE houses TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE volunteers TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE announcements TO authenticated;
 GRANT SELECT, UPDATE ON TABLE profiles TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON TABLE sos_alerts TO authenticated;
@@ -49,6 +50,7 @@ GRANT SELECT, INSERT, UPDATE ON TABLE location_pings TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE volunteer_location_pings TO authenticated;
 GRANT SELECT ON TABLE districts TO authenticated, anon;
 GRANT SELECT ON TABLE app_settings TO authenticated, anon;
+GRANT SELECT ON TABLE volunteers TO authenticated, anon;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 
 -- 4. DROP ALL INSECURE "ALLOW ALL" POLICIES
@@ -210,6 +212,20 @@ CREATE POLICY "Staff view and update SOS alerts"
     TO authenticated
     USING (true)
     WITH CHECK (true);
+
+-- 5.9 Volunteers Policy:
+DROP POLICY IF EXISTS "Volunteers viewable by authenticated and anon" ON volunteers;
+CREATE POLICY "Volunteers viewable by authenticated and anon"
+    ON volunteers FOR SELECT
+    TO authenticated, anon
+    USING (true);
+
+DROP POLICY IF EXISTS "Admins and staff manage volunteers" ON volunteers;
+CREATE POLICY "Admins and staff manage volunteers"
+    ON volunteers FOR ALL
+    TO authenticated
+    USING (auth_role() IN ('admin', 'district'))
+    WITH CHECK (auth_role() IN ('admin', 'district'));
 
 -- 6. HARDEN AND SECURE RPC FUNCTIONS
 

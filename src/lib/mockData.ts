@@ -266,6 +266,26 @@ export const getHouseNaturalKey = (h: House | { name?: string; host_phone?: stri
   return (h.id || '').trim().toLowerCase();
 };
 
+export const normalizePhone = (phone?: string | null): string => {
+  if (!phone) return '';
+  const digits = phone.replace(/[^0-9]/g, '');
+  if (digits.length >= 10) {
+    return digits.slice(-10);
+  }
+  return digits;
+};
+
+export const getVolunteerNaturalKey = (v: Volunteer | { name?: string; phone?: string; id?: string }): string => {
+  const cleanPhone = normalizePhone(v.phone);
+  const cleanName = (v.name || '').trim().toLowerCase();
+  if (cleanPhone && cleanName) {
+    return `${cleanName}::${cleanPhone}`;
+  }
+  if (cleanPhone) return cleanPhone;
+  if (cleanName) return cleanName;
+  return (v.id || '').trim().toLowerCase();
+};
+
 // In-Memory Reactive Store (Local state with localStorage sync & TTL)
 class MockStore {
   private delegates: Delegate[];
@@ -464,6 +484,31 @@ class MockStore {
   setVolunteers(volunteers: Volunteer[], notify = false) {
     this.volunteers = volunteers;
     this.save(notify);
+  }
+
+  importVolunteers(newVolunteers: Volunteer[]) {
+    const volMap = new Map<string, Volunteer>();
+    for (const v of this.volunteers) {
+      const key = getVolunteerNaturalKey(v);
+      volMap.set(key, v);
+    }
+    for (const v of newVolunteers) {
+      const key = getVolunteerNaturalKey(v);
+      const existing = volMap.get(key);
+      if (existing) {
+        volMap.set(key, { ...existing, ...v, id: existing.id || v.id });
+      } else {
+        volMap.set(key, v);
+      }
+    }
+    this.volunteers = Array.from(volMap.values());
+    this.save(true);
+  }
+
+  clearLocalVolunteers() {
+    this.volunteers = [];
+    localStorage.removeItem('sammelanam_volunteers');
+    this.save(true);
   }
 
   getAnnouncements(): Announcement[] {

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { mockStore } from '../../src/lib/mockData';
-import { Delegate, House } from '../../src/types';
+import { mockStore, getVolunteerNaturalKey } from '../../src/lib/mockData';
+import { Delegate, House, Volunteer } from '../../src/types';
+import { api } from '../../src/lib/supabase';
 
 describe('mockStore - State Conference Data Store', () => {
   beforeEach(() => {
@@ -473,5 +474,23 @@ describe('mockStore - State Conference Data Store', () => {
     const boysPage = mockStore.getPaginatedDelegates({ gender: 'boy', pageSize: 10 });
     expect(boysPage.totalCount).toBe(15);
     expect(boysPage.data.every((d) => d.gender === 'boy')).toBe(true);
+  });
+
+  it('correctly computes volunteer natural keys and deduplicates bulk imports', async () => {
+    const v1: Volunteer = { name: 'അരുൺ കുമാർ', phone: '+91 9400112233', unit: 'നീലേശ്വരം' };
+    const v2: Volunteer = { name: 'അരുൺ കുമാർ', phone: '9400112233', unit: 'നീലേശ്വരം ഈസ്റ്റ്' }; // Same phone
+    const v3: Volunteer = { name: 'സുഹറ ബീവി', phone: '9400223344', unit: 'ചെറുവത്തൂർ' };
+
+    expect(getVolunteerNaturalKey(v1)).toBe('അരുൺ കുമാർ::9400112233');
+    expect(getVolunteerNaturalKey(v2)).toBe('അരുൺ കുമാർ::9400112233');
+    expect(getVolunteerNaturalKey(v3)).toBe('സുഹറ ബീവി::9400223344');
+
+    // Bulk import via api.importVolunteers
+    const res = await api.importVolunteers([v1, v2, v3]);
+    expect(res.count).toBe(2); // v1 and v2 have same name/phone match
+
+    const stored = mockStore.getVolunteers();
+    expect(stored.some((v) => v.name === 'അരുൺ കുമാർ')).toBe(true);
+    expect(stored.some((v) => v.name === 'സുഹറ ബീവി')).toBe(true);
   });
 });

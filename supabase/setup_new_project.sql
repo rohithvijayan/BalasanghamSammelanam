@@ -461,6 +461,9 @@ CREATE POLICY "Staff manage announcements" ON announcements FOR ALL TO authentic
 CREATE POLICY "Pings viewable by staff" ON volunteer_location_pings FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Staff manage volunteer pings" ON volunteer_location_pings FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
+CREATE POLICY "Volunteers viewable by authenticated and anon" ON volunteers FOR SELECT TO authenticated, anon USING (true);
+CREATE POLICY "Staff manage volunteers" ON volunteers FOR ALL TO authenticated USING (auth_role() IN ('admin', 'district')) WITH CHECK (auth_role() IN ('admin', 'district'));
+
 -- 7. CREATE DEFAULT STATE ADMIN USER
 -- Login: admin@balasangham.in / AdminSecurePass2026!
 DO $$

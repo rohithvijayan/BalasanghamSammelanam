@@ -70,4 +70,32 @@ describe('Excel (.xlsx / .xls) parsing for /import', () => {
     expect(parsed[0].capacity).toBe(5);
     expect(parsed[0].gender_restriction).toBe('boys');
   });
+
+  it('correctly creates and reads an Excel workbook with volunteer rows', () => {
+    const volunteerData = [
+      {
+        name: 'അരുൺ കുമാർ (Arun Kumar)',
+        phone: '9400112233',
+        unit: 'നീലേശ്വരം (Nileshwaram)',
+      },
+      {
+        name: 'സുഹറ ബീവി (Suhara Beevi)',
+        phone: '9400223344',
+        unit: 'ചെറുവത്തൂർ (Cheruvathur)',
+      },
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(volunteerData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Volunteers');
+
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    const readWb = XLSX.read(buffer, { type: 'buffer' });
+    const parsed = XLSX.utils.sheet_to_json<any>(readWb.Sheets[readWb.SheetNames[0]]);
+
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0].name).toBe('അരുൺ കുമാർ (Arun Kumar)');
+    expect(parsed[0].phone).toBe('9400112233');
+    expect(parsed[0].unit).toBe('നീലേശ്വരം (Nileshwaram)');
+  });
 });
