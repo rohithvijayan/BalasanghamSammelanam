@@ -110,46 +110,67 @@ export const api = {
     inflightDelegates = (async () => {
       if (supabase) {
         try {
-          const { data, error } = await supabase
-            .from('delegates')
-            .select(`
-              id,
-              token,
-              full_name,
-              phone,
-              district_id,
-              gender,
-              emergency_name,
-              emergency_phone,
-              notes,
-              house_id,
-              status,
-              checked_in_at,
-              districts (
+          const volunteersPromise =
+            volunteersCache && Date.now() - volunteersCache.timestamp < TTL_BROWSER_CACHE_MS
+              ? Promise.resolve(volunteersCache.data)
+              : api.getVolunteers();
+
+          const [delegatesResult, volunteersList] = await Promise.all([
+            supabase
+              .from('delegates')
+              .select(`
                 id,
-                name_en,
-                name_ml
-              )
-            `)
-            .order('created_at', { ascending: false });
+                token,
+                full_name,
+                phone,
+                district_id,
+                gender,
+                emergency_name,
+                emergency_phone,
+                notes,
+                house_id,
+                volunteer_id,
+                status,
+                checked_in_at,
+                districts (
+                  id,
+                  name_en,
+                  name_ml
+                )
+              `)
+              .order('created_at', { ascending: false }),
+            volunteersPromise,
+          ]);
+
+          const { data, error } = delegatesResult;
 
           if (!error && data) {
-            const mapped = data.map((row: any) => ({
-              id: row.id,
-              token: row.token,
-              full_name: row.full_name,
-              phone: row.phone || '',
-              district_id: row.district_id,
-              district_en: row.districts?.name_en || 'Kannur',
-              district_ml: row.districts?.name_ml || 'കണ്ണൂർ',
-              gender: row.gender || 'boy',
-              emergency_name: row.emergency_name || '',
-              emergency_phone: row.emergency_phone || '',
-              notes: row.notes || '',
-              house_id: row.house_id,
-              status: row.status,
-              checked_in_at: row.checked_in_at,
-            }));
+            const volMap = new Map<string, Volunteer>();
+            for (const v of volunteersList) {
+              if (v.id) volMap.set(v.id, v);
+            }
+
+            const mapped = data.map((row: any) => {
+              const resolvedVol = row.volunteer_id ? (volMap.get(row.volunteer_id) || null) : null;
+              return {
+                id: row.id,
+                token: row.token,
+                full_name: row.full_name,
+                phone: row.phone || '',
+                district_id: row.district_id,
+                district_en: row.districts?.name_en || 'Kannur',
+                district_ml: row.districts?.name_ml || 'കണ്ണൂർ',
+                gender: row.gender || 'boy',
+                emergency_name: row.emergency_name || '',
+                emergency_phone: row.emergency_phone || '',
+                notes: row.notes || '',
+                house_id: row.house_id,
+                volunteer_id: row.volunteer_id || null,
+                volunteer: resolvedVol,
+                status: row.status,
+                checked_in_at: row.checked_in_at,
+              };
+            });
             delegatesCache = { data: mapped, timestamp: Date.now() };
             browserCache.set(cacheKey, mapped);
             mockStore.setDelegates(mapped, false);
@@ -424,6 +445,7 @@ export const api = {
             emergency_phone,
             notes,
             house_id,
+            volunteer_id,
             status,
             checked_in_at,
             districts (
@@ -459,22 +481,27 @@ export const api = {
         const { data, count, error } = await query;
 
         if (!error && data) {
-          const mapped: Delegate[] = data.map((row: any) => ({
-            id: row.id,
-            token: row.token,
-            full_name: row.full_name,
-            phone: row.phone || '',
-            district_id: row.district_id,
-            district_en: row.districts?.name_en || 'Kannur',
-            district_ml: row.districts?.name_ml || 'കണ്ണൂർ',
-            gender: row.gender || 'boy',
-            emergency_name: row.emergency_name || '',
-            emergency_phone: row.emergency_phone || '',
-            notes: row.notes || '',
-            house_id: row.house_id,
-            status: row.status,
-            checked_in_at: row.checked_in_at,
-          }));
+          const mapped: Delegate[] = data.map((row: any) => {
+            const vol = row.volunteer_id ? mockStore.getVolunteers().find((v) => v.id === row.volunteer_id) || null : null;
+            return {
+              id: row.id,
+              token: row.token,
+              full_name: row.full_name,
+              phone: row.phone || '',
+              district_id: row.district_id,
+              district_en: row.districts?.name_en || 'Kannur',
+              district_ml: row.districts?.name_ml || 'കണ്ണൂർ',
+              gender: row.gender || 'boy',
+              emergency_name: row.emergency_name || '',
+              emergency_phone: row.emergency_phone || '',
+              notes: row.notes || '',
+              house_id: row.house_id,
+              volunteer_id: row.volunteer_id || null,
+              volunteer: vol,
+              status: row.status,
+              checked_in_at: row.checked_in_at,
+            };
+          });
 
           const totalCount = count !== null ? count : mapped.length;
           const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -1069,9 +1096,16 @@ export const api = {
           .eq('id', delegateId);
         if (error) {
           console.warn('Supabase assignVolunteer notice:', error.message);
+          if (error.code === '23503' || error.message?.includes('violates foreign key constraint') || error.message?.includes('delegates_volunteer_id_fkey')) {
+            throw new Error(
+              'Database Foreign Key Constraint (23503): delegates_volunteer_id_fkey in Supabase still references profiles table. Please run the SQL migration in supabase/migrations/20261121_fix_volunteer_foreign_key.sql in your Supabase SQL Editor.'
+            );
+          }
+          throw new Error(error.message || 'Failed to assign volunteer');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.warn('Failed to update volunteer_id in Supabase', err);
+        throw err;
       }
     }
     return true;
@@ -1079,6 +1113,7 @@ export const api = {
 
   // Bulk assign volunteer to multiple delegates (Admin) - with cloud persistence
   async bulkAssignVolunteer(delegateIds: string[], volunteer: Volunteer | null): Promise<boolean> {
+    if (!delegateIds || delegateIds.length === 0) return true;
     invalidateCache('delegates');
     mockStore.bulkAssignVolunteer(delegateIds, volunteer);
     if (supabase) {
@@ -1089,9 +1124,16 @@ export const api = {
           .in('id', delegateIds);
         if (error) {
           console.warn('Supabase bulkAssignVolunteer notice:', error.message);
+          if (error.code === '23503' || error.message?.includes('violates foreign key constraint') || error.message?.includes('delegates_volunteer_id_fkey')) {
+            throw new Error(
+              'Database Foreign Key Constraint (23503): delegates_volunteer_id_fkey in Supabase still references profiles table. Please run the SQL migration in supabase/migrations/20261121_fix_volunteer_foreign_key.sql in your Supabase SQL Editor.'
+            );
+          }
+          throw new Error(error.message || 'Failed to bulk assign volunteer');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.warn('Failed to update volunteer_id in Supabase', err);
+        throw err;
       }
     }
     return true;
@@ -1112,6 +1154,11 @@ export const api = {
             emergency_name: delegate.emergency_name,
             emergency_phone: delegate.emergency_phone,
             notes: delegate.notes,
+            ...(delegate.volunteer_id !== undefined
+              ? { volunteer_id: delegate.volunteer_id }
+              : delegate.volunteer !== undefined
+              ? { volunteer_id: delegate.volunteer?.id || null }
+              : {}),
           })
           .eq('id', delegate.id);
         if (error) {

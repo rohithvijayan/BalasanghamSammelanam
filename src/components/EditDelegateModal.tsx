@@ -86,6 +86,12 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
     const cleanEmergencyPhone = emergencyPhone.trim().replace(/[^0-9+]/g, '').slice(0, 15);
     const cleanVolPhone = volunteerPhone.trim().replace(/[^0-9+]/g, '').slice(0, 15);
 
+    const matchedVol = availableVolunteers.find(
+      (v) => v.name.toLowerCase() === volunteerName.trim().toLowerCase() ||
+        (v.phone && cleanVolPhone && v.phone.replace(/[^0-9]/g, '') === cleanVolPhone.replace(/[^0-9]/g, ''))
+    );
+    const resolvedVolId = matchedVol?.id || (delegate.volunteer?.id || delegate.volunteer_id || null);
+
     const updated: Delegate = {
       ...delegate,
       full_name: fullName.trim().slice(0, 100),
@@ -97,8 +103,10 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
       emergency_name: emergencyName.trim().slice(0, 100),
       emergency_phone: cleanEmergencyPhone,
       notes: notes.trim().slice(0, 500),
+      volunteer_id: volunteerName.trim() ? resolvedVolId : null,
       volunteer: volunteerName.trim()
         ? {
+            id: resolvedVolId || undefined,
             name: volunteerName.trim().slice(0, 100),
             phone: cleanVolPhone,
             unit: volunteerUnit.trim().slice(0, 100),

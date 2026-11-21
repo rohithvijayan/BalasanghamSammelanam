@@ -254,15 +254,21 @@ export const AdminWorkbench: React.FC = () => {
 
   const handleBulkAssignVolunteer = async (volunteer: Volunteer | null) => {
     if (selectedDelegateIds.length === 0) return;
-    await api.bulkAssignVolunteer(selectedDelegateIds, volunteer);
-    const count = selectedDelegateIds.length;
-    setSelectedDelegateIds([]);
-    setWarningMessage(
-      language === 'ml'
-        ? `${count} പ്രതിനിധികൾക്ക് ${volunteer ? volunteer.name : 'വളണ്ടിയറെ'} ചുമതലപ്പെടുത്തി!`
-        : `Assigned ${count} delegates to ${volunteer ? volunteer.name : 'volunteer'}!`
-    );
-    setTimeout(() => setWarningMessage(null), 3000);
+    try {
+      await api.bulkAssignVolunteer(selectedDelegateIds, volunteer);
+      const count = selectedDelegateIds.length;
+      setSelectedDelegateIds([]);
+      setWarningMessage(
+        language === 'ml'
+          ? `${count} പ്രതിനിധികൾക്ക് ${volunteer ? volunteer.name : 'വളണ്ടിയറെ'} ചുമതലപ്പെടുത്തി!`
+          : `Assigned ${count} delegates to ${volunteer ? volunteer.name : 'volunteer'}!`
+      );
+      setTimeout(() => setWarningMessage(null), 3000);
+      await loadData(true);
+    } catch (err: any) {
+      console.error('Failed to assign volunteer:', err);
+      alert(err.message || 'Failed to assign volunteer');
+    }
   };
 
   const handleSaveHouse = async (houseData: House) => {
@@ -437,7 +443,7 @@ export const AdminWorkbench: React.FC = () => {
                   onChange={(e) => {
                     const val = e.target.value;
                     if (!val) return;
-                    const found = volunteers.find((v) => v.name === val);
+                    const found = volunteers.find((v) => v.id === val || v.name === val);
                     handleBulkAssignVolunteer(found || null);
                     e.target.value = '';
                   }}
@@ -445,7 +451,7 @@ export const AdminWorkbench: React.FC = () => {
                 >
                   <option value="">{language === 'ml' ? '+ വളണ്ടിയറെ നൽകുക' : '+ Assign Volunteer'}</option>
                   {volunteers.map((vol) => (
-                    <option key={vol.id || vol.name} value={vol.name}>
+                    <option key={vol.id || vol.name} value={vol.id || vol.name}>
                       {vol.name} {vol.unit ? `(${vol.unit})` : ''}
                     </option>
                   ))}
@@ -526,7 +532,7 @@ export const AdminWorkbench: React.FC = () => {
                         </span>
                         <span className="text-[11px] text-slate-500 truncate flex items-center gap-1.5 flex-wrap">
                           <span>{language === 'ml' ? del.district_ml : del.district_en} • {del.phone || (language === 'ml' ? 'ഫോൺ ഇല്ല' : 'No phone')}</span>
-                          {del.volunteer && (
+                          {del.volunteer ? (
                             <span className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded font-medium flex items-center gap-1">
                               <span>👤 {del.volunteer.name}</span>
                               {del.volunteer.active_location && (
@@ -542,6 +548,10 @@ export const AdminWorkbench: React.FC = () => {
                                   <span>Live GPS</span>
                                 </a>
                               )}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 italic">
+                              👤 {language === 'ml' ? 'വളണ്ടിയറില്ല' : 'No vol'}
                             </span>
                           )}
                         </span>
@@ -746,9 +756,13 @@ export const AdminWorkbench: React.FC = () => {
                             <span className="text-[10px] text-slate-400">
                               ({language === 'ml' ? (occ.district_ml || occ.district_en) : (occ.district_en || occ.district_ml)})
                             </span>
-                            {occ.volunteer && (
+                            {occ.volunteer ? (
                               <span className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-1 py-0.2 rounded font-medium">
                                 👤 {occ.volunteer.name}
+                              </span>
+                            ) : (
+                              <span className="text-[9px] text-slate-400 italic">
+                                ({language === 'ml' ? 'വളണ്ടിയറില്ല' : 'No vol'})
                               </span>
                             )}
                             <button

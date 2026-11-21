@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { mockStore, initialDistricts } from '../lib/mockData';
+import { mockStore, initialDistricts, isDelegateAssignedToVolunteer } from '../lib/mockData';
 import { Delegate, House, LocationPing, VolunteerLocationPing, Announcement, Volunteer } from '../types';
 import { api, isSafeUrl } from '../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
@@ -42,6 +42,8 @@ export const VolunteerDesk: React.FC = () => {
   const [editingHouse, setEditingHouse] = useState<House | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'checked_in' | 'with_location'>('all');
   const [districtFilter, setDistrictFilter] = useState<string>('all');
+  const [volunteerScope, setVolunteerScope] = useState<'my' | 'all'>('my');
+  const [adminVolunteerFilter, setAdminVolunteerFilter] = useState<string>('all');
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [locationPings, setLocationPings] = useState<Record<string, LocationPing>>({});
   const [volunteerPings, setVolunteerPings] = useState<Record<string, VolunteerLocationPing>>({});
@@ -128,7 +130,7 @@ export const VolunteerDesk: React.FC = () => {
       );
       setTimeout(() => setSuccessToast(null), 4000);
       await refreshPings();
-      await loadData();
+      // NOTE: loadData() omitted here to eliminate 4 redundant table queries when broadcasting GPS
     } catch (e) {
       console.error('Failed to share volunteer location', e);
     } finally {
@@ -143,7 +145,7 @@ export const VolunteerDesk: React.FC = () => {
     );
     setTimeout(() => setSuccessToast(null), 3000);
     await refreshPings();
-    await loadData();
+    // NOTE: loadData() omitted here to eliminate 4 redundant table queries
   };
 
   const activeMyPing =
@@ -155,18 +157,18 @@ export const VolunteerDesk: React.FC = () => {
     loadData();
     refreshPings();
 
-    // Visibility-aware auto-sync: 30s for GPS pings, 60s for full roster
+    // Visibility-aware auto-sync: 45s for GPS pings, 90s for roster check
     const pingsInterval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         refreshPings(false);
       }
-    }, 30000);
+    }, 45000);
 
     const dataInterval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         loadData(false);
       }
-    }, 60000);
+    }, 90000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -191,13 +193,25 @@ export const VolunteerDesk: React.FC = () => {
     };
   }, []);
 
+  const isVolunteerRole = user?.role === 'volunteer';
+
+  // Count delegates assigned to logged in volunteer
+  const myDelegatesCount = delegates.filter((d) =>
+    isDelegateAssignedToVolunteer(d, {
+      id: user?.id,
+      name: user?.full_name,
+      phone: user?.phone,
+    })
+  ).length;
+
   // Filter delegates
   const filteredDelegates = delegates.filter((d) => {
     const matchesSearch =
       searchQuery === '' ||
       d.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       d.token.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (d.phone && d.phone.includes(searchQuery));
+      (d.phone && d.phone.includes(searchQuery)) ||
+      (d.volunteer?.name && d.volunteer.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesStatus =
       statusFilter === 'all'
@@ -209,7 +223,32 @@ export const VolunteerDesk: React.FC = () => {
     const matchesDistrict =
       districtFilter === 'all' || d.district_id.toString() === districtFilter;
 
-    return matchesSearch && matchesStatus && matchesDistrict;
+    let matchesVolunteerScope = true;
+    if (isVolunteerRole) {
+      if (volunteerScope === 'my') {
+        matchesVolunteerScope = isDelegateAssignedToVolunteer(d, {
+          id: user?.id,
+          name: user?.full_name,
+          phone: user?.phone,
+        });
+      }
+    } else {
+      if (adminVolunteerFilter === 'unassigned') {
+        matchesVolunteerScope = !d.volunteer_id && !d.volunteer;
+      } else if (adminVolunteerFilter !== 'all') {
+        const targetVol = volunteers.find(
+          (v) => v.id === adminVolunteerFilter || v.name === adminVolunteerFilter
+        );
+        matchesVolunteerScope = isDelegateAssignedToVolunteer(
+          d,
+          targetVol
+            ? { id: targetVol.id, name: targetVol.name, phone: targetVol.phone }
+            : { id: adminVolunteerFilter, name: adminVolunteerFilter }
+        );
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesDistrict && matchesVolunteerScope;
   });
 
   const totalDelegatePages = Math.max(1, Math.ceil(filteredDelegates.length / delegatePageSize));
@@ -221,11 +260,20 @@ export const VolunteerDesk: React.FC = () => {
 
   useEffect(() => {
     setDelegatePage(1);
-  }, [searchQuery, statusFilter, districtFilter]);
+  }, [searchQuery, statusFilter, districtFilter, volunteerScope, adminVolunteerFilter]);
 
-  // Metrics
-  const totalCount = delegates.length;
-  const checkedInCount = delegates.filter((d) => d.status === 'checked_in').length;
+  // Metrics (Scope-sensitive for Volunteer view)
+  const scopedBaseDelegates = isVolunteerRole && volunteerScope === 'my'
+    ? delegates.filter((d) =>
+        isDelegateAssignedToVolunteer(d, {
+          id: user?.id,
+          name: user?.full_name,
+          phone: user?.phone,
+        })
+      )
+    : delegates;
+  const totalCount = scopedBaseDelegates.length;
+  const checkedInCount = scopedBaseDelegates.filter((d) => d.status === 'checked_in').length;
   const pendingCount = totalCount - checkedInCount;
   const activePingCount = Object.keys(locationPings).length;
   const checkinPercentage = Math.round((checkedInCount / (totalCount || 1)) * 100);
@@ -266,7 +314,7 @@ export const VolunteerDesk: React.FC = () => {
         : `Saved ${updated.full_name}!`
     );
     setTimeout(() => setSuccessToast(null), 3000);
-    await loadData();
+    // mockStore listener updates UI immediately; eliminates 4-table network re-fetch
   };
 
   const handleSaveHouse = async (houseData: House) => {
@@ -277,7 +325,7 @@ export const VolunteerDesk: React.FC = () => {
         : `Saved ${houseData.name}!`
     );
     setTimeout(() => setSuccessToast(null), 3000);
-    await loadData();
+    // mockStore listener updates UI immediately; eliminates 4-table network re-fetch
   };
 
   return (
@@ -564,6 +612,78 @@ export const VolunteerDesk: React.FC = () => {
             </div>
           )}
 
+          {/* Logged in Volunteer Scope Banner & Switcher */}
+          {isVolunteerRole && (
+            <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-indigo-50/90 to-blue-50/90 border border-indigo-200/80 p-3.5 rounded-2xl flex-wrap shadow-2xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                  👤
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-bold text-indigo-950 font-malayalam-bold truncate">
+                    {language === 'ml' ? `സ്വാഗതം, ${user?.full_name || 'വളണ്ടിയർ'}` : `Welcome, ${user?.full_name || 'Volunteer'}`}
+                  </span>
+                  <span className="text-[11px] text-indigo-700">
+                    {language === 'ml'
+                      ? `നിങ്ങൾക്ക് ${myDelegatesCount} കുട്ടികളെ ചുമതലപ്പെടുത്തിയിട്ടുണ്ട്`
+                      : `${myDelegatesCount} delegates assigned to you`}
+                  </span>
+                </div>
+              </div>
+              <div className="inline-flex rounded-xl bg-white p-1 border border-indigo-200 shadow-2xs shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setVolunteerScope('my')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    volunteerScope === 'my'
+                      ? 'bg-primary text-white shadow-xs'
+                      : 'text-slate-700 hover:text-slate-900'
+                  }`}
+                >
+                  <span>👤 {language === 'ml' ? 'എന്റെ കുട്ടികൾ' : 'My Delegates'}</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${volunteerScope === 'my' ? 'bg-white/20 text-white font-bold' : 'bg-slate-100 text-slate-700'}`}>
+                    {myDelegatesCount}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVolunteerScope('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    volunteerScope === 'all'
+                      ? 'bg-primary text-white shadow-xs'
+                      : 'text-slate-700 hover:text-slate-900'
+                  }`}
+                >
+                  <span>👥 {language === 'ml' ? 'എല്ലാ കുട്ടികളും' : 'All Delegates'}</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${volunteerScope === 'all' ? 'bg-white/20 text-white font-bold' : 'bg-slate-100 text-slate-700'}`}>
+                    {delegates.length}
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Alert when volunteer has 0 assigned delegates */}
+          {isVolunteerRole && volunteerScope === 'my' && myDelegatesCount === 0 && (
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 text-xs text-amber-900 font-medium">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  {language === 'ml'
+                    ? 'നിങ്ങൾക്ക് ഇതുവരെ പ്രത്യേക പ്രതിനിധികളെ ചുമതലപ്പെടുത്തിയിട്ടില്ല. സമ്മേളനത്തിലെ മുഴുവൻ പ്രതിനിധികളെയും കാണാൻ താഴെ ക്ലിക്ക് ചെയ്യുക.'
+                    : 'No delegates have been specifically assigned to your profile yet. Click below to view all conference delegates.'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVolunteerScope('all')}
+                className="px-3.5 py-1.5 rounded-xl bg-amber-600 text-white text-xs font-bold shadow-xs hover:bg-amber-700 transition-colors shrink-0 cursor-pointer"
+              >
+                {language === 'ml' ? 'എല്ലാ കുട്ടികളെയും കാണുക' : 'View All Delegates'}
+              </button>
+            </div>
+          )}
+
           {/* Search & Filters */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
             {/* Search */}
@@ -617,19 +737,41 @@ export const VolunteerDesk: React.FC = () => {
               )}
             </div>
 
-            {/* District Filter */}
-            <select
-              value={districtFilter}
-              onChange={(e) => setDistrictFilter(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary shrink-0"
-            >
-              <option value="all">{language === 'ml' ? 'എല്ലാ ജില്ലകളും' : 'All Districts'}</option>
-              {initialDistricts.map((d) => (
-                <option key={d.id} value={d.id.toString()}>
-                  {language === 'ml' ? d.name_ml : d.name_en}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* District Filter */}
+              <select
+                value={districtFilter}
+                onChange={(e) => setDistrictFilter(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary shrink-0"
+              >
+                <option value="all">{language === 'ml' ? 'എല്ലാ ജില്ലകളും' : 'All Districts'}</option>
+                {initialDistricts.map((d) => (
+                  <option key={d.id} value={d.id.toString()}>
+                    {language === 'ml' ? d.name_ml : d.name_en}
+                  </option>
+                ))}
+              </select>
+
+              {/* Volunteer Scope Filter (For Admin & District View) */}
+              {!isVolunteerRole && (
+                <select
+                  value={adminVolunteerFilter}
+                  onChange={(e) => setAdminVolunteerFilter(e.target.value)}
+                  aria-label={language === 'ml' ? 'വളണ്ടിയർ ഫിൽറ്റർ' : 'Volunteer Scope Filter'}
+                  className="px-3 py-2 rounded-xl bg-slate-50 border border-indigo-200 text-xs font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-primary shrink-0 max-w-[190px] truncate"
+                >
+                  <option value="all">{language === 'ml' ? '👤 എല്ലാ വളണ്ടിയർമാരും' : '👤 All Volunteers'}</option>
+                  <option value="unassigned">{language === 'ml' ? '⚠️ വളണ്ടിയർ ഇല്ലാത്തവർ' : '⚠️ Unassigned Delegates'}</option>
+                  <optgroup label={language === 'ml' ? 'വളണ്ടിയർമാർ (Volunteers)' : 'Volunteers'}>
+                    {volunteers.map((v) => (
+                      <option key={v.id || v.name} value={v.id || v.name}>
+                        {v.name} {v.unit ? `(${v.unit})` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              )}
+            </div>
           </div>
 
           {/* Delegate Cards List */}
