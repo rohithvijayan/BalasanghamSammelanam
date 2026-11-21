@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { mockStore, getVolunteerNaturalKey } from '../../src/lib/mockData';
+import { mockStore, getVolunteerNaturalKey, isDelegateAssignedToVolunteer } from '../../src/lib/mockData';
 import { Delegate, House, Volunteer } from '../../src/types';
 import { api } from '../../src/lib/supabase';
 
@@ -537,5 +537,92 @@ describe('mockStore - State Conference Data Store', () => {
     const delegatesAfterUnassign = mockStore.getDelegates();
     expect(delegatesAfterUnassign.find((d) => d.id === 'api-del-1')?.house_id).toBeNull();
     expect(delegatesAfterUnassign.find((d) => d.id === 'api-del-2')?.house_id).toBe(targetHouseId);
+  });
+
+  it('House In-Charge Auto-Inheritance: delegates automatically inherit house in-charge volunteer', async () => {
+    // 1. Create Volunteer A
+    const volA: Volunteer = {
+      id: 'vol-auto-a',
+      name: 'സഖാവ് രാഹുൽ',
+      phone: '9847111222',
+      unit: 'നീലേശ്വരം സെൻട്രൽ',
+    };
+    mockStore.setVolunteers([volA]);
+
+    // 2. Create House 1
+    const house1: House = {
+      id: 'house-auto-1',
+      name: 'ശാന്തി ഭവൻ',
+      address: 'വാർഡ് 5',
+      host_name: 'രാഘവൻ',
+      host_phone: '9447100000',
+      capacity: 5,
+    };
+    mockStore.addHouse(house1);
+
+    // 3. Create 2 delegates initially in house-auto-1
+    const del1: Delegate = {
+      id: 'del-auto-1',
+      token: 'token-auto-1',
+      full_name: 'അർജുൻ',
+      district_id: 1,
+      gender: 'boy',
+      status: 'pending',
+      house_id: 'house-auto-1',
+    };
+    const del2: Delegate = {
+      id: 'del-auto-2',
+      token: 'token-auto-2',
+      full_name: 'മാളവിക',
+      district_id: 1,
+      gender: 'girl',
+      status: 'pending',
+      house_id: 'house-auto-1',
+    };
+    mockStore.importDelegates([del1, del2]);
+
+    // Assign Volunteer A as In-Charge of House 1 -> Existing delegates in that house auto-inherit Volunteer A
+    await api.assignHouseVolunteer('house-auto-1', volA);
+
+    const houseUpdated = mockStore.getHouses().find((h) => h.id === 'house-auto-1');
+    expect(houseUpdated?.volunteer_id).toBe(volA.id);
+    expect(houseUpdated?.volunteer?.name).toBe(volA.name);
+
+    let delegatesList = mockStore.getDelegates();
+    expect(delegatesList.find((d) => d.id === 'del-auto-1')?.volunteer_id).toBe(volA.id);
+    expect(delegatesList.find((d) => d.id === 'del-auto-2')?.volunteer_id).toBe(volA.id);
+
+    // 4. Allot a NEW delegate (del3) to house-auto-1 -> Must automatically inherit Volunteer A
+    const del3: Delegate = {
+      id: 'del-auto-3',
+      token: 'token-auto-3',
+      full_name: 'സിദ്ധാർത്ഥ്',
+      district_id: 1,
+      gender: 'boy',
+      status: 'pending',
+    };
+    mockStore.importDelegates([del3]);
+    await api.assignHouse('del-auto-3', 'house-auto-1');
+
+    delegatesList = mockStore.getDelegates();
+    const updatedDel3 = delegatesList.find((d) => d.id === 'del-auto-3');
+    expect(updatedDel3?.house_id).toBe('house-auto-1');
+    expect(updatedDel3?.volunteer_id).toBe(volA.id);
+    expect(updatedDel3?.volunteer?.name).toBe(volA.name);
+
+    // 5. Bulk assign 2 more delegates (del4, del5) -> Must also inherit Volunteer A
+    const del4: Delegate = { id: 'del-auto-4', token: 'token-auto-4', full_name: 'D4', district_id: 1, gender: 'boy', status: 'pending' };
+    const del5: Delegate = { id: 'del-auto-5', token: 'token-auto-5', full_name: 'D5', district_id: 1, gender: 'girl', status: 'pending' };
+    mockStore.importDelegates([del4, del5]);
+    await api.bulkAssign(['del-auto-4', 'del-auto-5'], 'house-auto-1');
+
+    delegatesList = mockStore.getDelegates();
+    expect(delegatesList.find((d) => d.id === 'del-auto-4')?.volunteer_id).toBe(volA.id);
+    expect(delegatesList.find((d) => d.id === 'del-auto-5')?.volunteer_id).toBe(volA.id);
+
+    // 6. Test isDelegateAssignedToVolunteer with house in-charge match
+    const housesList = mockStore.getHouses();
+    const isAssigned = isDelegateAssignedToVolunteer(updatedDel3!, { id: volA.id }, housesList);
+    expect(isAssigned).toBe(true);
   });
 });

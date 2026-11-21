@@ -728,12 +728,56 @@ class MockStore {
   }
 
   assignHouse(delegateId: string, houseId: string | null) {
-    this.delegates = this.delegates.map((d) => (d.id === delegateId ? { ...d, house_id: houseId } : d));
+    const targetHouse = houseId ? this.houses.find((h) => h.id === houseId) : null;
+    let houseVol: Volunteer | null = targetHouse?.volunteer || null;
+    if (!houseVol && targetHouse?.volunteer_id) {
+      houseVol = this.volunteers.find((v) => v.id === targetHouse.volunteer_id) || null;
+    }
+    this.delegates = this.delegates.map((d) => {
+      if (d.id === delegateId) {
+        return {
+          ...d,
+          house_id: houseId,
+          ...(houseVol ? { volunteer: houseVol, volunteer_id: houseVol.id || null } : {}),
+        };
+      }
+      return d;
+    });
     this.save();
   }
 
   bulkAssign(delegateIds: string[], houseId: string) {
-    this.delegates = this.delegates.map((d) => (delegateIds.includes(d.id) ? { ...d, house_id: houseId } : d));
+    const targetHouse = this.houses.find((h) => h.id === houseId);
+    let houseVol: Volunteer | null = targetHouse?.volunteer || null;
+    if (!houseVol && targetHouse?.volunteer_id) {
+      houseVol = this.volunteers.find((v) => v.id === targetHouse.volunteer_id) || null;
+    }
+    const idSet = new Set(delegateIds);
+    this.delegates = this.delegates.map((d) => {
+      if (idSet.has(d.id)) {
+        return {
+          ...d,
+          house_id: houseId,
+          ...(houseVol ? { volunteer: houseVol, volunteer_id: houseVol.id || null } : {}),
+        };
+      }
+      return d;
+    });
+    this.save();
+  }
+
+  assignHouseVolunteer(houseId: string, volunteer: Volunteer | null) {
+    this.houses = this.houses.map((h) =>
+      h.id === houseId
+        ? { ...h, volunteer, volunteer_id: volunteer?.id || null }
+        : h
+    );
+    // Auto-update all delegates residing in this house
+    this.delegates = this.delegates.map((d) =>
+      d.house_id === houseId
+        ? { ...d, volunteer, volunteer_id: volunteer?.id || null }
+        : d
+    );
     this.save();
   }
 
@@ -758,9 +802,29 @@ class MockStore {
   }
 
   updateHouse(updated: Partial<House> & { id: string }) {
-    this.houses = this.houses.map((h) =>
-      h.id === updated.id ? { ...h, ...updated } : h
-    );
+    let newVol = updated.volunteer;
+    if (newVol === undefined && updated.volunteer_id !== undefined) {
+      newVol = updated.volunteer_id ? this.volunteers.find((v) => v.id === updated.volunteer_id) || null : null;
+    }
+
+    this.houses = this.houses.map((h) => {
+      if (h.id === updated.id) {
+        return {
+          ...h,
+          ...updated,
+          ...(newVol !== undefined ? { volunteer: newVol, volunteer_id: newVol?.id || null } : {}),
+        };
+      }
+      return h;
+    });
+
+    if (newVol !== undefined) {
+      this.delegates = this.delegates.map((d) =>
+        d.house_id === updated.id
+          ? { ...d, volunteer: newVol, volunteer_id: newVol?.id || null }
+          : d
+      );
+    }
     this.save();
   }
 
@@ -984,32 +1048,60 @@ class MockStore {
 
 export const mockStore = new MockStore();
 
-// Resilient volunteer-to-delegate association matcher (matches by ID, phone, or name)
+// Resilient volunteer-to-delegate association matcher (matches by ID, phone, name, or house in-charge)
 export const isDelegateAssignedToVolunteer = (
   delegate: Delegate,
-  volunteerIdentifier: { id?: string; name?: string; phone?: string }
+  volunteerIdentifier: { id?: string; name?: string; phone?: string },
+  housesList?: House[]
 ): boolean => {
   if (!delegate) return false;
   // Match by direct volunteer_id
   if (volunteerIdentifier.id && delegate.volunteer_id && delegate.volunteer_id === volunteerIdentifier.id) {
     return true;
   }
-  if (!delegate.volunteer) return false;
-  // Match by delegate.volunteer.id
-  if (volunteerIdentifier.id && delegate.volunteer.id && delegate.volunteer.id === volunteerIdentifier.id) {
-    return true;
+  // Match by delegate.volunteer
+  if (delegate.volunteer) {
+    if (volunteerIdentifier.id && delegate.volunteer.id && delegate.volunteer.id === volunteerIdentifier.id) {
+      return true;
+    }
+    // Match by normalized phone
+    if (volunteerIdentifier.phone && delegate.volunteer.phone) {
+      const p1 = normalizePhone(delegate.volunteer.phone);
+      const p2 = normalizePhone(volunteerIdentifier.phone);
+      if (p1 && p2 && p1 === p2) return true;
+    }
+    // Match by name
+    if (volunteerIdentifier.name && delegate.volunteer.name) {
+      const n1 = delegate.volunteer.name.trim().toLowerCase();
+      const n2 = volunteerIdentifier.name.trim().toLowerCase();
+      if (n1 === n2) return true;
+    }
   }
-  // Match by normalized phone
-  if (volunteerIdentifier.phone && delegate.volunteer.phone) {
-    const p1 = normalizePhone(delegate.volunteer.phone);
-    const p2 = normalizePhone(volunteerIdentifier.phone);
-    if (p1 && p2 && p1 === p2) return true;
+
+  // Match by house in-charge volunteer auto-inheritance
+  if (housesList && delegate.house_id) {
+    const house = housesList.find((h) => h.id === delegate.house_id);
+    if (house) {
+      if (volunteerIdentifier.id && house.volunteer_id && house.volunteer_id === volunteerIdentifier.id) {
+        return true;
+      }
+      if (house.volunteer) {
+        if (volunteerIdentifier.id && house.volunteer.id && house.volunteer.id === volunteerIdentifier.id) {
+          return true;
+        }
+        if (volunteerIdentifier.phone && house.volunteer.phone) {
+          const p1 = normalizePhone(house.volunteer.phone);
+          const p2 = normalizePhone(volunteerIdentifier.phone);
+          if (p1 && p2 && p1 === p2) return true;
+        }
+        if (volunteerIdentifier.name && house.volunteer.name) {
+          const n1 = house.volunteer.name.trim().toLowerCase();
+          const n2 = volunteerIdentifier.name.trim().toLowerCase();
+          if (n1 === n2) return true;
+        }
+      }
+    }
   }
-  // Match by name
-  if (volunteerIdentifier.name && delegate.volunteer.name) {
-    const n1 = delegate.volunteer.name.trim().toLowerCase();
-    const n2 = volunteerIdentifier.name.trim().toLowerCase();
-    if (n1 === n2) return true;
-  }
+
   return false;
 };

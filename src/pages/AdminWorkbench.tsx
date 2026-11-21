@@ -271,6 +271,23 @@ export const AdminWorkbench: React.FC = () => {
     }
   };
 
+  const handleAssignHouseVolunteer = async (houseId: string, volunteerId: string) => {
+    try {
+      const selectedVol = volunteers.find((v) => v.id === volunteerId) || null;
+      await api.assignHouseVolunteer(houseId, selectedVol);
+      setWarningMessage(
+        language === 'ml'
+          ? `വീടിന്റെ വളണ്ടിയർ ഇൻ-ചാർജ്ജ് ${selectedVol ? selectedVol.name : 'മാറ്റി'}!`
+          : `House volunteer in-charge set to ${selectedVol ? selectedVol.name : 'Unassigned'}!`
+      );
+      setTimeout(() => setWarningMessage(null), 3000);
+      await loadData(true);
+    } catch (err: any) {
+      console.error('Failed to assign house volunteer:', err);
+      alert(err.message || 'Failed to assign house volunteer');
+    }
+  };
+
   const handleSaveHouse = async (houseData: House) => {
     if (editingHouse) {
       await api.updateHouse(houseData);
@@ -288,6 +305,7 @@ export const AdminWorkbench: React.FC = () => {
       );
     }
     setTimeout(() => setWarningMessage(null), 3000);
+    await loadData(true);
   };
 
   return (
@@ -729,6 +747,31 @@ export const AdminWorkbench: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* In-Charge Volunteer Badge / Selector */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/70 text-xs">
+                    <div className="flex items-center gap-1.5 font-bold text-emerald-950 shrink-0">
+                      <span className="text-sm">👤</span>
+                      <span>{language === 'ml' ? 'വളണ്ടിയർ ഇൻ-ചാർജ്ജ്:' : 'Volunteer In-Charge:'}</span>
+                      {house.volunteer && (
+                        <span className="text-[11px] font-normal text-emerald-700 font-mono">
+                          ({house.volunteer.phone || house.volunteer.unit || ''})
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={house.volunteer_id || house.volunteer?.id || ''}
+                      onChange={(e) => handleAssignHouseVolunteer(house.id, e.target.value)}
+                      className="bg-white border border-emerald-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 max-w-full sm:max-w-[220px] truncate shadow-2xs"
+                    >
+                      <option value="">{language === 'ml' ? '-- ആരുമില്ല (Unassigned) --' : '-- No Volunteer Assigned --'}</option>
+                      {volunteers.map((v) => (
+                        <option key={v.id || v.name} value={v.id || ''}>
+                          {v.name} ({v.phone || v.unit || 'Volunteer'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   {/* Occupants list */}
                   {currentOccupants.length > 0 && (
                     <div className="pt-2 border-t border-slate-200/60 flex flex-col gap-1.5">
@@ -805,6 +848,7 @@ export const AdminWorkbench: React.FC = () => {
       <EditHouseModal
         house={editingHouse}
         isOpen={isAddingHouse}
+        volunteers={volunteers}
         onClose={() => {
           setIsAddingHouse(false);
           setEditingHouse(null);

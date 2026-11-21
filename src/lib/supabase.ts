@@ -222,23 +222,33 @@ export const api = {
         try {
           const { data, error } = await supabase
             .from('houses')
-            .select('id, name, address, map_url, lat, lng, host_name, host_phone, capacity, gender_restriction, notes')
+            .select('id, name, address, map_url, lat, lng, host_name, host_phone, capacity, gender_restriction, notes, volunteer_id')
             .order('name', { ascending: true });
 
           if (!error && data) {
-            const mapped = data.map((row: any) => ({
-              id: row.id,
-              name: row.name,
-              address: row.address,
-              map_url: row.map_url,
-              lat: row.lat,
-              lng: row.lng,
-              host_name: row.host_name,
-              host_phone: row.host_phone,
-              capacity: row.capacity,
-              gender_restriction: row.gender_restriction,
-              notes: row.notes,
-            }));
+            const volMap = new Map<string, Volunteer>();
+            for (const v of mockStore.getVolunteers()) {
+              if (v.id) volMap.set(v.id, v);
+            }
+
+            const mapped = data.map((row: any) => {
+              const vol = row.volunteer_id ? volMap.get(row.volunteer_id) || null : null;
+              return {
+                id: row.id,
+                name: row.name,
+                address: row.address,
+                map_url: row.map_url,
+                lat: row.lat,
+                lng: row.lng,
+                host_name: row.host_name,
+                host_phone: row.host_phone,
+                capacity: row.capacity,
+                gender_restriction: row.gender_restriction,
+                notes: row.notes,
+                volunteer_id: row.volunteer_id || null,
+                volunteer: vol,
+              };
+            });
 
             // Deduplicate by natural key so duplicate rows in Supabase never balloon the UI
             const uniqueMap = new Map<string, House>();
@@ -526,7 +536,7 @@ export const api = {
   async getHousesPaginated(page = 1, pageSize = 20, search = '', forceRefresh = false): Promise<PaginatedResult<House>> {
     if (supabase) {
       try {
-        let query = supabase.from('houses').select('id, name, address, map_url, lat, lng, host_name, host_phone, capacity, gender_restriction, notes', { count: 'exact' });
+        let query = supabase.from('houses').select('id, name, address, map_url, lat, lng, host_name, host_phone, capacity, gender_restriction, notes, volunteer_id', { count: 'exact' });
 
         if (search && search.trim()) {
           const s = search.trim();
@@ -542,19 +552,29 @@ export const api = {
         const { data, count, error } = await query;
 
         if (!error && data) {
-          const mapped: House[] = data.map((row: any) => ({
-            id: row.id,
-            name: row.name,
-            address: row.address,
-            map_url: row.map_url,
-            lat: row.lat,
-            lng: row.lng,
-            host_name: row.host_name,
-            host_phone: row.host_phone,
-            capacity: row.capacity,
-            gender_restriction: row.gender_restriction,
-            notes: row.notes,
-          }));
+          const volMap = new Map<string, Volunteer>();
+          for (const v of mockStore.getVolunteers()) {
+            if (v.id) volMap.set(v.id, v);
+          }
+
+          const mapped: House[] = data.map((row: any) => {
+            const vol = row.volunteer_id ? volMap.get(row.volunteer_id) || null : null;
+            return {
+              id: row.id,
+              name: row.name,
+              address: row.address,
+              map_url: row.map_url,
+              lat: row.lat,
+              lng: row.lng,
+              host_name: row.host_name,
+              host_phone: row.host_phone,
+              capacity: row.capacity,
+              gender_restriction: row.gender_restriction,
+              notes: row.notes,
+              volunteer_id: row.volunteer_id || null,
+              volunteer: vol,
+            };
+          });
 
           const totalCount = count !== null ? count : mapped.length;
           const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -1054,10 +1074,18 @@ export const api = {
 
   // Assign delegate to house (Admin)
   async assignHouse(delegateId: string, houseId: string | null): Promise<boolean> {
+    invalidateCache('delegates');
+    const targetHouse = houseId ? mockStore.getHouses().find((h) => h.id === houseId) : null;
+    const targetVolId = targetHouse?.volunteer_id || targetHouse?.volunteer?.id || null;
+
     if (supabase) {
+      const updatePayload: Record<string, any> = { house_id: houseId };
+      if (targetVolId) {
+        updatePayload.volunteer_id = targetVolId;
+      }
       const { error } = await supabase
         .from('delegates')
-        .update({ house_id: houseId })
+        .update(updatePayload)
         .eq('id', delegateId);
       if (error) {
         console.error('Supabase assignHouse error:', error);
@@ -1072,10 +1100,18 @@ export const api = {
   // Bulk assign delegates (Admin)
   async bulkAssign(delegateIds: string[], houseId: string): Promise<boolean> {
     if (!delegateIds || delegateIds.length === 0) return true;
+    invalidateCache('delegates');
+    const targetHouse = mockStore.getHouses().find((h) => h.id === houseId);
+    const targetVolId = targetHouse?.volunteer_id || targetHouse?.volunteer?.id || null;
+
     if (supabase) {
+      const updatePayload: Record<string, any> = { house_id: houseId };
+      if (targetVolId) {
+        updatePayload.volunteer_id = targetVolId;
+      }
       const { error } = await supabase
         .from('delegates')
-        .update({ house_id: houseId })
+        .update(updatePayload)
         .in('id', delegateIds);
       if (error) {
         console.error('Supabase bulkAssign error:', error);
@@ -1084,6 +1120,37 @@ export const api = {
     }
     mockStore.bulkAssign(delegateIds, houseId);
     browserCache.set(CACHE_KEYS.DELEGATES, mockStore.getDelegates());
+    return true;
+  },
+
+  // Assign volunteer in-charge to a house (Admin) - auto-inherits to all occupants in this house
+  async assignHouseVolunteer(houseId: string, volunteer: Volunteer | null): Promise<boolean> {
+    invalidateCache('houses');
+    invalidateCache('delegates');
+    mockStore.assignHouseVolunteer(houseId, volunteer);
+
+    if (supabase) {
+      try {
+        const { error: houseErr } = await supabase
+          .from('houses')
+          .update({ volunteer_id: volunteer?.id || null })
+          .eq('id', houseId);
+        if (houseErr) {
+          console.warn('Supabase assignHouseVolunteer house update notice:', houseErr.message);
+        }
+
+        const { error: delErr } = await supabase
+          .from('delegates')
+          .update({ volunteer_id: volunteer?.id || null })
+          .eq('house_id', houseId);
+        if (delErr) {
+          console.warn('Supabase assignHouseVolunteer delegates update notice:', delErr.message);
+        }
+      } catch (err: any) {
+        console.warn('Failed to update house volunteer in Supabase', err);
+        throw err;
+      }
+    }
     return true;
   },
 
@@ -1185,6 +1252,13 @@ export const api = {
       ...house,
       ...(safeMapUrl !== undefined ? { map_url: safeMapUrl } : {}),
     };
+    const targetVolId =
+      cleanHouse.volunteer_id !== undefined
+        ? cleanHouse.volunteer_id
+        : cleanHouse.volunteer !== undefined
+        ? cleanHouse.volunteer?.id || null
+        : undefined;
+
     if (supabase) {
       try {
         const { error } = await supabase
@@ -1198,11 +1272,21 @@ export const api = {
             capacity: cleanHouse.capacity,
             gender_restriction: cleanHouse.gender_restriction,
             notes: cleanHouse.notes,
+            ...(targetVolId !== undefined ? { volunteer_id: targetVolId } : {}),
           })
           .eq('id', cleanHouse.id);
         if (error) {
           console.error('Supabase updateHouse error:', error);
           throw new Error(error.message || 'Failed to update house');
+        }
+
+        if (targetVolId !== undefined) {
+          // Auto-update occupants of this house to inherit the house volunteer
+          invalidateCache('delegates');
+          await supabase
+            .from('delegates')
+            .update({ volunteer_id: targetVolId })
+            .eq('house_id', cleanHouse.id);
         }
       } catch (e: any) {
         console.error('Failed to update house in Supabase', e);
@@ -1217,9 +1301,17 @@ export const api = {
   async addHouse(houseData: Omit<House, 'id'> & { id?: string }): Promise<House> {
     invalidateCache('houses');
     const safeMapUrl = isSafeUrl(houseData.map_url) ? houseData.map_url : '';
+    const targetVolId =
+      houseData.volunteer_id !== undefined
+        ? houseData.volunteer_id
+        : houseData.volunteer !== undefined
+        ? houseData.volunteer?.id || null
+        : null;
+
     const newHouse: House = {
       ...houseData,
       map_url: safeMapUrl,
+      volunteer_id: targetVolId,
       id: houseData.id || 'h-' + Date.now(),
     };
     if (supabase) {
@@ -1235,6 +1327,7 @@ export const api = {
             capacity: newHouse.capacity,
             gender_restriction: newHouse.gender_restriction,
             notes: newHouse.notes,
+            volunteer_id: targetVolId,
           })
           .select()
           .single();

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { House } from '../types';
+import { House, Volunteer } from '../types';
 import { useI18n } from '../i18n/i18nContext';
 import { isSafeUrl } from '../lib/supabase';
-import { X, Check, Home, Phone, MapPin, Users, Navigation } from 'lucide-react';
+import { X, Check, Home, Phone, MapPin, Users, Navigation, UserCheck } from 'lucide-react';
 
 interface EditHouseModalProps {
   house: House | null; // null means adding a new house
+  volunteers?: Volunteer[];
   isOpen: boolean;
   onClose: () => void;
   onSave: (saved: House) => Promise<void> | void;
@@ -13,6 +14,7 @@ interface EditHouseModalProps {
 
 export const EditHouseModal: React.FC<EditHouseModalProps> = ({
   house,
+  volunteers = [],
   isOpen,
   onClose,
   onSave,
@@ -29,6 +31,7 @@ export const EditHouseModal: React.FC<EditHouseModalProps> = ({
   const [genderRestriction, setGenderRestriction] = useState<'any' | 'boys' | 'girls'>('any');
   const [mapUrl, setMapUrl] = useState('');
   const [notes, setNotes] = useState('');
+  const [volunteerId, setVolunteerId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -41,6 +44,7 @@ export const EditHouseModal: React.FC<EditHouseModalProps> = ({
       setGenderRestriction((house.gender_restriction as any) || 'any');
       setMapUrl(house.map_url || '');
       setNotes(house.notes || '');
+      setVolunteerId(house.volunteer_id || house.volunteer?.id || '');
     } else {
       setName('');
       setAddress('');
@@ -50,6 +54,7 @@ export const EditHouseModal: React.FC<EditHouseModalProps> = ({
       setGenderRestriction('any');
       setMapUrl('');
       setNotes('');
+      setVolunteerId('');
     }
   }, [house, isOpen]);
 
@@ -66,6 +71,7 @@ export const EditHouseModal: React.FC<EditHouseModalProps> = ({
     }
 
     setIsSaving(true);
+    const selectedVol = volunteers.find((v) => v.id === volunteerId) || null;
     const savedHouse: House = {
       id: house ? house.id : 'h-' + Date.now(),
       name: name.trim(),
@@ -76,6 +82,8 @@ export const EditHouseModal: React.FC<EditHouseModalProps> = ({
       gender_restriction: genderRestriction,
       map_url: cleanMapUrl,
       notes: notes.trim(),
+      volunteer_id: volunteerId || null,
+      volunteer: selectedVol,
     };
 
     try {
@@ -206,6 +214,31 @@ export const EditHouseModal: React.FC<EditHouseModalProps> = ({
                 <option value="girls">{language === 'ml' ? 'പെൺകുട്ടികൾ മാത്രം (Girls Only)' : 'Girls Only'}</option>
               </select>
             </div>
+          </div>
+
+          {/* Volunteer In-Charge */}
+          <div className="flex flex-col gap-1.5 p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200">
+            <label className="text-xs font-bold text-emerald-950 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <UserCheck className="w-3.5 h-3.5 text-emerald-700" />
+                <span>{language === 'ml' ? 'വളണ്ടിയർ ഇൻ-ചാർജ്ജ് (Volunteer In-Charge)' : 'Volunteer In-Charge'}</span>
+              </span>
+              <span className="text-[10px] text-emerald-700 font-semibold">
+                {language === 'ml' ? 'കുട്ടികൾ സ്വമേധയാ കണക്റ്റാവും' : 'Auto-assigned to occupants'}
+              </span>
+            </label>
+            <select
+              value={volunteerId}
+              onChange={(e) => setVolunteerId(e.target.value)}
+              className="px-3.5 py-2.5 rounded-xl bg-white border border-emerald-300 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">{language === 'ml' ? '-- വളണ്ടിയറെ നിശ്ചയിച്ചിട്ടില്ല (None) --' : '-- No Volunteer Assigned --'}</option>
+              {volunteers.map((v) => (
+                <option key={v.id || v.name} value={v.id || ''}>
+                  {v.name} ({v.phone || v.unit || 'Volunteer'})
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Google Maps Route URL */}

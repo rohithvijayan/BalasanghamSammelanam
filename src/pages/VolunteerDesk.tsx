@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { mockStore, initialDistricts, isDelegateAssignedToVolunteer } from '../lib/mockData';
+import { mockStore, initialDistricts, isDelegateAssignedToVolunteer, normalizePhone } from '../lib/mockData';
 import { Delegate, House, LocationPing, VolunteerLocationPing, Announcement, Volunteer } from '../types';
 import { api, isSafeUrl } from '../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
@@ -209,13 +209,30 @@ export const VolunteerDesk: React.FC = () => {
     };
   }, []);
 
-  // Count delegates assigned to logged in volunteer
+  const isVolunteerInChargeOfHouse = (h: House) => {
+    if (!user) return false;
+    if (user.id && h.volunteer_id && h.volunteer_id === user.id) return true;
+    if (h.volunteer) {
+      if (user.id && h.volunteer.id && h.volunteer.id === user.id) return true;
+      if (user.phone && h.volunteer.phone) {
+        const p1 = normalizePhone(user.phone);
+        const p2 = normalizePhone(h.volunteer.phone);
+        if (p1 && p2 && p1 === p2) return true;
+      }
+      if (user.full_name && h.volunteer.name && user.full_name.trim().toLowerCase() === h.volunteer.name.trim().toLowerCase()) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // Count delegates assigned to logged in volunteer (direct or via house in-charge)
   const myDelegatesCount = delegates.filter((d) =>
     isDelegateAssignedToVolunteer(d, {
       id: user?.id,
       name: user?.full_name,
       phone: user?.phone,
-    })
+    }, houses)
   ).length;
 
   // Filter delegates
@@ -239,12 +256,12 @@ export const VolunteerDesk: React.FC = () => {
 
     let matchesVolunteerScope = true;
     if (isVolunteerRole) {
-      // STRICT PRIVACY: Authenticated volunteers can ONLY see delegates directly assigned to their care
+      // STRICT PRIVACY: Authenticated volunteers can ONLY see delegates directly assigned to their care or in their in-charge houses
       matchesVolunteerScope = isDelegateAssignedToVolunteer(d, {
         id: user?.id,
         name: user?.full_name,
         phone: user?.phone,
-      });
+      }, houses);
     } else {
       if (adminVolunteerFilter === 'unassigned') {
         matchesVolunteerScope = !d.volunteer_id && !d.volunteer;
@@ -256,7 +273,8 @@ export const VolunteerDesk: React.FC = () => {
           d,
           targetVol
             ? { id: targetVol.id, name: targetVol.name, phone: targetVol.phone }
-            : { id: adminVolunteerFilter, name: adminVolunteerFilter }
+            : { id: adminVolunteerFilter, name: adminVolunteerFilter },
+          houses
         );
       }
     }
@@ -282,11 +300,12 @@ export const VolunteerDesk: React.FC = () => {
           id: user?.id,
           name: user?.full_name,
           phone: user?.phone,
-        })
+        }, houses)
       )
     : delegates;
   const scopedHouses = isVolunteerRole
     ? houses.filter((h) =>
+        isVolunteerInChargeOfHouse(h) ||
         scopedBaseDelegates.some((d) => d.house_id === h.id || d.house?.id === h.id)
       )
     : houses;
@@ -1088,9 +1107,16 @@ export const VolunteerDesk: React.FC = () => {
               >
                 <div className="flex flex-col gap-2">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-base font-bold text-slate-900 font-malayalam-bold">
-                      {house.name}
-                    </h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base font-bold text-slate-900 font-malayalam-bold">
+                        {house.name}
+                      </h3>
+                      {isVolunteerInChargeOfHouse(house) && (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          {language === 'ml' ? 'നിങ്ങളുടെ ചുമതലയിലുള്ള വീട്' : 'In-Charge'}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-primary-50 text-primary-800 border border-primary-200">
                         {language === 'ml' ? 'കപ്പാസിറ്റി:' : 'Capacity:'} {occupants.length} / {house.capacity}
@@ -1112,6 +1138,16 @@ export const VolunteerDesk: React.FC = () => {
                   </p>
 
                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex flex-col gap-1.5 text-xs">
+                    {house.volunteer && (
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-200/60">
+                        <span className="text-slate-500 font-medium">
+                          {language === 'ml' ? 'വളണ്ടിയർ ഇൻ-ചാർജ്ജ്:' : 'Volunteer In-Charge:'}
+                        </span>
+                        <span className="font-bold text-emerald-900">
+                          {house.volunteer.name} ({house.volunteer.phone || house.volunteer.unit || ''})
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500">
                         {language === 'ml' ? 'ആതിഥേയൻ:' : 'Host:'}
@@ -1201,6 +1237,7 @@ export const VolunteerDesk: React.FC = () => {
       <EditHouseModal
         house={editingHouse}
         isOpen={!!editingHouse}
+        volunteers={volunteers}
         onClose={() => setEditingHouse(null)}
         onSave={handleSaveHouse}
       />

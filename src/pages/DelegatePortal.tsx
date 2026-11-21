@@ -163,6 +163,7 @@ export const DelegatePortal: React.FC = () => {
 
   const { delegate, house, volunteer, announcements, helplines } = data;
   const isCheckedIn = delegate.status === 'checked_in';
+  const effectiveVolunteer = volunteer || house?.volunteer || null;
 
   return (
     <div className="w-full flex flex-col">
@@ -234,7 +235,7 @@ export const DelegatePortal: React.FC = () => {
         <StayCard house={house} />
 
         {/* 4. Volunteer Support Card */}
-        <VolunteerCard volunteer={volunteer} />
+        <VolunteerCard volunteer={effectiveVolunteer} />
 
         {/* 5. Emergency Helplines & Location Sharing */}
         <HelplineSupportCard token={token || ''} helplines={helplines} />
