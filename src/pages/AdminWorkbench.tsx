@@ -796,6 +796,10 @@ export const AdminWorkbench: React.FC = () => {
           await api.deleteVolunteer(id);
           await loadData(true);
         }}
+        onUpdateVolunteer={async (vol) => {
+          await api.updateVolunteer(vol);
+          await loadData(true);
+        }}
       />
     </div>
   );

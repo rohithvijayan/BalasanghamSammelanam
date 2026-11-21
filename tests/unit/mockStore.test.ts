@@ -493,4 +493,30 @@ describe('mockStore - State Conference Data Store', () => {
     expect(stored.some((v) => v.name === 'അരുൺ കുമാർ')).toBe(true);
     expect(stored.some((v) => v.name === 'സുഹറ ബീവി')).toBe(true);
   });
+
+  it('allows admins and volunteers to update volunteer details', async () => {
+    const vol = mockStore.addVolunteer({
+      name: 'വിപിൻ ദാസ്',
+      phone: '9447233445',
+      unit: 'റെയിൽവേ സ്റ്റേഷൻ',
+    });
+
+    // Update via api.updateVolunteer
+    const updated = await api.updateVolunteer({
+      id: vol.id!,
+      name: 'വിപിൻ ദാസ് കെ.',
+      phone: '9447233449',
+      unit: 'നീലേശ്വരം ഈസ്റ്റ്',
+    });
+
+    expect(updated).not.toBeNull();
+    expect(updated?.name).toBe('വിപിൻ ദാസ് കെ.');
+    expect(updated?.phone).toBe('9447233449');
+    expect(updated?.unit).toBe('നീലേശ്വരം ഈസ്റ്റ്');
+
+    // Verify it persists in mockStore
+    const check = mockStore.getVolunteers().find((v) => v.id === vol.id);
+    expect(check?.name).toBe('വിപിൻ ദാസ് കെ.');
+    expect(check?.phone).toBe('9447233449');
+  });
 });

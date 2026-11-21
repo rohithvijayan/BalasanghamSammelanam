@@ -481,6 +481,25 @@ class MockStore {
     this.save(true);
   }
 
+  updateVolunteer(updated: Partial<Volunteer> & { id: string }): Volunteer | null {
+    let found = false;
+    this.volunteers = this.volunteers.map((v) => {
+      if (v.id === updated.id) {
+        found = true;
+        return {
+          ...v,
+          ...updated,
+          name: updated.name !== undefined ? updated.name.trim() : v.name,
+          phone: updated.phone !== undefined ? updated.phone.trim() : v.phone,
+          unit: updated.unit !== undefined ? (updated.unit.trim() || undefined) : v.unit,
+        };
+      }
+      return v;
+    });
+    this.save(true);
+    return found ? this.volunteers.find((v) => v.id === updated.id) || null : null;
+  }
+
   setVolunteers(volunteers: Volunteer[], notify = false) {
     this.volunteers = volunteers;
     this.save(notify);

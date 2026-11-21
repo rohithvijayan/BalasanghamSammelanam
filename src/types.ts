@@ -4,6 +4,8 @@ export interface StaffProfile {
   id: string;
   email: string;
   full_name: string;
+  phone?: string;
+  unit?: string;
   role: UserRole;
   district_id?: number | null;
   district_name?: string;

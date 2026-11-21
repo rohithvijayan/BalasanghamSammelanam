@@ -366,6 +366,37 @@ export const api = {
     return true;
   },
 
+  // Update volunteer (Admin or Volunteer self-edit)
+  async updateVolunteer(updated: Partial<Volunteer> & { id: string }): Promise<Volunteer | null> {
+    invalidateCache('volunteers');
+    mockStore.updateVolunteer(updated);
+    if (supabase) {
+      try {
+        const payload: Record<string, any> = {};
+        if (updated.name !== undefined) payload.name = updated.name.trim();
+        if (updated.phone !== undefined) payload.phone = updated.phone.trim();
+        if (updated.unit !== undefined) payload.unit = updated.unit.trim();
+
+        const { data, error } = await supabase
+          .from('volunteers')
+          .update(payload)
+          .eq('id', updated.id)
+          .select()
+          .maybeSingle();
+
+        if (!error && data) {
+          mockStore.updateVolunteer(data);
+          return data;
+        } else if (error) {
+          console.warn('Supabase updateVolunteer error:', error);
+        }
+      } catch (err) {
+        console.warn('Failed to update volunteer in Supabase', err);
+      }
+    }
+    return mockStore.getVolunteers().find((v) => v.id === updated.id) || null;
+  },
+
   // Get paginated delegates (reduces payload size and DB egress)
   async getDelegatesPaginated(params: PaginationParams = {}, forceRefresh = false): Promise<PaginatedResult<Delegate>> {
     const {

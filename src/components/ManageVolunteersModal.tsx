@@ -12,6 +12,8 @@ import {
   AlertCircle,
   ShieldCheck,
   Search,
+  Edit2,
+  Check,
 } from 'lucide-react';
 
 interface ManageVolunteersModalProps {
@@ -20,6 +22,7 @@ interface ManageVolunteersModalProps {
   volunteers: Volunteer[];
   onCreateVolunteer: (vol: Omit<Volunteer, 'id'>) => Promise<void>;
   onDeleteVolunteer: (idOrName: string) => Promise<void>;
+  onUpdateVolunteer?: (vol: Partial<Volunteer> & { id: string }) => Promise<void>;
 }
 
 export const ManageVolunteersModal: React.FC<ManageVolunteersModalProps> = ({
@@ -28,6 +31,7 @@ export const ManageVolunteersModal: React.FC<ManageVolunteersModalProps> = ({
   volunteers,
   onCreateVolunteer,
   onDeleteVolunteer,
+  onUpdateVolunteer,
 }) => {
   const { language } = useI18n();
 
@@ -35,6 +39,13 @@ export const ManageVolunteersModal: React.FC<ManageVolunteersModalProps> = ({
   const [phone, setPhone] = useState('');
   const [unit, setUnit] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Inline edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editUnit, setEditUnit] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -92,6 +103,62 @@ export const ManageVolunteersModal: React.FC<ManageVolunteersModalProps> = ({
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleStartEdit = (vol: Volunteer) => {
+    setEditingId(vol.id || vol.name);
+    setEditName(vol.name);
+    setEditPhone(vol.phone);
+    setEditUnit(vol.unit || '');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditName('');
+    setEditPhone('');
+    setEditUnit('');
+  };
+
+  const handleSaveEdit = async (vol: Volunteer) => {
+    if (!editName.trim() || !editPhone.trim()) {
+      setStatusMessage({
+        type: 'error',
+        text: language === 'ml'
+          ? 'ദയവായി വളണ്ടിയറുടെ പേരും ഫോൺ നമ്പറും നൽകുക.'
+          : 'Please enter volunteer name and phone number.',
+      });
+      return;
+    }
+
+    const volId = vol.id || vol.name;
+    if (!onUpdateVolunteer) {
+      handleCancelEdit();
+      return;
+    }
+
+    try {
+      setSavingEdit(true);
+      await onUpdateVolunteer({
+        id: volId,
+        name: editName.trim(),
+        phone: editPhone.trim(),
+        unit: editUnit.trim() || undefined,
+      });
+
+      setStatusMessage({
+        type: 'success',
+        text: language === 'ml' ? 'വിവരങ്ങൾ വിജയകരമായി അപ്‌ഡേറ്റ് ചെയ്തു.' : 'Volunteer updated successfully.',
+      });
+      setTimeout(() => setStatusMessage(null), 3000);
+      handleCancelEdit();
+    } catch (err: any) {
+      setStatusMessage({
+        type: 'error',
+        text: err?.message || (language === 'ml' ? 'അപ്‌ഡേറ്റ് ചെയ്യാൻ സാധിച്ചില്ല.' : 'Failed to update volunteer.'),
+      });
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -283,6 +350,79 @@ export const ManageVolunteersModal: React.FC<ManageVolunteersModalProps> = ({
                 {filteredVolunteers.map((vol, idx) => {
                   const identifier = vol.id || vol.name;
                   const isDeleting = deletingId === identifier;
+                  const isEditing = editingId === identifier;
+
+                  if (isEditing) {
+                    return (
+                      <div
+                        key={identifier || idx}
+                        className="p-3.5 rounded-xl bg-emerald-50/70 border-2 border-emerald-400 shadow-sm flex flex-col gap-2.5 transition-all col-span-1 sm:col-span-2"
+                      >
+                        <div className="flex items-center justify-between border-b border-emerald-200 pb-1.5">
+                          <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5 font-malayalam-bold">
+                            <Edit2 className="w-3.5 h-3.5 text-emerald-700" />
+                            {language === 'ml' ? 'വിവരങ്ങൾ മാറ്റുക (Edit Volunteer)' : 'Edit Volunteer Details'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                              {language === 'ml' ? 'പേര് (Name)' : 'Name'}
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-emerald-300 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                              {language === 'ml' ? 'ഫോൺ നമ്പർ' : 'Phone'}
+                            </label>
+                            <input
+                              type="tel"
+                              required
+                              value={editPhone}
+                              onChange={(e) => setEditPhone(e.target.value)}
+                              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-emerald-300 bg-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                              {language === 'ml' ? 'യൂണിറ്റ് / പ്രദേശം' : 'Unit'}
+                            </label>
+                            <input
+                              type="text"
+                              value={editUnit}
+                              onChange={(e) => setEditUnit(e.target.value)}
+                              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-emerald-300 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={handleCancelEdit}
+                            disabled={savingEdit}
+                            className="px-3 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-[11px] font-bold text-slate-600 transition-colors"
+                          >
+                            {language === 'ml' ? 'റദ്ദാക്കുക' : 'Cancel'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEdit(vol)}
+                            disabled={savingEdit}
+                            className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition-colors disabled:opacity-50"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>{savingEdit ? (language === 'ml' ? 'സേവ് ചെയ്യുന്നു...' : 'Saving...') : (language === 'ml' ? 'സേവ് ചെയ്യുക' : 'Save')}</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
 
                   return (
                     <div
@@ -311,15 +451,26 @@ export const ManageVolunteersModal: React.FC<ManageVolunteersModalProps> = ({
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(vol)}
-                        disabled={isDeleting}
-                        title={language === 'ml' ? 'നീക്കം ചെയ്യുക' : 'Delete'}
-                        className="w-7 h-7 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 flex items-center justify-center transition-colors shrink-0 disabled:opacity-50"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(vol)}
+                          disabled={isDeleting || savingEdit}
+                          title={language === 'ml' ? 'വിവരങ്ങൾ മാറ്റുക' : 'Edit Volunteer'}
+                          className="w-7 h-7 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-700 flex items-center justify-center transition-colors disabled:opacity-50"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(vol)}
+                          disabled={isDeleting}
+                          title={language === 'ml' ? 'നീക്കം ചെയ്യുക' : 'Delete'}
+                          className="w-7 h-7 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 flex items-center justify-center transition-colors disabled:opacity-50"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useI18n } from '../i18n/i18nContext';
 import { useAuth } from '../auth/AuthContext';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Upload, Home, LogOut, Shield, LogIn, UserCheck, Menu, X, HelpCircle } from 'lucide-react';
+import { Users, Upload, Home, LogOut, Shield, LogIn, UserCheck, Menu, X, HelpCircle, User } from 'lucide-react';
 import { InteractiveGuideModal } from './InteractiveGuideModal';
+import { UserProfileModal } from './UserProfileModal';
 
 export const Header: React.FC = () => {
   const { language, setLanguage, t } = useI18n();
@@ -11,6 +12,7 @@ export const Header: React.FC = () => {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Close mobile drawer on route navigation
   useEffect(() => {
@@ -109,13 +111,15 @@ export const Header: React.FC = () => {
             /* Staff Profile Pill (Showing User Email & Role) & Desktop Logout */
             user && (
               <div className="flex items-center gap-1 sm:gap-1.5">
-                <div
-                  title={`${user.email}${user.role ? ` (${user.role})` : ''}`}
-                  className="flex items-center gap-1.5 px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-xl bg-slate-100/90 border border-slate-200 shadow-2xs max-w-[75px] min-[380px]:max-w-[105px] min-[420px]:max-w-[140px] sm:max-w-[220px]"
+                <button
+                  type="button"
+                  onClick={() => setIsProfileModalOpen(true)}
+                  title={`${user.full_name || user.email} (${user.role}) - ${language === 'ml' ? 'പ്രൊഫൈൽ മാറ്റാൻ ക്ലിക്ക് ചെയ്യുക' : 'Click to edit profile'}`}
+                  className="flex items-center gap-1.5 px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-xl bg-slate-100/90 hover:bg-slate-200/90 border border-slate-200 shadow-2xs max-w-[75px] min-[380px]:max-w-[105px] min-[420px]:max-w-[140px] sm:max-w-[220px] text-left transition-colors cursor-pointer group"
                 >
                   <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                   <div className="flex flex-col text-left min-w-0">
-                    <span className="text-[11px] sm:text-xs font-bold text-slate-900 leading-tight truncate block">
+                    <span className="text-[11px] sm:text-xs font-bold text-slate-900 leading-tight truncate block group-hover:text-primary transition-colors">
                       {user.email}
                     </span>
                     <span className="text-[9px] sm:text-[10px] text-primary font-bold leading-none mt-0.5 truncate hidden sm:block">
@@ -126,7 +130,7 @@ export const Header: React.FC = () => {
                         : (language === 'ml' ? 'വളണ്ടിയർ' : 'Volunteer')}
                     </span>
                   </div>
-                </div>
+                </button>
                 <button
                   onClick={() => logout()}
                   title="Logout"
@@ -202,7 +206,14 @@ export const Header: React.FC = () => {
           {/* User Profile Card inside Mobile Menu */}
           {isAuthenticated && user && (
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between gap-3 mb-1">
-              <div className="flex items-center gap-2.5 min-w-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsProfileModalOpen(true);
+                }}
+                className="flex items-center gap-2.5 min-w-0 text-left hover:opacity-80 transition-opacity cursor-pointer"
+              >
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                 <div className="flex flex-col min-w-0">
                   <span className="text-xs font-bold text-slate-900 truncate">
@@ -216,7 +227,7 @@ export const Header: React.FC = () => {
                       : (language === 'ml' ? 'ഹെൽപ്പ് ഡെസ്ക് വളണ്ടിയർ' : 'Volunteer')}
                   </span>
                 </div>
-              </div>
+              </button>
               <button
                 onClick={() => {
                   setIsMobileMenuOpen(false);
@@ -356,6 +367,9 @@ export const Header: React.FC = () => {
 
       {/* Interactive Walkthrough / Guide Modal */}
       <InteractiveGuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
+
+      {/* Staff & Volunteer Profile Modal */}
+      <UserProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
     </header>
   );
 };

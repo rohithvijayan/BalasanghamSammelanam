@@ -7,6 +7,7 @@ import { useI18n } from '../i18n/i18nContext';
 import { EditDelegateModal } from '../components/EditDelegateModal';
 import { EditHouseModal } from '../components/EditHouseModal';
 import { AnnouncementsFeed } from '../components/AnnouncementsFeed';
+import { UserProfileModal } from '../components/UserProfileModal';
 import { checkAndNotifyNewAnnouncements } from '../lib/notifications';
 import {
   UserCheck,
@@ -55,6 +56,7 @@ export const VolunteerDesk: React.FC = () => {
     return list[0]?.phone || '+91 94471 23456';
   });
   const [isSharingVolLocation, setIsSharingVolLocation] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const [delegatePage, setDelegatePage] = useState<number>(1);
   const delegatePageSize = 25;
@@ -306,8 +308,16 @@ export const VolunteerDesk: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Emergency Helplines for Volunteers */}
+        {/* Quick Emergency Helplines for Volunteers & Profile Edit */}
         <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
+          <button
+            type="button"
+            onClick={() => setIsProfileModalOpen(true)}
+            className="px-3 py-1.5 rounded-xl bg-primary-50 hover:bg-primary-100 text-primary text-xs font-bold flex items-center gap-1.5 transition-colors border border-primary-200 shadow-2xs"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+            <span>{language === 'ml' ? 'പ്രൊഫൈൽ മാറ്റുക' : 'Edit My Profile'}</span>
+          </button>
           <a
             href="tel:04985201201"
             className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-200"
@@ -998,6 +1008,13 @@ export const VolunteerDesk: React.FC = () => {
         isOpen={!!editingHouse}
         onClose={() => setEditingHouse(null)}
         onSave={handleSaveHouse}
+      />
+
+      {/* Volunteer Self-Profile Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onUpdated={() => loadData(true)}
       />
     </div>
   );
