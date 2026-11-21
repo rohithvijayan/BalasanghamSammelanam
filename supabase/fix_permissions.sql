@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS volunteers (
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS unit TEXT;
 
+-- Ensure houses has volunteer_id column for House In-Charge Auto-Inheritance
+ALTER TABLE houses ADD COLUMN IF NOT EXISTS volunteer_id UUID;
+
 -- Drop legacy profiles-only foreign key on delegates to allow assigning volunteers from volunteers table
 ALTER TABLE delegates DROP CONSTRAINT IF EXISTS delegates_volunteer_id_fkey;
 
@@ -284,27 +287,68 @@ BEGIN
     END IF;
 
     IF v_delegate.volunteer_id IS NOT NULL THEN
+        -- Check volunteers directory table first, fallback to profiles
         SELECT jsonb_build_object(
-            'id', p.id,
-            'name', p.full_name,
-            'phone', p.phone,
+            'id', v.id,
+            'name', v.name,
+            'phone', v.phone,
+            'unit', v.unit,
             'active_location', (
                 SELECT jsonb_build_object(
                     'lat', vlp.lat,
                     'lng', vlp.lng,
                     'accuracy', vlp.accuracy,
-                    'updated_at', vlp.created_at
+                    'created_at', vlp.created_at,
+                    'expires_at', vlp.expires_at
                 )
                 FROM volunteer_location_pings vlp
-                WHERE (vlp.volunteer_phone = p.phone OR vlp.volunteer_name = p.full_name)
+                WHERE (
+                    vlp.volunteer_name = v.name 
+                    OR regexp_replace(vlp.volunteer_phone, '[^0-9]', '', 'g') = regexp_replace(v.phone, '[^0-9]', '', 'g')
+                    OR (length(regexp_replace(vlp.volunteer_phone, '[^0-9]', '', 'g')) >= 10 
+                        AND length(regexp_replace(v.phone, '[^0-9]', '', 'g')) >= 10 
+                        AND right(regexp_replace(vlp.volunteer_phone, '[^0-9]', '', 'g'), 10) = right(regexp_replace(v.phone, '[^0-9]', '', 'g'), 10))
+                )
                   AND vlp.expires_at > NOW()
                 ORDER BY vlp.created_at DESC
                 LIMIT 1
             )
         )
         INTO v_volunteer
-        FROM profiles p
-        WHERE p.id = v_delegate.volunteer_id;
+        FROM volunteers v
+        WHERE v.id = v_delegate.volunteer_id;
+
+        IF v_volunteer IS NULL THEN
+            SELECT jsonb_build_object(
+                'id', p.id,
+                'name', p.full_name,
+                'phone', p.phone,
+                'unit', '',
+                'active_location', (
+                    SELECT jsonb_build_object(
+                        'lat', vlp.lat,
+                        'lng', vlp.lng,
+                        'accuracy', vlp.accuracy,
+                        'created_at', vlp.created_at,
+                        'expires_at', vlp.expires_at
+                    )
+                    FROM volunteer_location_pings vlp
+                    WHERE (
+                        vlp.volunteer_name = p.full_name 
+                        OR regexp_replace(vlp.volunteer_phone, '[^0-9]', '', 'g') = regexp_replace(p.phone, '[^0-9]', '', 'g')
+                        OR (length(regexp_replace(vlp.volunteer_phone, '[^0-9]', '', 'g')) >= 10 
+                            AND length(regexp_replace(p.phone, '[^0-9]', '', 'g')) >= 10 
+                            AND right(regexp_replace(vlp.volunteer_phone, '[^0-9]', '', 'g'), 10) = right(regexp_replace(p.phone, '[^0-9]', '', 'g'), 10))
+                    )
+                      AND vlp.expires_at > NOW()
+                    ORDER BY vlp.created_at DESC
+                    LIMIT 1
+                )
+            )
+            INTO v_volunteer
+            FROM profiles p
+            WHERE p.id = v_delegate.volunteer_id;
+        END IF;
     END IF;
 
     SELECT COALESCE(jsonb_agg(jsonb_build_object(

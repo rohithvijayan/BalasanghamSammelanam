@@ -32,6 +32,7 @@ import {
 export const VolunteerDesk: React.FC = () => {
   const { user } = useAuth();
   const { language, t } = useI18n();
+  const isVolunteerRole = user?.role === 'volunteer';
 
   const [delegates, setDelegates] = useState<Delegate[]>(() => mockStore.getDelegates());
   const [houses, setHouses] = useState<House[]>(() => mockStore.getHouses());
@@ -54,8 +55,13 @@ export const VolunteerDesk: React.FC = () => {
   });
   const [selectedVolPhone, setSelectedVolPhone] = useState<string>(() => {
     const list = mockStore.getVolunteers();
-    return list[0]?.phone || '+91 94471 23456';
+    return user?.phone || list[0]?.phone || '+91 94471 23456';
   });
+
+  useEffect(() => {
+    if (user?.full_name) setSelectedVolName(user.full_name);
+    if (user?.phone) setSelectedVolPhone(user.phone);
+  }, [user?.full_name, user?.phone]);
   const [isSharingVolLocation, setIsSharingVolLocation] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
@@ -121,7 +127,10 @@ export const VolunteerDesk: React.FC = () => {
         }
       }
 
-      await api.shareVolunteerLocation(selectedVolName, selectedVolPhone, lat, lng, accuracy);
+      const broadcastName = isVolunteerRole && user?.full_name ? user.full_name : selectedVolName;
+      const broadcastPhone = isVolunteerRole && user?.phone ? user.phone : selectedVolPhone;
+
+      await api.shareVolunteerLocation(broadcastName, broadcastPhone, lat, lng, accuracy);
       setSuccessToast(
         language === 'ml'
           ? `ലൈവ് ലൊക്കേഷൻ ഷെയർ ചെയ്തു! കുട്ടികൾക്കും അഡ്മിൻമാർക്കും 30 മിനിറ്റ് കാണാം.`
@@ -138,7 +147,9 @@ export const VolunteerDesk: React.FC = () => {
   };
 
   const handleStopVolunteerLocation = async () => {
-    await api.clearVolunteerLocation(selectedVolName, selectedVolPhone);
+    const broadcastName = isVolunteerRole && user?.full_name ? user.full_name : selectedVolName;
+    const broadcastPhone = isVolunteerRole && user?.phone ? user.phone : selectedVolPhone;
+    await api.clearVolunteerLocation(broadcastName, broadcastPhone);
     setSuccessToast(
       language === 'ml' ? 'ലൈവ് ലൊക്കേഷൻ ഷെയറിങ് നിർത്തി.' : 'Live location broadcast stopped.'
     );
@@ -147,9 +158,15 @@ export const VolunteerDesk: React.FC = () => {
     // NOTE: loadData() omitted here to eliminate 4 redundant table queries
   };
 
+  const broadcastName = isVolunteerRole && user?.full_name ? user.full_name : selectedVolName;
+  const broadcastPhone = isVolunteerRole && user?.phone ? user.phone : selectedVolPhone;
+  const broadcastPhoneRaw = broadcastPhone.replace(/[^0-9]/g, '');
+  const broadcastPhone10 = broadcastPhoneRaw.length >= 10 ? broadcastPhoneRaw.slice(-10) : broadcastPhoneRaw;
+
   const activeMyPing =
-    volunteerPings[selectedVolName.trim().toLowerCase()] ||
-    volunteerPings[selectedVolPhone.replace(/[^0-9]/g, '')] ||
+    volunteerPings[broadcastName.trim().toLowerCase()] ||
+    volunteerPings[broadcastPhoneRaw] ||
+    volunteerPings[broadcastPhone10] ||
     null;
 
   useEffect(() => {
@@ -191,8 +208,6 @@ export const VolunteerDesk: React.FC = () => {
       unsubscribe();
     };
   }, []);
-
-  const isVolunteerRole = user?.role === 'volunteer';
 
   // Count delegates assigned to logged in volunteer
   const myDelegatesCount = delegates.filter((d) =>
@@ -431,24 +446,32 @@ export const VolunteerDesk: React.FC = () => {
           <div className="flex items-center gap-2.5 flex-wrap shrink-0">
             {!activeMyPing ? (
               <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
-                <select
-                  value={selectedVolName}
-                  onChange={(e) => {
-                    const found = volunteers.find((v) => v.name === e.target.value);
-                    setSelectedVolName(e.target.value);
-                    if (found) setSelectedVolPhone(found.phone);
-                  }}
-                  className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary shadow-2xs"
-                >
-                  {volunteers.map((vol) => (
-                    <option key={vol.id || vol.name} value={vol.name}>
-                      👤 {vol.name} ({vol.unit || vol.phone})
-                    </option>
-                  ))}
-                  {user?.full_name && !volunteers.some((v) => v.name === user.full_name) && (
-                    <option value={user.full_name}>👤 {user.full_name}</option>
-                  )}
-                </select>
+                {!isVolunteerRole ? (
+                  <select
+                    value={selectedVolName}
+                    onChange={(e) => {
+                      const found = volunteers.find((v) => v.name === e.target.value);
+                      setSelectedVolName(e.target.value);
+                      if (found) setSelectedVolPhone(found.phone);
+                    }}
+                    className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary shadow-2xs"
+                  >
+                    {volunteers.map((vol) => (
+                      <option key={vol.id || vol.name} value={vol.name}>
+                        👤 {vol.name} ({vol.unit || vol.phone})
+                      </option>
+                    ))}
+                    {user?.full_name && !volunteers.some((v) => v.name === user.full_name) && (
+                      <option value={user.full_name}>👤 {user.full_name}</option>
+                    )}
+                  </select>
+                ) : (
+                  <div className="px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-950 shadow-2xs flex items-center gap-1.5">
+                    <span>👤</span>
+                    <span>{user?.full_name || 'Volunteer'}</span>
+                    <span className="text-emerald-700 font-mono text-[11px]">({user?.phone || user?.unit || ''})</span>
+                  </div>
+                )}
 
                 <button
                   type="button"

@@ -864,7 +864,8 @@ export const api = {
         const volPings = await api.getActiveVolunteerLocationPings();
         const cleanName = (resolvedVolunteer.name || '').trim().toLowerCase();
         const cleanPhone = (resolvedVolunteer.phone || '').replace(/[^0-9]/g, '');
-        const activeLoc = volPings[cleanName] || (cleanPhone ? volPings[cleanPhone] : null);
+        const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+        const activeLoc = volPings[cleanName] || (cleanPhone ? volPings[cleanPhone] : null) || (last10 ? volPings[last10] : null);
         resolvedVolunteer = {
           ...resolvedVolunteer,
           active_location: activeLoc || null,
@@ -875,7 +876,7 @@ export const api = {
         house: data.house,
         volunteer: resolvedVolunteer,
         announcements: data.announcements || [],
-        helplines: data.helpline || [],
+        helplines: data.helplines || data.helpline || [],
       };
       browserCache.set(storageKey, result);
       return result;
@@ -941,8 +942,10 @@ export const api = {
             data.forEach((p: any) => {
               const cleanName = (p.volunteer_name || '').trim().toLowerCase();
               const cleanPhone = (p.volunteer_phone || '').replace(/[^0-9]/g, '');
+              const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
               if (cleanName && !pings[cleanName]) pings[cleanName] = p;
               if (cleanPhone && !pings[cleanPhone]) pings[cleanPhone] = p;
+              if (last10 && !pings[last10]) pings[last10] = p;
             });
             volunteerPingsCache = { data: pings, timestamp: Date.now() };
             return pings;

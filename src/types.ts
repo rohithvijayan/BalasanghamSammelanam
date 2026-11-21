@@ -31,6 +31,8 @@ export interface House {
   capacity: number;
   gender_restriction?: 'boys' | 'girls' | 'any';
   notes?: string;
+  volunteer_id?: string | null;
+  volunteer?: Volunteer | null;
 }
 
 export interface VolunteerLocationPing {

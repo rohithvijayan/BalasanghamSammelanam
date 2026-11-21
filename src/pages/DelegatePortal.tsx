@@ -101,18 +101,19 @@ export const DelegatePortal: React.FC = () => {
 
   useEffect(() => {
     if (token) {
-      loadStayData(token, false, false);
-      // Auto-poll every 90s ONLY when tab is active and visible (zero egress when backgrounded)
-      // Uses lightweight background fetch respecting 5-hr cache, slashing RPC egress by ~60%
+      // Optimistically renders from local storage if available, then live-refreshes volunteer status and GPS
+      loadStayData(token, false, true);
+
+      // Auto-poll every 45s ONLY when tab is active and visible to pick up live volunteer location broadcast
       const interval = setInterval(() => {
         if (document.visibilityState === 'visible') {
-          loadStayData(token, true, false);
+          loadStayData(token, true, true);
         }
-      }, 90000);
+      }, 45000);
 
       const handleVisibilityChange = () => {
         if (document.visibilityState === 'visible') {
-          loadStayData(token, true, false);
+          loadStayData(token, true, true);
         }
       };
       document.addEventListener('visibilitychange', handleVisibilityChange);

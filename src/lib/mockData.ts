@@ -455,7 +455,19 @@ class MockStore {
       this.save();
     }
 
-    return this.houses;
+    const volMap = new Map<string, Volunteer>();
+    for (const v of this.volunteers) {
+      if (v.id) volMap.set(v.id, v);
+    }
+
+    return this.houses.map((h) => {
+      const resolvedVol = h.volunteer || (h.volunteer_id ? volMap.get(h.volunteer_id) : null) || null;
+      return {
+        ...h,
+        volunteer: resolvedVol,
+        volunteer_id: resolvedVol?.id || h.volunteer_id || null,
+      };
+    });
   }
 
   getVolunteers(): Volunteer[] {
@@ -649,7 +661,11 @@ class MockStore {
       if (!v) return null;
       const keyName = (v.name || '').trim().toLowerCase();
       const keyPhone = (v.phone || '').replace(/[^0-9]/g, '');
-      const active_location = activeVolPings[keyName] || (keyPhone ? activeVolPings[keyPhone] : null);
+      const last10 = keyPhone.length >= 10 ? keyPhone.slice(-10) : keyPhone;
+      const active_location =
+        activeVolPings[keyName] ||
+        (keyPhone ? activeVolPings[keyPhone] : null) ||
+        (last10 ? activeVolPings[last10] : null);
       return {
         ...v,
         active_location: active_location || null,
@@ -661,7 +677,12 @@ class MockStore {
       delegate = demoDelegates.find((d) => d.token.toLowerCase() === clean || d.id.toLowerCase() === clean);
       if (!delegate) return null;
       const demoHouse = demoHouses.find((h) => h.id === delegate?.house_id) || null;
-      const resolvedVol = resolveVol(delegate.volunteer);
+      const targetDelegate = delegate;
+      let vol = targetDelegate.volunteer;
+      if (!vol && targetDelegate.volunteer_id) {
+        vol = this.volunteers.find((v) => v.id === targetDelegate.volunteer_id) || null;
+      }
+      const resolvedVol = resolveVol(vol);
       return {
         delegate: { ...delegate, volunteer: resolvedVol },
         house: demoHouse,
@@ -672,7 +693,11 @@ class MockStore {
     }
 
     const house = delegate.house_id ? this.houses.find((h) => h.id === delegate.house_id) || null : null;
-    const resolvedVol = resolveVol(delegate.volunteer);
+    let vol = delegate.volunteer;
+    if (!vol && delegate.volunteer_id) {
+      vol = this.volunteers.find((v) => v.id === delegate.volunteer_id) || null;
+    }
+    const resolvedVol = resolveVol(vol);
 
     return {
       delegate: { ...delegate, volunteer: resolvedVol },
@@ -924,7 +949,11 @@ class MockStore {
       expires_at: expires.toISOString(),
     };
     if (cleanName) this.volunteerLocationPings[cleanName] = pingObj;
-    if (cleanPhone) this.volunteerLocationPings[cleanPhone] = pingObj;
+    if (cleanPhone) {
+      this.volunteerLocationPings[cleanPhone] = pingObj;
+      const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+      if (last10) this.volunteerLocationPings[last10] = pingObj;
+    }
     this.save();
   }
 
