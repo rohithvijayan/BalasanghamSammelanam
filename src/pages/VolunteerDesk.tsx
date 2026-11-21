@@ -231,14 +231,20 @@ export const VolunteerDesk: React.FC = () => {
   const checkinPercentage = Math.round((checkedInCount / (totalCount || 1)) * 100);
 
   // 1-Click Check-in Toggle
-  const handleToggleCheckin = (delegate: Delegate) => {
+  const handleToggleCheckin = async (delegate: Delegate) => {
     const newStatus = delegate.status === 'checked_in' ? 'pending' : 'checked_in';
-    mockStore.updateStatus(delegate.id, newStatus);
+    try {
+      await api.updateStatus(delegate.id, newStatus);
+      await loadData(true);
 
-    if (newStatus === 'checked_in') {
-      setSuccessToast(language === 'ml' ? `${delegate.full_name} - ഹാജർ രേഖപ്പെടുത്തി!` : `${delegate.full_name} - Checked In!`);
-    } else {
-      setSuccessToast(language === 'ml' ? `${delegate.full_name} - ഹാജർ ഒഴിവാക്കി.` : `${delegate.full_name} - Check-In Undone.`);
+      if (newStatus === 'checked_in') {
+        setSuccessToast(language === 'ml' ? `${delegate.full_name} - ഹാജർ രേഖപ്പെടുത്തി!` : `${delegate.full_name} - Checked In!`);
+      } else {
+        setSuccessToast(language === 'ml' ? `${delegate.full_name} - ഹാജർ ഒഴിവാക്കി.` : `${delegate.full_name} - Check-In Undone.`);
+      }
+    } catch (err: any) {
+      console.error('Failed to update status:', err);
+      alert(language === 'ml' ? `ഹാജർ നില മാറ്റുന്നതിൽ പിശക് സംഭവിച്ചു: ${err?.message || ''}` : `Failed to update status: ${err?.message || ''}`);
     }
     setTimeout(() => setSuccessToast(null), 3000);
   };

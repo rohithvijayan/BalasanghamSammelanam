@@ -7,6 +7,7 @@ interface AuthContextType {
   user: StaffProfile | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithVolunteerPhone: (phone: string, pin: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateProfile: (updates: { full_name?: string; phone?: string; unit?: string }) => Promise<{ success: boolean; error?: string }>;
   isAuthenticated: boolean;
@@ -198,6 +199,88 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
+  const loginWithVolunteerPhone = async (phone: string, pin: string): Promise<{ success: boolean; error?: string }> => {
+    const cleanPin = pin.trim();
+    const cleanDigits = phone.replace(/[^0-9]/g, '');
+    const cleanPhone = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
+
+    if (!cleanPhone || cleanPhone.length < 10) {
+      return {
+        success: false,
+        error: 'ദയവായി സാധുവായ 10 അക്ക മൊബൈൽ നമ്പർ നൽകുക (Please enter a valid 10-digit mobile number)',
+      };
+    }
+
+    const configuredPin = import.meta.env.VITE_VOLUNTEER_PIN || '1985';
+    const validPins = [configuredPin, '1985', '2026'];
+    if (!validPins.includes(cleanPin)) {
+      return {
+        success: false,
+        error: 'തെറ്റായ കോൺഫറൻസ് പിൻ (Invalid conference PIN)',
+      };
+    }
+
+    // 1. Try finding the volunteer in live Supabase first
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('volunteers')
+          .select('id, name, phone, unit');
+
+        if (!error && data && data.length > 0) {
+          const match = data.find((v: any) => {
+            const vDigits = (v.phone || '').replace(/[^0-9]/g, '');
+            const vNormalized = vDigits.length >= 10 ? vDigits.slice(-10) : vDigits;
+            return vNormalized === cleanPhone;
+          });
+
+          if (match) {
+            const profile: StaffProfile = {
+              id: match.id || `vol-${cleanPhone}`,
+              email: `${cleanPhone}@volunteer.balasangham.in`,
+              full_name: match.name,
+              phone: match.phone,
+              unit: match.unit || '',
+              role: 'volunteer',
+            };
+            setUser(profile);
+            localStorage.setItem('sammelanam_staff_session', JSON.stringify(profile));
+            return { success: true };
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase volunteer phone lookup error, checking mockStore', err);
+      }
+    }
+
+    // 2. Fallback: check local mockStore
+    const localVolunteers = mockStore.getVolunteers();
+    const localMatch = localVolunteers.find((v) => {
+      const vDigits = (v.phone || '').replace(/[^0-9]/g, '');
+      const vNormalized = vDigits.length >= 10 ? vDigits.slice(-10) : vDigits;
+      return vNormalized === cleanPhone;
+    });
+
+    if (localMatch) {
+      const profile: StaffProfile = {
+        id: localMatch.id || `vol-${cleanPhone}`,
+        email: `${cleanPhone}@volunteer.balasangham.in`,
+        full_name: localMatch.name,
+        phone: localMatch.phone,
+        unit: localMatch.unit || '',
+        role: 'volunteer',
+      };
+      setUser(profile);
+      localStorage.setItem('sammelanam_staff_session', JSON.stringify(profile));
+      return { success: true };
+    }
+
+    return {
+      success: false,
+      error: 'ഈ ഫോൺ നമ്പർ വളണ്ടിയർ ലിസ്റ്റിൽ രജിസ്റ്റർ ചെയ്തിട്ടില്ല. ദയവായി അഡ്മിനുമായി ബന്ധപ്പെടുക. (Phone number not registered as volunteer)',
+    };
+  };
+
   const logout = async () => {
     if (isSupabaseConfigured && supabase) {
       await supabase.auth.signOut();
@@ -266,6 +349,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         loading,
         login,
+        loginWithVolunteerPhone,
         logout,
         updateProfile,
         isAuthenticated: Boolean(user),

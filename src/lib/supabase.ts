@@ -1017,6 +1017,11 @@ export const api = {
     return true;
   },
 
+  // Alias for updateDelegateStatus
+  async updateStatus(delegateId: string, status: DelegateStatus): Promise<boolean> {
+    return this.updateDelegateStatus(delegateId, status);
+  },
+
   // Assign delegate to house (Admin)
   async assignHouse(delegateId: string, houseId: string | null): Promise<boolean> {
     invalidateCache('delegates');
@@ -1037,6 +1042,7 @@ export const api = {
 
   // Bulk assign delegates (Admin)
   async bulkAssign(delegateIds: string[], houseId: string): Promise<boolean> {
+    if (!delegateIds || delegateIds.length === 0) return true;
     invalidateCache('delegates');
     invalidateCache('houses');
     if (supabase) {

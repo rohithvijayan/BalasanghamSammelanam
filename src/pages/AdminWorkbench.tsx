@@ -60,6 +60,7 @@ export const AdminWorkbench: React.FC = () => {
   const [editingHouse, setEditingHouse] = useState<House | null>(null);
   const [isAddingHouse, setIsAddingHouse] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [isAssigning, setIsAssigning] = useState<boolean>(false);
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
@@ -180,7 +181,7 @@ export const AdminWorkbench: React.FC = () => {
   };
 
   // Assign delegate(s) to house
-  const handleAssignToHouse = (house: House) => {
+  const handleAssignToHouse = async (house: House) => {
     if (selectedDelegateIds.length === 0) {
       alert(language === 'ml' ? 'ദയവായി ആദ്യം അലോട്ട് ചെയ്യേണ്ട പ്രതിനിധികളെ തിരഞ്ഞെടുക്കുക.' : 'Please select delegates to allot first.');
       return;
@@ -199,19 +200,45 @@ export const AdminWorkbench: React.FC = () => {
       if (!confirmOverride) return;
     }
 
-    mockStore.bulkAssign(selectedDelegateIds, house.id);
-    setSelectedDelegateIds([]);
-    setWarningMessage(language === 'ml' ? `വിജയകരമായി ${house.name}-ലേക്ക് അലോട്ട് ചെയ്തു!` : `Successfully allotted to ${house.name}!`);
-    setTimeout(() => setWarningMessage(null), 4000);
+    setIsAssigning(true);
+    try {
+      const count = selectedDelegateIds.length;
+      await api.bulkAssign(selectedDelegateIds, house.id);
+      setSelectedDelegateIds([]);
+      setWarningMessage(
+        language === 'ml'
+          ? `${count} പേരെ വിജയകരമായി ${house.name}-ലേക്ക് അലോട്ട് ചെയ്തു!`
+          : `Successfully allotted ${count} delegates to ${house.name}!`
+      );
+      setTimeout(() => setWarningMessage(null), 4000);
+      await loadData(true);
+    } catch (err: any) {
+      console.error('Failed to assign house:', err);
+      alert(language === 'ml' ? `വീട് അലോട്ട് ചെയ്യുന്നതിൽ പിശക് സംഭവിച്ചു: ${err?.message || ''}` : `Failed to allot house: ${err?.message || ''}`);
+    } finally {
+      setIsAssigning(false);
+    }
   };
 
-  const handleUnassign = (delegateId: string) => {
-    mockStore.assignHouse(delegateId, null);
+  const handleUnassign = async (delegateId: string) => {
+    try {
+      await api.assignHouse(delegateId, null);
+      await loadData(true);
+    } catch (err: any) {
+      console.error('Failed to unassign house:', err);
+      alert(language === 'ml' ? `അൺ-അലോട്ട് ചെയ്യുന്നതിൽ പിശക് സംഭവിച്ചു: ${err?.message || ''}` : `Failed to unassign house: ${err?.message || ''}`);
+    }
   };
 
-  const handleToggleCheckin = (delegateId: string, currentStatus: Delegate['status']) => {
+  const handleToggleCheckin = async (delegateId: string, currentStatus: Delegate['status']) => {
     const nextStatus = currentStatus === 'checked_in' ? 'pending' : 'checked_in';
-    mockStore.updateStatus(delegateId, nextStatus);
+    try {
+      await api.updateStatus(delegateId, nextStatus);
+      await loadData(true);
+    } catch (err: any) {
+      console.error('Failed to update status:', err);
+      alert(language === 'ml' ? `ഹാജർ നില മാറ്റുന്നതിൽ പിശക് സംഭവിച്ചു: ${err?.message || ''}` : `Failed to update status: ${err?.message || ''}`);
+    }
   };
 
   const handleSaveDelegate = async (updated: Delegate) => {
@@ -665,10 +692,10 @@ export const AdminWorkbench: React.FC = () => {
                       </button>
                       <button
                         onClick={() => handleAssignToHouse(house)}
-                        disabled={selectedDelegateIds.length === 0}
+                        disabled={selectedDelegateIds.length === 0 || isAssigning}
                         className="touch-target px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold shrink-0 shadow-xs transition-transform active:scale-95 flex items-center gap-1.5"
                       >
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        {isAssigning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
                         <span>{t('assign_here')}</span>
                       </button>
                     </div>

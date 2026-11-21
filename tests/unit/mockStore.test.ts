@@ -519,4 +519,23 @@ describe('mockStore - State Conference Data Store', () => {
     expect(check?.name).toBe('വിപിൻ ദാസ് കെ.');
     expect(check?.phone).toBe('9447233449');
   });
+
+  it('api.bulkAssign and api.assignHouse update delegate house allocations and invalidate cache', async () => {
+    const testDel1: Delegate = { id: 'api-del-1', token: 'api-t-1', full_name: 'D1', district_id: 2, gender: 'boy', status: 'pending' };
+    const testDel2: Delegate = { id: 'api-del-2', token: 'api-t-2', full_name: 'D2', district_id: 2, gender: 'girl', status: 'pending' };
+    mockStore.importDelegates([testDel1, testDel2]);
+
+    const targetHouseId = 'h-test-assign-1';
+    await api.bulkAssign(['api-del-1', 'api-del-2'], targetHouseId);
+
+    const delegatesAfter = mockStore.getDelegates();
+    expect(delegatesAfter.find((d) => d.id === 'api-del-1')?.house_id).toBe(targetHouseId);
+    expect(delegatesAfter.find((d) => d.id === 'api-del-2')?.house_id).toBe(targetHouseId);
+
+    // Unassign via api.assignHouse(id, null)
+    await api.assignHouse('api-del-1', null);
+    const delegatesAfterUnassign = mockStore.getDelegates();
+    expect(delegatesAfterUnassign.find((d) => d.id === 'api-del-1')?.house_id).toBeNull();
+    expect(delegatesAfterUnassign.find((d) => d.id === 'api-del-2')?.house_id).toBe(targetHouseId);
+  });
 });

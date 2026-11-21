@@ -2,27 +2,52 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/i18nContext';
-import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
+import { Lock, Mail, ArrowRight, AlertCircle, Phone, KeyRound, UserCheck, Shield } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { login } = useAuth();
-  const { language, t } = useI18n();
+  const { login, loginWithVolunteerPhone } = useAuth();
+  const { language } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
 
   const searchParams = new URLSearchParams(location.search);
-  const rawRedirect = searchParams.get('redirect') || '/admin';
+  const rawRedirect = searchParams.get('redirect') || '';
   // SECURITY FIX: Prevent Open Redirects by strictly validating relative internal path
   const redirectUrl = (rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') && !rawRedirect.includes(':'))
     ? rawRedirect
-    : '/admin';
+    : '';
 
+  // Mode: 'volunteer' for phone + PIN login, 'admin' for official email + password
+  const [authMode, setAuthMode] = useState<'volunteer' | 'admin'>('volunteer');
+
+  // Volunteer form state
+  const [volunteerPhone, setVolunteerPhone] = useState('');
+  const [volunteerPin, setVolunteerPin] = useState('');
+
+  // Admin form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleVolunteerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const result = await loginWithVolunteerPhone(volunteerPhone, volunteerPin);
+    setLoading(false);
+
+    if (result.success) {
+      const target = redirectUrl && redirectUrl !== '/admin' ? redirectUrl : '/volunteer';
+      navigate(target, { replace: true });
+    } else {
+      setError(result.error || (language === 'ml' ? 'ലോഗിൻ പരാജയപ്പെട്ടു' : 'Login failed'));
+    }
+  };
+
+  const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
@@ -31,20 +56,8 @@ export const LoginPage: React.FC = () => {
     setLoading(false);
 
     if (result.success) {
-      // Direct user based on their unlocked role
-      const saved = localStorage.getItem('sammelanam_staff_session');
-      let targetPath = redirectUrl;
-      if (saved) {
-        try {
-          const profile = JSON.parse(saved);
-          if (profile.role === 'volunteer' && (redirectUrl === '/admin' || !searchParams.get('redirect'))) {
-            targetPath = '/volunteer';
-          }
-        } catch (e) {
-          console.warn(e);
-        }
-      }
-      navigate(targetPath, { replace: true });
+      const target = redirectUrl || '/admin';
+      navigate(target, { replace: true });
     } else {
       setError(result.error || (language === 'ml' ? 'ലോഗിൻ പരാജയപ്പെട്ടു' : 'Login failed'));
     }
@@ -62,13 +75,47 @@ export const LoginPage: React.FC = () => {
             <img src="/images/logo.webp" alt="Balasangham Logo" width="64" height="64" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-xl sm:text-2xl font-malayalam-bold text-slate-900 mt-1">
-            {language === 'ml' ? 'സ്റ്റാഫ് ലോഗിൻ (Staff Sign In)' : 'Staff Sign In'}
+            {language === 'ml' ? 'പോർട്ടൽ പ്രവേശനം (Portal Login)' : 'Staff & Volunteer Sign In'}
           </h1>
           <p className="text-xs text-slate-500">
             {language === 'ml'
-              ? 'ബാലസംഘം സംസ്ഥാന സമ്മേളനം • കൺട്രോൾ റൂം & അഡ്മിൻ പാനൽ'
-              : 'Balasangham State Conference • Control Room & Admin Portal'}
+              ? 'ബാലസംഘം സംസ്ഥാന സമ്മേളനം • ഹെൽപ്പ് ഡെസ്ക് & അഡ്മിൻ പാനൽ'
+              : 'Balasangham State Conference • Helpdesk & Admin Portal'}
           </p>
+        </div>
+
+        {/* Mode Selector Tabs */}
+        <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200/70">
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMode('volunteer');
+              setError(null);
+            }}
+            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+              authMode === 'volunteer'
+                ? 'bg-white text-primary shadow-sm border border-slate-200/80'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <UserCheck className="w-4 h-4 shrink-0" />
+            <span>{language === 'ml' ? 'വളണ്ടിയർ' : 'Volunteer'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMode('admin');
+              setError(null);
+            }}
+            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+              authMode === 'admin'
+                ? 'bg-white text-primary shadow-sm border border-slate-200/80'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Shield className="w-4 h-4 shrink-0" />
+            <span>{language === 'ml' ? 'അഡ്മിൻ / ഭാരവാഹി' : 'Admin'}</span>
+          </button>
         </div>
 
         {/* Error notification */}
@@ -79,64 +126,124 @@ export const LoginPage: React.FC = () => {
           </div>
         )}
 
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-700">
-              {language === 'ml' ? 'ഇമെയിൽ വിലാസം (Email)' : 'Email Address'}
-            </label>
-            <div className="relative">
-              <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="staff@balasangham.in"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
-              />
+        {/* Volunteer Phone + PIN Form */}
+        {authMode === 'volunteer' ? (
+          <form onSubmit={handleVolunteerSubmit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-700">
+                {language === 'ml' ? 'രജിസ്റ്റർ ചെയ്ത മൊബൈൽ നമ്പർ (Mobile Number)' : 'Registered Mobile Number'}
+              </label>
+              <div className="relative">
+                <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                <input
+                  type="tel"
+                  required
+                  value={volunteerPhone}
+                  onChange={(e) => setVolunteerPhone(e.target.value)}
+                  placeholder="9876543210"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <span className="text-[11px] text-slate-400">
+                {language === 'ml' ? 'അഡ്മിൻ രജിസ്റ്റർ ചെയ്ത 10 അക്ക മൊബൈൽ നമ്പർ' : 'Enter 10-digit mobile number registered by Admin'}
+              </span>
             </div>
-          </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-700">
-              {language === 'ml' ? 'പാസ്‌വേഡ് (Password)' : 'Password'}
-            </label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
-              />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-700">
+                {language === 'ml' ? 'സമ്മേളന പിൻ (Conference PIN)' : 'Conference PIN'}
+              </label>
+              <div className="relative">
+                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                <input
+                  type="password"
+                  required
+                  value={volunteerPin}
+                  onChange={(e) => setVolunteerPin(e.target.value)}
+                  placeholder="••••"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary tracking-widest"
+                />
+              </div>
+              <span className="text-[11px] text-slate-400">
+                {language === 'ml' ? 'സംഘാടക സമിതി നൽകിയ കോൺഫറൻസ് പിൻ നൽകുക' : 'Enter the shared PIN given by organizing committee'}
+              </span>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="touch-target mt-2 w-full py-3 rounded-xl bg-primary hover:bg-primary-600 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50"
-          >
-            {loading ? (
-              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-            ) : (
-              <>
-                <span>{language === 'ml' ? 'ലോഗിൻ ചെയ്യുക (Sign In)' : 'Sign In'}</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={loading}
+              className="touch-target mt-2 w-full py-3 rounded-xl bg-primary hover:bg-primary-600 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50"
+            >
+              {loading ? (
+                <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              ) : (
+                <>
+                  <span>{language === 'ml' ? 'വളണ്ടിയർ പോർട്ടൽ തുറക്കുക' : 'Enter Volunteer Portal'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </form>
+        ) : (
+          /* Admin / Coordinator Email + Password Form */
+          <form onSubmit={handleAdminSubmit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-700">
+                {language === 'ml' ? 'ഇമെയിൽ വിലാസം (Email)' : 'Email Address'}
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@balasangham.in"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-700">
+                {language === 'ml' ? 'പാസ്‌വേഡ് (Password)' : 'Password'}
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="touch-target mt-2 w-full py-3 rounded-xl bg-primary hover:bg-primary-600 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50"
+            >
+              {loading ? (
+                <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              ) : (
+                <>
+                  <span>{language === 'ml' ? 'അഡ്മിൻ ലോഗിൻ (Sign In)' : 'Sign In as Admin'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </form>
+        )}
 
         {/* Footer note for staff support */}
         <div className="pt-2 border-t border-slate-100 text-center">
           <p className="text-[11px] text-slate-400">
             {language === 'ml'
-              ? 'ലോഗിൻ വിവരങ്ങൾക്ക് സ്വാഗതസംഘം കൺട്രോൾ റൂമുമായി ബന്ധപ്പെടുക.'
-              : 'For login credentials, contact the Reception Committee Control Room.'}
+              ? 'ലോഗിൻ ചെയ്യാൻ ബുദ്ധിമുട്ടുണ്ടെങ്കിൽ സ്വാഗതസംഘം കൺട്രോൾ റൂമുമായി ബന്ധപ്പെടുക.'
+              : 'For help with credentials, contact the Reception Committee Control Room.'}
           </p>
         </div>
       </div>
