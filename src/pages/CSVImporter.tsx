@@ -156,7 +156,7 @@ export const CSVImporter: React.FC = () => {
         }
       }
       setParsedRows(Array.from(uniqueDelMap.values()));
-    } else {
+    } else if (importType === 'houses') {
       // Houses import
       const validated = rawData.map((row, idx) => {
         const normalized: Record<string, any> = {};
@@ -196,6 +196,39 @@ export const CSVImporter: React.FC = () => {
         }
       }
       setParsedRows(Array.from(uniqueHouseMap.values()));
+    } else {
+      // Volunteers import
+      const validated = rawData.map((row, idx) => {
+        const normalized: Record<string, any> = {};
+        for (const k of Object.keys(row)) {
+          normalized[k.trim().toLowerCase()] = sanitizeCell(row[k]);
+        }
+
+        const name = normalized['name'] || normalized['volunteer_name'] || normalized['full_name'] || normalized['പേര്'] || normalized['വളണ്ടിയർ'] || '';
+        const phone = String(normalized['phone'] || normalized['mobile'] || normalized['contact'] || normalized['ഫോൺ'] || normalized['മൊബൈൽ'] || '').trim();
+        const unit = normalized['unit'] || normalized['area'] || normalized['മേഖല'] || normalized['യൂണിറ്റ്'] || normalized['സെന്റർ'] || '';
+
+        if (!name) {
+          validationErrors.push(`Row ${idx + 1}: Name is required`);
+        }
+
+        return {
+          id: 'vol-' + Date.now() + '-' + idx,
+          name: name || 'Unnamed Volunteer',
+          phone: phone,
+          unit: unit,
+        };
+      });
+
+      // Deduplicate volunteers preview by natural key
+      const uniqueVolMap = new Map<string, Volunteer>();
+      for (const v of validated) {
+        const key = getVolunteerNaturalKey(v);
+        if (!uniqueVolMap.has(key)) {
+          uniqueVolMap.set(key, v);
+        }
+      }
+      setParsedRows(Array.from(uniqueVolMap.values()));
     }
 
     setErrors(validationErrors);
@@ -263,15 +296,19 @@ export const CSVImporter: React.FC = () => {
     try {
       if (importType === 'delegates') {
         const res = await api.importDelegates(parsedRows as Delegate[]);
-        setSuccessMsg(language === 'ml' ? `വിജയകരമായി ${res.count} പ്രതിനിധികളെ സേവ് ചെയ്തു!` : `Successfully saved ${res.count} delegates!`);
-      } else {
+        setCloudCount((prev) => (prev !== null ? prev + res.count : res.count));
+        setSuccessMsg(language === 'ml' ? `വിജയകരമായി ${res.count} പ്രതിനിധികളെ Supabase ക്ലൗഡിലേക്ക് സേവ് ചെയ്തു!` : `Successfully saved ${res.count} delegates to Supabase!`);
+      } else if (importType === 'houses') {
         const res = await api.importHouses(parsedRows as House[]);
-        setSuccessMsg(language === 'ml' ? `വിജയകരമായി ${res.count} വീടുകൾ സേവ് ചെയ്തു!` : `Successfully saved ${res.count} houses!`);
+        setSuccessMsg(language === 'ml' ? `വിജയകരമായി ${res.count} വീടുകൾ Supabase ക്ലൗഡിലേക്ക് സേവ് ചെയ്തു!` : `Successfully saved ${res.count} houses to Supabase!`);
+      } else {
+        const res = await api.importVolunteers(parsedRows as Volunteer[]);
+        setSuccessMsg(language === 'ml' ? `വിജയകരമായി ${res.count} വളണ്ടിയർമാരെ Supabase ക്ലൗഡിലേക്ക് സേവ് ചെയ്തു!` : `Successfully saved ${res.count} volunteers to Supabase!`);
       }
 
       setParsedRows([]);
       setTimeout(() => {
-        navigate('/admin');
+        navigate(importType === 'volunteers' ? '/volunteer' : '/admin');
       }, 1500);
     } catch (err: any) {
       console.error('Import failed', err);
@@ -382,6 +419,45 @@ export const CSVImporter: React.FC = () => {
     }
   };
 
+  const handleClearLocalVolunteersCache = async () => {
+    setIsClearing(true);
+    setErrors([]);
+    setSuccessMsg(null);
+
+    try {
+      api.invalidateCache('volunteers');
+      mockStore.clearLocalVolunteers();
+      if (isSupabaseConfigured) {
+        try {
+          const cloudVolunteers = await api.getVolunteers(true);
+          mockStore.setVolunteers(cloudVolunteers, false);
+          setVolunteers(cloudVolunteers);
+          setSuccessMsg(
+            language === 'ml'
+              ? `വളണ്ടിയർമാരുടെ ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു, ക്ലൗഡിൽ നിന്നുള്ള ${cloudVolunteers.length} വളണ്ടിയർമാരെ പുതുക്കി ലോഡ് ചെയ്തു.`
+              : `Local volunteer cache cleared and refreshed with ${cloudVolunteers.length} volunteers from cloud.`
+          );
+          return;
+        } catch {
+          // fall through
+        }
+      }
+      setVolunteers([]);
+      setSuccessMsg(
+        language === 'ml'
+          ? 'ഈ ഡിവൈസിലെ വളണ്ടിയർമാരുടെ ലോക്കൽ കാഷെ വിജയകരമായി ക്ലിയർ ചെയ്തു.'
+          : 'Local volunteer cache on this device cleared successfully.'
+      );
+    } catch (err: any) {
+      api.invalidateCache('volunteers');
+      mockStore.clearLocalVolunteers();
+      setVolunteers([]);
+      setSuccessMsg(language === 'ml' ? 'ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു.' : 'Local cache cleared.');
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
       {/* Header */}
@@ -391,8 +467,8 @@ export const CSVImporter: React.FC = () => {
         </span>
         <h1 className="text-2xl font-malayalam-bold text-slate-900">
           {language === 'ml'
-            ? 'പ്രതിനിധികളുടെയും വീടുകളുടെയും വിവരങ്ങൾ ഇമ്പോർട്ട് ചെയ്യുക'
-            : 'Import Delegates & Host Houses (CSV)'}
+            ? 'പ്രതിനിധികൾ, വീടുകൾ, വളണ്ടിയർമാർ എന്നിവരുടെ വിവരങ്ങൾ ഇമ്പോർട്ട് ചെയ്യുക'
+            : 'Import Delegates, Host Houses & Volunteers (CSV / Excel)'}
         </h1>
         <p className="text-xs text-slate-500">
           {language === 'ml'
@@ -433,23 +509,30 @@ export const CSVImporter: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
-            <button
-              onClick={handleSyncLocalToSupabase}
-              disabled={isSyncing || isClearing}
-              className="touch-target px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-95 disabled:opacity-50 shrink-0"
-            >
-              <CloudUpload className={`w-4 h-4 ${isSyncing ? 'animate-bounce' : ''}`} />
-              <span>
-                {isSyncing
-                  ? (language === 'ml' ? 'ക്ലൗഡിലേക്ക് സിങ്ക് ചെയ്യുന്നു...' : 'Syncing to Cloud...')
-                  : (language === 'ml' ? 'Supabase-ലേക്ക് സിങ്ക് ചെയ്യുക' : 'Sync to Supabase')}
-              </span>
-            </button>
+            {cloudCount !== null && cloudCount >= uniqueLocalDelegates.length ? (
+              <div className="px-3.5 py-2 rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold flex items-center gap-1.5 shrink-0">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>{language === 'ml' ? 'ക്ലൗഡിൽ സിങ്ക് ചെയ്തിരിക്കുന്നു' : 'Synced with Cloud'}</span>
+              </div>
+            ) : (
+              <button
+                onClick={handleSyncLocalToSupabase}
+                disabled={isSyncing || isClearing}
+                className="touch-target px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer"
+              >
+                <CloudUpload className={`w-4 h-4 ${isSyncing ? 'animate-bounce' : ''}`} />
+                <span>
+                  {isSyncing
+                    ? (language === 'ml' ? 'ക്ലൗഡിലേക്ക് സിങ്ക് ചെയ്യുന്നു...' : 'Syncing to Cloud...')
+                    : (language === 'ml' ? 'Supabase-ലേക്ക് സിങ്ക് ചെയ്യുക' : 'Sync to Supabase')}
+                </span>
+              </button>
+            )}
             <button
               onClick={handleClearLocalCache}
               disabled={isClearing || isSyncing}
               title={language === 'ml' ? 'ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്ത് ക്ലൗഡിൽ നിന്നുള്ള വിവരങ്ങൾ പുതുക്കുക' : 'Clear local device cache and refresh from cloud'}
-              className="touch-target px-4 py-2.5 rounded-xl bg-white hover:bg-amber-100/70 text-amber-900 border border-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95 disabled:opacity-50 shrink-0"
+              className="touch-target px-4 py-2.5 rounded-xl bg-white hover:bg-amber-100/70 text-amber-900 border border-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isClearing ? 'animate-spin' : ''}`} />
               <span>{language === 'ml' ? 'റീസെറ്റ് / കാഷെ ക്ലിയർ' : 'Reset / Clear Cache'}</span>
@@ -497,6 +580,45 @@ export const CSVImporter: React.FC = () => {
         </div>
       )}
 
+      {/* Volunteers Sync / Clear Banner */}
+      {importType === 'volunteers' && hasLocalVolunteers && (
+        <div className="bg-teal-50 border border-teal-200/90 rounded-3xl p-5 md:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
+              <Users className="w-6 h-6 text-teal-700" />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-bold text-teal-900 font-malayalam-bold">
+                  {language === 'ml'
+                    ? `ഈ ഡിവൈസിൽ ${uniqueLocalVolunteers.length} വളണ്ടിയർമാർ നിലവിലുണ്ട്`
+                    : `${uniqueLocalVolunteers.length} volunteers currently stored on this device`}
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-bold border border-teal-300">
+                  {language === 'ml' ? 'ഡ്യൂപ്ലിക്കേഷൻ ഫ്രീ' : 'Clean & Unique'}
+                </span>
+              </div>
+              <p className="text-xs text-teal-700 mt-0.5">
+                {language === 'ml'
+                  ? 'വളണ്ടിയർമാർ പേരും ഫോൺ നമ്പറും അടിസ്ഥാനമാക്കി ഓട്ടോമാറ്റിക്കായി ഡീഡ്യൂപ്ലിക്കേറ്റ് ചെയ്യപ്പെടുന്നു. പഴയ കാഷെ നീക്കം ചെയ്യാൻ റീസെറ്റ് ക്ലിക്ക് ചെയ്യുക.'
+                  : 'Volunteers are automatically deduplicated by name and phone number. Click Reset to clear local cache.'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            <button
+              onClick={handleClearLocalVolunteersCache}
+              disabled={isClearing}
+              title={language === 'ml' ? 'വളണ്ടിയർമാരുടെ കാഷെ ക്ലിയർ ചെയ്യുക' : 'Clear local volunteers cache'}
+              className="touch-target px-4 py-2.5 rounded-xl bg-white hover:bg-teal-100 text-teal-900 border border-teal-300 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95 disabled:opacity-50 shrink-0"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isClearing ? 'animate-spin' : ''}`} />
+              <span>{language === 'ml' ? 'റീസെറ്റ് / കാഷെ ക്ലിയർ' : 'Reset / Clear Cache'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Import Switcher & Template Downloads */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="inline-flex rounded-2xl bg-slate-100 p-1 border border-slate-200">
@@ -522,6 +644,17 @@ export const CSVImporter: React.FC = () => {
           >
             {language === 'ml' ? 'വീടുകൾ (Houses CSV)' : 'Host Houses (CSV)'}
           </button>
+          <button
+            onClick={() => {
+              setImportType('volunteers');
+              setParsedRows([]);
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              importType === 'volunteers' ? 'bg-white text-primary shadow-xs' : 'text-slate-600'
+            }`}
+          >
+            {language === 'ml' ? 'വളണ്ടിയർമാർ (Volunteers CSV)' : 'Volunteers (CSV)'}
+          </button>
         </div>
 
         {/* Download Template Link */}
@@ -529,7 +662,9 @@ export const CSVImporter: React.FC = () => {
           href={
             importType === 'delegates'
               ? '/templates/delegates_template.csv'
-              : '/templates/houses_template.csv'
+              : importType === 'houses'
+              ? '/templates/houses_template.csv'
+              : '/templates/volunteers_template.csv'
           }
           download
           className="px-4 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors self-start sm:self-auto"
@@ -605,9 +740,13 @@ export const CSVImporter: React.FC = () => {
             <button
               onClick={handleCommit}
               disabled={isCommitting}
-              className="touch-target px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-primary-600 transition-transform active:scale-95 disabled:opacity-50"
+              className="touch-target px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-primary-600 transition-transform active:scale-95 disabled:opacity-50 cursor-pointer"
             >
-              <span>{isCommitting ? (language === 'ml' ? 'Supabase-ലേക്ക് സേവ് ചെയ്യുന്നു...' : 'Saving to Supabase...') : `${t('save_data')} (${parsedRows.length})`}</span>
+              <span>
+                {isCommitting
+                  ? (language === 'ml' ? 'Supabase-ലേക്ക് അപ്‌ലോഡ് ചെയ്യുന്നു...' : 'Uploading to Supabase...')
+                  : (language === 'ml' ? `Supabase-ലേക്ക് സേവ് ചെയ്യുക (${parsedRows.length})` : `Upload to Supabase (${parsedRows.length})`)}
+              </span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -618,9 +757,27 @@ export const CSVImporter: React.FC = () => {
                 <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
                   <th className="p-2.5">#</th>
                   <th className="p-2.5">{language === 'ml' ? 'പേര് (Name)' : 'Full Name'}</th>
-                  <th className="p-2.5">{importType === 'delegates' ? (language === 'ml' ? 'ജില്ല' : 'District') : (language === 'ml' ? 'വിലാസം' : 'Address')}</th>
-                  <th className="p-2.5">{importType === 'delegates' ? (language === 'ml' ? 'ഫോൺ' : 'Phone') : (language === 'ml' ? 'ആതിഥേയൻ' : 'Host')}</th>
-                  <th className="p-2.5">{importType === 'delegates' ? (language === 'ml' ? 'ടോക്കൺ ലിങ്ക്' : 'Token Link') : (language === 'ml' ? 'കപ്പാസിറ്റി' : 'Capacity')}</th>
+                  <th className="p-2.5">
+                    {importType === 'delegates'
+                      ? (language === 'ml' ? 'ജില്ല' : 'District')
+                      : importType === 'houses'
+                      ? (language === 'ml' ? 'വിലാസം' : 'Address')
+                      : (language === 'ml' ? 'യൂണിറ്റ് / മേഖല' : 'Unit / Area')}
+                  </th>
+                  <th className="p-2.5">
+                    {importType === 'delegates'
+                      ? (language === 'ml' ? 'ഫോൺ' : 'Phone')
+                      : importType === 'houses'
+                      ? (language === 'ml' ? 'ആതിഥേയൻ' : 'Host')
+                      : (language === 'ml' ? 'ഫോൺ' : 'Phone')}
+                  </th>
+                  <th className="p-2.5">
+                    {importType === 'delegates'
+                      ? (language === 'ml' ? 'ടോക്കൺ ലിങ്ക്' : 'Token Link')
+                      : importType === 'houses'
+                      ? (language === 'ml' ? 'കപ്പാസിറ്റി' : 'Capacity')
+                      : (language === 'ml' ? 'സ്റ്റാറ്റസ്' : 'Status')}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -631,13 +788,21 @@ export const CSVImporter: React.FC = () => {
                       {row.full_name || row.name}
                     </td>
                     <td className="p-2.5">
-                      {language === 'ml' ? (row.district_ml || row.address || '—') : (row.district_en || row.address || '—')}
+                      {importType === 'volunteers'
+                        ? (row.unit || '—')
+                        : language === 'ml'
+                        ? (row.district_ml || row.address || '—')
+                        : (row.district_en || row.address || '—')}
                     </td>
                     <td className="p-2.5">
-                      {row.phone || row.host_name || '—'}
+                      {importType === 'houses' ? (row.host_name || '—') : (row.phone || '—')}
                     </td>
                     <td className="p-2.5 font-mono text-[11px] text-primary">
-                      {row.token ? `/d/${row.token}` : `${row.capacity} ${language === 'ml' ? 'പേർ' : 'persons'}`}
+                      {importType === 'delegates'
+                        ? (row.token ? `/d/${row.token}` : '—')
+                        : importType === 'houses'
+                        ? `${row.capacity} ${language === 'ml' ? 'പേർ' : 'persons'}`
+                        : (language === 'ml' ? 'റെഡി' : 'Ready')}
                     </td>
                   </tr>
                 ))}
