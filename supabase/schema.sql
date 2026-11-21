@@ -80,6 +80,13 @@ CREATE TABLE IF NOT EXISTS delegates (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX IF NOT EXISTS idx_delegates_phone ON delegates(phone);
+CREATE INDEX IF NOT EXISTS idx_delegates_house_id ON delegates(house_id);
+CREATE INDEX IF NOT EXISTS idx_delegates_volunteer_id ON delegates(volunteer_id);
+CREATE INDEX IF NOT EXISTS idx_delegates_status ON delegates(status);
+CREATE INDEX IF NOT EXISTS idx_delegates_district_id ON delegates(district_id);
+CREATE INDEX IF NOT EXISTS idx_delegates_token ON delegates(token);
+
 -- 3.5 Announcements Table
 CREATE TABLE IF NOT EXISTS announcements (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
