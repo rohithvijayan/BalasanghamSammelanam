@@ -518,3 +518,27 @@ BEGIN
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 6.5 Auto-sync House Volunteer In-Charge to Occupants on House Assignment & Removal
+CREATE OR REPLACE FUNCTION trg_sync_delegate_house_volunteer()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (TG_OP = 'INSERT' AND NEW.house_id IS NOT NULL) OR (TG_OP = 'UPDATE' AND NEW.house_id IS DISTINCT FROM OLD.house_id) THEN
+        IF NEW.house_id IS NULL THEN
+            -- On removal of delegate from a house, empty the volunteer field
+            NEW.volunteer_id := NULL;
+        ELSE
+            -- When assigned to a house, overwrite with house's volunteer_id
+            SELECT volunteer_id INTO NEW.volunteer_id
+            FROM public.houses
+            WHERE id = NEW.house_id;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER trg_delegate_house_volunteer_sync
+BEFORE INSERT OR UPDATE OF house_id ON public.delegates
+FOR EACH ROW
+EXECUTE FUNCTION trg_sync_delegate_house_volunteer();

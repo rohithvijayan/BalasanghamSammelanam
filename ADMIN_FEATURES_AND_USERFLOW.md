@@ -138,7 +138,8 @@ The operational center for allocating accommodations and grouping children under
   * Color-coded capacity progress bars showing occupied slots vs. maximum capacity.
   * Gender restriction badges (`Boys Only`, `Girls Only`, `Any`).
   * **Direct House Creation (`+ Add House`):** Click the header button to register community host homes on the fly.
-  * **Volunteer In-Charge Auto-Inheritance:** Houses can have an assigned in-charge volunteer. When delegates are allotted to that house, they **automatically inherit** that home's volunteer!
+  * **Volunteer In-Charge Auto-Inheritance & Overwrite:** Houses can have an assigned in-charge volunteer. When delegates are allotted to a house with volunteer "B", any existing volunteer "A" is **automatically overwritten** with "B".
+  * **Automatic Volunteer Reset on House Removal:** When a delegate is unassigned/removed from a house (via 1-tap `X` unassign or batch removal), their `volunteer` field is **automatically emptied** (`null`), ensuring unaccommodated delegates do not carry stale house volunteer assignments.
   * **Soft Over-Capacity Guard (FR-ASN-3):** Triggers an explicit confirmation modal before allowing intentional overcrowding.
   * **Current Residents View:** Inline occupant pills with 1-tap check-in toggles and 1-tap unassign (`X`) buttons.
 

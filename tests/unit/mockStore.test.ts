@@ -651,4 +651,91 @@ describe('mockStore - State Conference Data Store', () => {
     const isAssigned = isDelegateAssignedToVolunteer(updatedDel3!, { id: volA.id }, housesList);
     expect(isAssigned).toBe(true);
   });
+
+  it('Volunteer Overwrite & Removal: assigning delegate with Volunteer A to house with Volunteer B overwrites with B, and removing delegate empties volunteer', async () => {
+    // 1. Setup Volunteer A and Volunteer B
+    const volA: Volunteer = { id: 'vol-test-a', name: 'Volunteer A', phone: '9847111001', unit: 'Unit A' };
+    const volB: Volunteer = { id: 'vol-test-b', name: 'Volunteer B', phone: '9847111002', unit: 'Unit B' };
+    mockStore.setVolunteers([volA, volB]);
+
+    // 2. Setup House 1 (with Volunteer B) and House 2 (with no volunteer initially)
+    const houseB: House = {
+      id: 'house-b',
+      name: 'Bhavan B',
+      address: 'Ward B',
+      capacity: 10,
+      volunteer_id: volB.id,
+      volunteer: volB,
+    };
+    const houseEmpty: House = {
+      id: 'house-empty',
+      name: 'Empty Bhavan',
+      address: 'Ward Empty',
+      capacity: 10,
+    };
+    mockStore.addHouse(houseB);
+    mockStore.addHouse(houseEmpty);
+
+    // 3. Create Delegate who initially has Volunteer A assigned
+    const delegateWithVolA: Delegate = {
+      id: 'del-vol-overwrite-1',
+      token: 'token-vol-overwrite-1',
+      full_name: 'Child One',
+      district_id: 1,
+      gender: 'boy',
+      status: 'pending',
+      volunteer_id: volA.id,
+      volunteer: volA,
+      house_id: null,
+    };
+    mockStore.importDelegates([delegateWithVolA]);
+
+    expect(mockStore.getDelegates().find((d) => d.id === 'del-vol-overwrite-1')?.volunteer_id).toBe(volA.id);
+
+    // 4. Assign Delegate to House B (which has Volunteer B)
+    // MUST OVERWRITE Volunteer A with Volunteer B
+    await api.assignHouse('del-vol-overwrite-1', 'house-b');
+
+    let del = mockStore.getDelegates().find((d) => d.id === 'del-vol-overwrite-1');
+    expect(del?.house_id).toBe('house-b');
+    expect(del?.volunteer_id).toBe(volB.id);
+    expect(del?.volunteer?.name).toBe('Volunteer B');
+
+    // 5. On removal of delegate from house -> Volunteer field MUST be emptied
+    await api.assignHouse('del-vol-overwrite-1', null);
+
+    del = mockStore.getDelegates().find((d) => d.id === 'del-vol-overwrite-1');
+    expect(del?.house_id).toBeNull();
+    expect(del?.volunteer_id).toBeNull();
+    expect(del?.volunteer).toBeNull();
+
+    // 6. Test with bulkAssign:
+    // Create another delegate with Volunteer A
+    const delegate2: Delegate = {
+      id: 'del-vol-overwrite-2',
+      token: 'token-vol-overwrite-2',
+      full_name: 'Child Two',
+      district_id: 1,
+      gender: 'girl',
+      status: 'pending',
+      volunteer_id: volA.id,
+      volunteer: volA,
+      house_id: null,
+    };
+    mockStore.importDelegates([delegate2]);
+
+    // Bulk assign to house-b -> Overwrites Volunteer A with Volunteer B
+    await api.bulkAssign(['del-vol-overwrite-2'], 'house-b');
+    del = mockStore.getDelegates().find((d) => d.id === 'del-vol-overwrite-2');
+    expect(del?.house_id).toBe('house-b');
+    expect(del?.volunteer_id).toBe(volB.id);
+    expect(del?.volunteer?.name).toBe('Volunteer B');
+
+    // Bulk remove from house -> Empties volunteer field
+    await api.bulkAssign(['del-vol-overwrite-2'], null);
+    del = mockStore.getDelegates().find((d) => d.id === 'del-vol-overwrite-2');
+    expect(del?.house_id).toBeNull();
+    expect(del?.volunteer_id).toBeNull();
+    expect(del?.volunteer).toBeNull();
+  });
 });
