@@ -221,7 +221,7 @@ export const LandingPage: React.FC = () => {
         {/* Official Conference Organizing Committee Footer */}
         <footer className="text-center py-8 flex flex-col items-center gap-3 text-xs text-slate-400 border-t border-slate-200/60 mt-6">
           <div className="flex items-center gap-2 text-slate-700 font-bold font-malayalam-bold">
-            <img src="/images/logo.png" alt="Logo" className="w-6 h-6 object-contain" />
+            <img src="/images/logo.webp" alt="Logo" width="24" height="24" loading="lazy" className="w-6 h-6 object-contain" />
             <span>
               {language === 'ml'
                 ? 'ബാലസംഘം സംസ്ഥാന സ്വാഗതസംഘം ഓഫീസ് • നീലേശ്വരം, പാലായി'

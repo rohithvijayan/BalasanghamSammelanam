@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { mockStore, initialDistricts } from '../lib/mockData';
 import { Delegate, House, LocationPing, VolunteerLocationPing, Announcement, Volunteer } from '../types';
-import { api } from '../lib/supabase';
+import { api, isSafeUrl } from '../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/i18nContext';
 import { EditDelegateModal } from '../components/EditDelegateModal';
@@ -156,13 +156,13 @@ export const VolunteerDesk: React.FC = () => {
     // Visibility-aware auto-sync: 30s for GPS pings, 60s for full roster
     const pingsInterval = setInterval(() => {
       if (document.visibilityState === 'visible') {
-        refreshPings(true);
+        refreshPings(false);
       }
     }, 30000);
 
     const dataInterval = setInterval(() => {
       if (document.visibilityState === 'visible') {
-        loadData(true);
+        loadData(false);
       }
     }, 60000);
 
@@ -967,7 +967,7 @@ export const VolunteerDesk: React.FC = () => {
                 </div>
 
                 {/* Open in Google Maps */}
-                {house.map_url && (
+                {house.map_url && isSafeUrl(house.map_url) && (
                   <a
                     href={house.map_url}
                     target="_blank"

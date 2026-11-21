@@ -320,12 +320,16 @@ RETURNS JSONB AS $$
 DECLARE
     v_count INTEGER := 0;
 BEGIN
+    IF auth_role() != 'admin' THEN
+        RAISE EXCEPTION 'Access Denied: State Admin privileges required';
+    END IF;
+
     INSERT INTO delegates (
         token, full_name, phone, district_id, gender,
         emergency_name, emergency_phone, notes, status
     )
     SELECT 
-        COALESCE(NULLIF(elem->>'token', ''), 'del-' || substr(md5(random()::text), 1, 8) || '-' || (ROW_NUMBER() OVER())),
+        COALESCE(NULLIF(elem->>'token', ''), 'del_' || encode(gen_random_bytes(12), 'hex')),
         COALESCE(NULLIF(elem->>'full_name', ''), 'Unnamed'),
         NULLIF(elem->>'phone', ''),
         COALESCE((elem->>'district_id')::INTEGER, 2),
@@ -347,7 +351,7 @@ BEGIN
     GET DIAGNOSTICS v_count = ROW_COUNT;
     RETURN jsonb_build_object('success', true, 'count', v_count);
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- 5.5 Fast Bulk Import for Houses
 CREATE OR REPLACE FUNCTION import_houses(p_houses JSONB)
@@ -355,6 +359,10 @@ RETURNS JSONB AS $$
 DECLARE
     v_count INTEGER := 0;
 BEGIN
+    IF auth_role() != 'admin' THEN
+        RAISE EXCEPTION 'Access Denied: State Admin privileges required';
+    END IF;
+
     INSERT INTO houses (
         name, address, map_url, lat, lng, host_name, host_phone, capacity, gender_restriction, notes
     )
@@ -374,62 +382,84 @@ BEGIN
     GET DIAGNOSTICS v_count = ROW_COUNT;
     RETURN jsonb_build_object('success', true, 'count', v_count);
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- 6. GRANT PERMISSIONS & RLS POLICIES
-GRANT ALL ON TABLE districts TO authenticated, anon;
-GRANT ALL ON TABLE profiles TO authenticated, anon;
-GRANT ALL ON TABLE houses TO authenticated, anon;
-GRANT ALL ON TABLE delegates TO authenticated, anon;
-GRANT ALL ON TABLE announcements TO authenticated, anon;
-GRANT ALL ON TABLE volunteers TO authenticated, anon;
-GRANT ALL ON TABLE location_pings TO authenticated, anon;
-GRANT ALL ON TABLE volunteer_location_pings TO authenticated, anon;
-GRANT ALL ON TABLE app_settings TO authenticated, anon;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated, anon;
+-- 6. GRANT PERMISSIONS & HARDENED RLS POLICIES
+REVOKE ALL ON TABLE profiles FROM anon;
+REVOKE ALL ON TABLE houses FROM anon;
+REVOKE ALL ON TABLE delegates FROM anon;
+REVOKE ALL ON TABLE announcements FROM anon;
+REVOKE ALL ON TABLE location_pings FROM anon;
+REVOKE ALL ON TABLE volunteer_location_pings FROM anon;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE delegates TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE houses TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE announcements TO authenticated;
+GRANT SELECT, UPDATE ON TABLE profiles TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON TABLE location_pings TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE volunteer_location_pings TO authenticated;
+GRANT SELECT ON TABLE districts TO authenticated, anon;
+GRANT SELECT ON TABLE app_settings TO authenticated, anon;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 
 GRANT EXECUTE ON FUNCTION get_my_stay(TEXT) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION share_location(TEXT, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION share_volunteer_location(TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION) TO authenticated, anon;
-GRANT EXECUTE ON FUNCTION import_delegates(JSONB) TO authenticated, anon;
-GRANT EXECUTE ON FUNCTION import_houses(JSONB) TO authenticated, anon;
+
+-- STRICT: Restrict bulk import execution to authenticated admins only
+REVOKE EXECUTE ON FUNCTION import_delegates(JSONB) FROM anon, PUBLIC;
+GRANT EXECUTE ON FUNCTION import_delegates(JSONB) TO authenticated;
+REVOKE EXECUTE ON FUNCTION import_houses(JSONB) FROM anon, PUBLIC;
+GRANT EXECUTE ON FUNCTION import_houses(JSONB) TO authenticated;
 
 ALTER TABLE districts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE houses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE delegates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
-ALTER TABLE volunteers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE location_pings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE volunteer_location_pings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 
+-- Drop insecure policies
 DROP POLICY IF EXISTS "Allow all for delegates" ON delegates;
-CREATE POLICY "Allow all for delegates" ON delegates FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow all for volunteers" ON volunteers;
-CREATE POLICY "Allow all for volunteers" ON volunteers FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Allow all for houses" ON houses;
-CREATE POLICY "Allow all for houses" ON houses FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Allow all for announcements" ON announcements;
-CREATE POLICY "Allow all for announcements" ON announcements FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow all for location_pings" ON location_pings;
-CREATE POLICY "Allow all for location_pings" ON location_pings FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow all for volunteer_location_pings" ON volunteer_location_pings;
-CREATE POLICY "Allow all for volunteer_location_pings" ON volunteer_location_pings FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Allow all for profiles" ON profiles;
-CREATE POLICY "Allow all for profiles" ON profiles FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
-
+DROP POLICY IF EXISTS "Allow all for location_pings" ON location_pings;
+DROP POLICY IF EXISTS "Allow all for volunteer_location_pings" ON volunteer_location_pings;
 DROP POLICY IF EXISTS "Allow all for districts" ON districts;
-CREATE POLICY "Allow all for districts" ON districts FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Allow all for app_settings" ON app_settings;
-CREATE POLICY "Allow all for app_settings" ON app_settings FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
+
+-- Hardened RLS policies
+CREATE POLICY "Districts viewable by all" ON districts FOR SELECT TO authenticated, anon USING (true);
+CREATE POLICY "Settings viewable by all" ON app_settings FOR SELECT TO authenticated, anon USING (true);
+CREATE POLICY "Admins manage settings" ON app_settings FOR ALL TO authenticated USING (auth_role() = 'admin') WITH CHECK (auth_role() = 'admin');
+
+CREATE POLICY "Staff read profiles" ON profiles FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Admins full access on profiles" ON profiles FOR ALL TO authenticated USING (auth_role() = 'admin') WITH CHECK (auth_role() = 'admin');
+CREATE POLICY "Users update own safe profile fields" ON profiles FOR UPDATE TO authenticated USING (id = auth.uid()) WITH CHECK (
+    id = auth.uid() AND
+    role = (SELECT role FROM profiles WHERE id = auth.uid()) AND
+    district_id IS NOT DISTINCT FROM (SELECT district_id FROM profiles WHERE id = auth.uid())
+);
+
+CREATE POLICY "Staff view houses" ON houses FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Staff manage houses" ON houses FOR INSERT TO authenticated WITH CHECK (auth_role() IN ('admin', 'district'));
+CREATE POLICY "Staff update houses" ON houses FOR UPDATE TO authenticated USING (auth_role() IN ('admin', 'district')) WITH CHECK (auth_role() IN ('admin', 'district'));
+CREATE POLICY "Admins delete houses" ON houses FOR DELETE TO authenticated USING (auth_role() = 'admin');
+
+CREATE POLICY "Staff view delegates" ON delegates FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Staff manage delegates" ON delegates FOR INSERT TO authenticated WITH CHECK (auth_role() IN ('admin', 'district'));
+CREATE POLICY "Staff update delegates" ON delegates FOR UPDATE TO authenticated USING (auth_role() IN ('admin', 'district', 'volunteer')) WITH CHECK (auth_role() IN ('admin', 'district', 'volunteer'));
+CREATE POLICY "Admins delete delegates" ON delegates FOR DELETE TO authenticated USING (auth_role() = 'admin');
+
+CREATE POLICY "Announcements readable by all" ON announcements FOR SELECT TO authenticated, anon USING (true);
+CREATE POLICY "Staff manage announcements" ON announcements FOR ALL TO authenticated USING (auth_role() IN ('admin', 'district')) WITH CHECK (auth_role() IN ('admin', 'district'));
+
+CREATE POLICY "Pings viewable by staff" ON volunteer_location_pings FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Staff manage volunteer pings" ON volunteer_location_pings FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- 7. CREATE DEFAULT STATE ADMIN USER
 -- Login: admin@balasangham.in / AdminSecurePass2026!

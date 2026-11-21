@@ -66,11 +66,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // 1. Check local session
     const saved = localStorage.getItem('sammelanam_staff_session');
+    let parsedSession: StaffProfile | null = null;
     if (saved) {
       try {
-        setUser(JSON.parse(saved));
+        parsedSession = JSON.parse(saved);
+        setUser(parsedSession);
       } catch (e) {
         console.warn('Failed to parse saved session', e);
+        localStorage.removeItem('sammelanam_staff_session');
       }
     }
 
@@ -79,23 +82,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       supabase.auth.getSession().then(({ data }) => {
         if (data.session?.user) {
           fetchSupabaseProfile(data.session.user.id, data.session.user.email || '');
+        } else {
+          // If Supabase has no active session, invalidate client-side unauthenticated session
+          setUser(null);
+          localStorage.removeItem('sammelanam_staff_session');
+          setLoading(false);
         }
+      }).catch(() => {
+        setLoading(false);
       });
 
       const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
         if (session?.user) {
           fetchSupabaseProfile(session.user.id, session.user.email || '');
-        } else if (!saved) {
+        } else {
           setUser(null);
+          localStorage.removeItem('sammelanam_staff_session');
         }
       });
 
       return () => {
         authListener.subscription.unsubscribe();
       };
+    } else {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, []);
 
   const fetchSupabaseProfile = async (userId: string, email: string) => {
@@ -118,24 +129,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(profile);
         localStorage.setItem('sammelanam_staff_session', JSON.stringify(profile));
       } else {
-        // If profile row does not exist yet in public.profiles, provide a resilient fallback
+        // SECURITY FIX: New staff default to 'volunteer' role, NEVER 'admin'
         const fallbackProfile: StaffProfile = {
           id: userId,
           email,
           full_name: email.split('@')[0] || 'സ്റ്റാഫ് (Staff)',
-          role: 'admin', // Default to admin for initial staff logins
+          role: 'volunteer',
         };
         setUser(fallbackProfile);
         localStorage.setItem('sammelanam_staff_session', JSON.stringify(fallbackProfile));
 
-        // Attempt background profile upsert
+        // Attempt background profile upsert with safe default volunteer role
         supabase
           .from('profiles')
           .upsert({
             id: userId,
             full_name: fallbackProfile.full_name,
             phone: '',
-            role: 'admin',
+            role: 'volunteer',
           })
           .then(({ error: upsertErr }) => {
             if (upsertErr) console.warn('Background profile upsert notice:', upsertErr.message);
@@ -151,15 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     const cleanEmail = email.trim().toLowerCase();
 
-    // Check demo accounts first
-    const demo = DEMO_ACCOUNTS[cleanEmail];
-    if (demo && demo.pass === password) {
-      setUser(demo.profile);
-      localStorage.setItem('sammelanam_staff_session', JSON.stringify(demo.profile));
-      return { success: true };
-    }
-
-    // Try Supabase Auth if configured
+    // 1. If Supabase is configured, ALWAYS authenticate against live Supabase Auth first
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
@@ -172,6 +175,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.user) {
         await fetchSupabaseProfile(data.user.id, data.user.email || '');
+        return { success: true };
+      }
+    }
+
+    // 2. Demo accounts ONLY active when Supabase is NOT configured (offline mock/dev mode)
+    if (!isSupabaseConfigured) {
+      const demo = DEMO_ACCOUNTS[cleanEmail];
+      if (demo && demo.pass === password) {
+        setUser(demo.profile);
+        localStorage.setItem('sammelanam_staff_session', JSON.stringify(demo.profile));
         return { success: true };
       }
     }

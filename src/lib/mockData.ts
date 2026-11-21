@@ -254,8 +254,8 @@ export const MOCK_HOUSE_IDS = new Set(['h-101', 'h-102', 'h-103', 'h-104']);
 
 export const MOCK_ANNOUNCEMENT_IDS = new Set(['ann-1', 'ann-2', 'ann-3']);
 
-// Cache Time-To-Live: 10 minutes (prevents stale data from sticking indefinitely)
-export const CACHE_TTL_MS = 10 * 60 * 1000;
+// Cache Time-To-Live: 5 hours (persists delegates, houses, volunteers & announcements across visits)
+export const CACHE_TTL_MS = 5 * 60 * 60 * 1000;
 
 export const getHouseNaturalKey = (h: House | { name?: string; host_phone?: string; id?: string }): string => {
   const cleanName = (h.name || '').trim().toLowerCase();

@@ -45,7 +45,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ showSearch, onSearch, co
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 flex flex-col items-start gap-2.5">
         {/* Conference Tag Pill with Official Logo */}
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 backdrop-blur-sm text-slate-900 text-xs font-bold tracking-wide shadow-md border border-white/40">
-          <img src="/images/logo.png" alt="Balasangham Logo" className="w-5 h-5 object-contain" />
+          <img src="/images/logo.webp" alt="Balasangham Logo" width="20" height="20" className="w-5 h-5 object-contain" />
           <span className="text-primary font-black uppercase tracking-wider">{t('app_name')}</span>
           <span className="text-slate-300">|</span>
           <span className="text-slate-700 font-semibold">{t('portal_title')}</span>

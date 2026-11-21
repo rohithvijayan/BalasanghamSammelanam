@@ -101,7 +101,7 @@ export const AdminWorkbench: React.FC = () => {
     // Visibility-aware auto-sync every 60s (zero bandwidth when tab is backgrounded)
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
-        loadData(true);
+        loadData(false);
       }
     }, 60000);
 

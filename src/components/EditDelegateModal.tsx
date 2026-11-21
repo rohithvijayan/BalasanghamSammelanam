@@ -81,22 +81,27 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
     setIsSaving(true);
     const dist = initialDistricts.find((d) => d.id === Number(districtId));
 
+    // SECURITY FIX: Sanitize phone numbers and limit length
+    const cleanPhone = phone.trim().replace(/[^0-9+]/g, '').slice(0, 15);
+    const cleanEmergencyPhone = emergencyPhone.trim().replace(/[^0-9+]/g, '').slice(0, 15);
+    const cleanVolPhone = volunteerPhone.trim().replace(/[^0-9+]/g, '').slice(0, 15);
+
     const updated: Delegate = {
       ...delegate,
-      full_name: fullName.trim(),
-      phone: phone.trim(),
+      full_name: fullName.trim().slice(0, 100),
+      phone: cleanPhone,
       district_id: Number(districtId),
       district_en: dist ? dist.name_en : delegate.district_en,
       district_ml: dist ? dist.name_ml : delegate.district_ml,
       gender,
-      emergency_name: emergencyName.trim(),
-      emergency_phone: emergencyPhone.trim(),
-      notes: notes.trim(),
+      emergency_name: emergencyName.trim().slice(0, 100),
+      emergency_phone: cleanEmergencyPhone,
+      notes: notes.trim().slice(0, 500),
       volunteer: volunteerName.trim()
         ? {
-            name: volunteerName.trim(),
-            phone: volunteerPhone.trim(),
-            unit: volunteerUnit.trim(),
+            name: volunteerName.trim().slice(0, 100),
+            phone: cleanVolPhone,
+            unit: volunteerUnit.trim().slice(0, 100),
           }
         : null,
     };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { House } from '../types';
 import { useI18n } from '../i18n/i18nContext';
+import { isSafeUrl } from '../lib/supabase';
 import { X, Check, Home, Phone, MapPin, Users, Navigation } from 'lucide-react';
 
 interface EditHouseModalProps {
@@ -58,6 +59,12 @@ export const EditHouseModal: React.FC<EditHouseModalProps> = ({
     e.preventDefault();
     if (!name.trim()) return;
 
+    const cleanMapUrl = mapUrl.trim();
+    if (cleanMapUrl && !isSafeUrl(cleanMapUrl)) {
+      alert(language === 'ml' ? 'ദയവായി സാധുവായ ഒരു മാപ്പ് ലിങ്ക് (https://) നൽകുക.' : 'Please enter a valid map URL starting with https://');
+      return;
+    }
+
     setIsSaving(true);
     const savedHouse: House = {
       id: house ? house.id : 'h-' + Date.now(),
@@ -67,7 +74,7 @@ export const EditHouseModal: React.FC<EditHouseModalProps> = ({
       host_phone: hostPhone.trim(),
       capacity: Number(capacity) || 4,
       gender_restriction: genderRestriction,
-      map_url: mapUrl.trim(),
+      map_url: cleanMapUrl,
       notes: notes.trim(),
     };
 

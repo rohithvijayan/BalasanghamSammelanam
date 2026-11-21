@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../lib/supabase';
+import { browserCache, CACHE_KEYS } from '../lib/browserCache';
 import { StayPortalData } from '../types';
 import { useI18n } from '../i18n/i18nContext';
 import { HeroBanner } from '../components/HeroBanner';
@@ -32,25 +33,21 @@ export const DelegatePortal: React.FC = () => {
     if (!isSilent) setLoading(true);
     setError(null);
 
-    // Check localStorage cache first for immediate offline render (FR-PWA-2)
-    const cached = localStorage.getItem(`stay_cache_${delegateToken}`);
+    // Check browser cache first for immediate offline render (5-hour TTL)
+    const cached = browserCache.get<StayPortalData>(CACHE_KEYS.STAY_PORTAL(delegateToken));
     if (cached && !isSilent) {
-      try {
-        const parsed = JSON.parse(cached);
-        setData(parsed);
-        if (parsed.announcements) {
-          setKnownAnnouncementIds(new Set(parsed.announcements.map((a: any) => a.id)));
-        }
-      } catch (e) {
-        console.warn('Cache parse error', e);
+      setData(cached);
+      if (cached.announcements) {
+        setKnownAnnouncementIds(new Set(cached.announcements.map((a: any) => a.id)));
       }
     }
 
     try {
-      const result = await api.getMyStay(delegateToken);
+      // If isSilent is true (e.g. background polling), force network refresh
+      const result = await api.getMyStay(delegateToken, isSilent);
       if (result) {
         setData(result);
-        localStorage.setItem(`stay_cache_${delegateToken}`, JSON.stringify(result));
+        browserCache.set(CACHE_KEYS.STAY_PORTAL(delegateToken), result);
         setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
 
         if (result.announcements) {

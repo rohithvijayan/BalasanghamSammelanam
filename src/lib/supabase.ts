@@ -1,6 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { mockStore, getHouseNaturalKey } from './mockData';
 import { StayPortalData, DelegateStatus, LocationPing, Delegate, House, Volunteer, VolunteerLocationPing, Announcement, PaginationParams, PaginatedResult } from '../types';
+import {
+  browserCache,
+  CACHE_KEYS,
+  TTL_BROWSER_CACHE_MS,
+  shouldLiveFetchOnLoad,
+} from './browserCache';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -11,6 +17,18 @@ export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
+// SECURITY UTILITY: URL Sanitizer to prevent Stored XSS (javascript: / data: URI attacks)
+export const isSafeUrl = (url?: string | null): boolean => {
+  if (!url) return false;
+  const clean = url.trim();
+  try {
+    const parsed = new URL(clean);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+};
+
 // =========================================================================
 // Network Egress Optimization: In-Memory TTL Cache & In-Flight Deduplication
 // =========================================================================
@@ -19,11 +37,7 @@ interface CacheEntry<T> {
   timestamp: number;
 }
 
-const TTL_DELEGATES = 25000;       // 25s cache
-const TTL_HOUSES = 30000;          // 30s cache
-const TTL_VOLUNTEERS = 30000;      // 30s cache
-const TTL_ANNOUNCEMENTS = 25000;   // 25s cache
-const TTL_PINGS = 15000;           // 15s cache
+const TTL_PINGS = 15000;           // 15s cache for temporary live GPS pings
 
 let delegatesCache: CacheEntry<Delegate[]> | null = null;
 let housesCache: CacheEntry<House[]> | null = null;
@@ -47,14 +61,22 @@ export const invalidateCache = (target?: 'delegates' | 'houses' | 'volunteers' |
     announcementsCache.clear();
     locationPingsCache = null;
     volunteerPingsCache = null;
+    browserCache.clearAll();
   } else if (target === 'delegates') {
     delegatesCache = null;
+    browserCache.remove(CACHE_KEYS.DELEGATES);
   } else if (target === 'houses') {
     housesCache = null;
+    browserCache.remove(CACHE_KEYS.HOUSES);
   } else if (target === 'volunteers') {
     volunteersCache = null;
+    browserCache.remove(CACHE_KEYS.VOLUNTEERS);
   } else if (target === 'announcements') {
     announcementsCache.clear();
+    browserCache.remove(CACHE_KEYS.ANNOUNCEMENTS());
+    for (let i = 1; i <= 14; i++) {
+      browserCache.remove(CACHE_KEYS.ANNOUNCEMENTS(i));
+    }
   } else if (target === 'pings') {
     locationPingsCache = null;
     volunteerPingsCache = null;
@@ -63,10 +85,22 @@ export const invalidateCache = (target?: 'delegates' | 'houses' | 'volunteers' |
 
 // Unified Data Service: Seamlessly switches between live Supabase and mock/local store
 export const api = {
-  // Fetch all delegates (Supabase live with fallback to mockStore, with deduplication & caching)
+  invalidateCache,
+  // Fetch all delegates (Supabase live with 5-hour persistent browser cache, live refresh on page reload)
   async getDelegates(forceRefresh = false): Promise<Delegate[]> {
-    if (!forceRefresh && delegatesCache && Date.now() - delegatesCache.timestamp < TTL_DELEGATES) {
-      return delegatesCache.data;
+    const cacheKey = CACHE_KEYS.DELEGATES;
+    const mustRefresh = shouldLiveFetchOnLoad(cacheKey, forceRefresh);
+
+    if (!mustRefresh) {
+      if (delegatesCache && Date.now() - delegatesCache.timestamp < TTL_BROWSER_CACHE_MS) {
+        return delegatesCache.data;
+      }
+      const localCached = browserCache.get<Delegate[]>(cacheKey, TTL_BROWSER_CACHE_MS);
+      if (localCached && localCached.length > 0) {
+        delegatesCache = { data: localCached, timestamp: Date.now() };
+        mockStore.setDelegates(localCached, false);
+        return localCached;
+      }
     }
 
     if (inflightDelegates) {
@@ -117,15 +151,22 @@ export const api = {
               checked_in_at: row.checked_in_at,
             }));
             delegatesCache = { data: mapped, timestamp: Date.now() };
+            browserCache.set(cacheKey, mapped);
             mockStore.setDelegates(mapped, false);
             return mapped;
           }
         } catch (err) {
-          console.warn('Failed to fetch delegates from Supabase, falling back to mockStore', err);
+          console.warn('Failed to fetch delegates from Supabase, falling back to cache', err);
         }
+      }
+      const fallbackCached = browserCache.get<Delegate[]>(cacheKey, TTL_BROWSER_CACHE_MS);
+      if (fallbackCached && fallbackCached.length > 0) {
+        delegatesCache = { data: fallbackCached, timestamp: Date.now() };
+        return fallbackCached;
       }
       const local = mockStore.getDelegates();
       delegatesCache = { data: local, timestamp: Date.now() };
+      browserCache.set(cacheKey, local);
       return local;
     })().finally(() => {
       inflightDelegates = null;
@@ -134,10 +175,21 @@ export const api = {
     return inflightDelegates;
   },
 
-  // Fetch all accommodation houses (Supabase live with fallback, with deduplication & caching)
+  // Fetch all accommodation houses (Supabase live with 5-hour persistent browser cache, live refresh on page reload)
   async getHouses(forceRefresh = false): Promise<House[]> {
-    if (!forceRefresh && housesCache && Date.now() - housesCache.timestamp < TTL_HOUSES) {
-      return housesCache.data;
+    const cacheKey = CACHE_KEYS.HOUSES;
+    const mustRefresh = shouldLiveFetchOnLoad(cacheKey, forceRefresh);
+
+    if (!mustRefresh) {
+      if (housesCache && Date.now() - housesCache.timestamp < TTL_BROWSER_CACHE_MS) {
+        return housesCache.data;
+      }
+      const localCached = browserCache.get<House[]>(cacheKey, TTL_BROWSER_CACHE_MS);
+      if (localCached && localCached.length > 0) {
+        housesCache = { data: localCached, timestamp: Date.now() };
+        mockStore.setHouses(localCached, false);
+        return localCached;
+      }
     }
 
     if (inflightHouses) {
@@ -149,7 +201,7 @@ export const api = {
         try {
           const { data, error } = await supabase
             .from('houses')
-            .select('*')
+            .select('id, name, address, map_url, lat, lng, host_name, host_phone, capacity, gender_restriction, notes')
             .order('name', { ascending: true });
 
           if (!error && data && data.length > 0) {
@@ -177,15 +229,22 @@ export const api = {
             }
             const uniqueHouses = Array.from(uniqueMap.values());
             housesCache = { data: uniqueHouses, timestamp: Date.now() };
+            browserCache.set(cacheKey, uniqueHouses);
             mockStore.setHouses(uniqueHouses, false);
             return uniqueHouses;
           }
         } catch (err) {
-          console.warn('Failed to fetch houses from Supabase, falling back to mockStore', err);
+          console.warn('Failed to fetch houses from Supabase, falling back to cache', err);
         }
+      }
+      const fallbackCached = browserCache.get<House[]>(cacheKey, TTL_BROWSER_CACHE_MS);
+      if (fallbackCached && fallbackCached.length > 0) {
+        housesCache = { data: fallbackCached, timestamp: Date.now() };
+        return fallbackCached;
       }
       const local = mockStore.getHouses();
       housesCache = { data: local, timestamp: Date.now() };
+      browserCache.set(cacheKey, local);
       return local;
     })().finally(() => {
       inflightHouses = null;
@@ -194,10 +253,21 @@ export const api = {
     return inflightHouses;
   },
 
-  // Fetch volunteers (Supabase live with fallback, with deduplication & caching)
+  // Fetch volunteers (Supabase live with 5-hour persistent browser cache, live refresh on page reload)
   async getVolunteers(forceRefresh = false): Promise<Volunteer[]> {
-    if (!forceRefresh && volunteersCache && Date.now() - volunteersCache.timestamp < TTL_VOLUNTEERS) {
-      return volunteersCache.data;
+    const cacheKey = CACHE_KEYS.VOLUNTEERS;
+    const mustRefresh = shouldLiveFetchOnLoad(cacheKey, forceRefresh);
+
+    if (!mustRefresh) {
+      if (volunteersCache && Date.now() - volunteersCache.timestamp < TTL_BROWSER_CACHE_MS) {
+        return volunteersCache.data;
+      }
+      const localCached = browserCache.get<Volunteer[]>(cacheKey, TTL_BROWSER_CACHE_MS);
+      if (localCached && localCached.length > 0) {
+        volunteersCache = { data: localCached, timestamp: Date.now() };
+        mockStore.setVolunteers(localCached, false);
+        return localCached;
+      }
     }
 
     if (inflightVolunteers) {
@@ -209,7 +279,7 @@ export const api = {
         try {
           const { data, error } = await supabase
             .from('volunteers')
-            .select('*')
+            .select('id, name, phone, unit')
             .order('name', { ascending: true });
 
           if (!error && data && data.length > 0) {
@@ -220,15 +290,22 @@ export const api = {
               unit: row.unit || '',
             }));
             volunteersCache = { data: mapped, timestamp: Date.now() };
+            browserCache.set(cacheKey, mapped);
             mockStore.setVolunteers(mapped, false);
             return mapped;
           }
         } catch (err) {
-          console.warn('Failed to fetch volunteers from Supabase, falling back to mockStore', err);
+          console.warn('Failed to fetch volunteers from Supabase, falling back to cache', err);
         }
+      }
+      const fallbackCached = browserCache.get<Volunteer[]>(cacheKey, TTL_BROWSER_CACHE_MS);
+      if (fallbackCached && fallbackCached.length > 0) {
+        volunteersCache = { data: fallbackCached, timestamp: Date.now() };
+        return fallbackCached;
       }
       const local = mockStore.getVolunteers();
       volunteersCache = { data: local, timestamp: Date.now() };
+      browserCache.set(cacheKey, local);
       return local;
     })().finally(() => {
       inflightVolunteers = null;
@@ -391,7 +468,7 @@ export const api = {
   async getHousesPaginated(page = 1, pageSize = 20, search = '', forceRefresh = false): Promise<PaginatedResult<House>> {
     if (supabase) {
       try {
-        let query = supabase.from('houses').select('*', { count: 'exact' });
+        let query = supabase.from('houses').select('id, name, address, map_url, lat, lng, host_name, host_phone, capacity, gender_restriction, notes', { count: 'exact' });
 
         if (search && search.trim()) {
           const s = search.trim();
@@ -525,6 +602,30 @@ export const api = {
     const uniqueHouses = Array.from(uniqueMap.values());
 
     if (supabase) {
+      // 1. Try atomic, high-performance bulk RPC first
+      try {
+        const rpcPayload = uniqueHouses.map((h) => ({
+          name: h.name,
+          address: h.address,
+          map_url: h.map_url || null,
+          lat: h.lat || null,
+          lng: h.lng || null,
+          host_name: h.host_name,
+          host_phone: h.host_phone,
+          capacity: h.capacity || 4,
+          gender_restriction: h.gender_restriction || 'any',
+          notes: h.notes || null,
+        }));
+        const { data: rpcData, error: rpcErr } = await supabase.rpc('bulk_upsert_houses', { p_houses: rpcPayload });
+        if (!rpcErr && rpcData?.success) {
+          mockStore.importHouses(uniqueHouses);
+          invalidateCache('houses');
+          return { count: rpcData.count || uniqueHouses.length };
+        }
+      } catch {
+        // Fallback to table insert/update below
+      }
+
       try {
         // Fetch existing houses to avoid duplicate rows
         const { data: existingRows } = await supabase
@@ -600,12 +701,24 @@ export const api = {
     invalidateCache('houses');
     return { count: uniqueHouses.length };
   },
-  // Fetch delegate stay details using secure token
-  async getMyStay(token: string): Promise<StayPortalData | null> {
+  // Fetch delegate stay details using secure token (with 5-hour persistent cache & live reload refresh)
+  async getMyStay(token: string, forceRefresh = false): Promise<StayPortalData | null> {
+    const storageKey = CACHE_KEYS.STAY_PORTAL(token);
+    const mustRefresh = shouldLiveFetchOnLoad(storageKey, forceRefresh);
+
+    if (!mustRefresh) {
+      const cached = browserCache.get<StayPortalData>(storageKey, TTL_BROWSER_CACHE_MS);
+      if (cached) {
+        return cached;
+      }
+    }
+
     if (supabase) {
       const { data, error } = await supabase.rpc('get_my_stay', { p_token: token });
       if (error || !data || !data.success) {
-        console.warn('Supabase get_my_stay error, falling back to mock store', error);
+        console.warn('Supabase get_my_stay error, falling back to cache/mock store', error);
+        const fallback = browserCache.get<StayPortalData>(storageKey, TTL_BROWSER_CACHE_MS);
+        if (fallback) return fallback;
         return mockStore.getDelegateByToken(token);
       }
       let resolvedVolunteer = data.volunteer;
@@ -619,14 +732,19 @@ export const api = {
           active_location: activeLoc || null,
         };
       }
-      return {
+      const result: StayPortalData = {
         delegate: data.delegate,
         house: data.house,
         volunteer: resolvedVolunteer,
         announcements: data.announcements || [],
         helplines: data.helpline || [],
       };
+      browserCache.set(storageKey, result);
+      return result;
     }
+
+    const fallback = browserCache.get<StayPortalData>(storageKey, TTL_BROWSER_CACHE_MS);
+    if (fallback) return fallback;
     return mockStore.getDelegateByToken(token);
   },
 
@@ -779,7 +897,10 @@ export const api = {
           checked_in_at: status === 'checked_in' ? new Date().toISOString() : null,
         })
         .eq('id', delegateId);
-      if (!error) return true;
+      if (error) {
+        console.error('Supabase updateDelegateStatus error:', error);
+        throw new Error(error.message || 'Failed to update delegate status');
+      }
     }
     mockStore.updateStatus(delegateId, status);
     return true;
@@ -794,7 +915,10 @@ export const api = {
         .from('delegates')
         .update({ house_id: houseId })
         .eq('id', delegateId);
-      if (!error) return true;
+      if (error) {
+        console.error('Supabase assignHouse error:', error);
+        throw new Error(error.message || 'Failed to assign house in database');
+      }
     }
     mockStore.assignHouse(delegateId, houseId);
     return true;
@@ -809,30 +933,58 @@ export const api = {
         .from('delegates')
         .update({ house_id: houseId })
         .in('id', delegateIds);
-      if (!error) return true;
+      if (error) {
+        console.error('Supabase bulkAssign error:', error);
+        throw new Error(error.message || 'Failed to bulk assign in database');
+      }
     }
     mockStore.bulkAssign(delegateIds, houseId);
     return true;
   },
 
-  // Assign volunteer to delegate (Admin)
+  // Assign volunteer to delegate (Admin) - with cloud persistence
   async assignVolunteer(delegateId: string, volunteer: Volunteer | null): Promise<boolean> {
     invalidateCache('delegates');
     mockStore.assignVolunteer(delegateId, volunteer);
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('delegates')
+          .update({ volunteer_id: volunteer?.id || null })
+          .eq('id', delegateId);
+        if (error) {
+          console.warn('Supabase assignVolunteer notice:', error.message);
+        }
+      } catch (err) {
+        console.warn('Failed to update volunteer_id in Supabase', err);
+      }
+    }
     return true;
   },
 
-  // Bulk assign volunteer to multiple delegates (Admin)
+  // Bulk assign volunteer to multiple delegates (Admin) - with cloud persistence
   async bulkAssignVolunteer(delegateIds: string[], volunteer: Volunteer | null): Promise<boolean> {
     invalidateCache('delegates');
     mockStore.bulkAssignVolunteer(delegateIds, volunteer);
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('delegates')
+          .update({ volunteer_id: volunteer?.id || null })
+          .in('id', delegateIds);
+        if (error) {
+          console.warn('Supabase bulkAssignVolunteer notice:', error.message);
+        }
+      } catch (err) {
+        console.warn('Failed to update volunteer_id in Supabase', err);
+      }
+    }
     return true;
   },
 
   // Edit delegate details (Admin)
   async updateDelegate(delegate: Partial<Delegate> & { id: string }): Promise<boolean> {
     invalidateCache('delegates');
-    mockStore.updateDelegate(delegate);
     if (supabase) {
       try {
         const { error } = await supabase
@@ -848,52 +1000,63 @@ export const api = {
           })
           .eq('id', delegate.id);
         if (error) {
-          console.warn('Supabase updateDelegate error:', error);
+          console.error('Supabase updateDelegate error:', error);
+          throw new Error(error.message || 'Failed to update delegate');
         }
-      } catch (e) {
-        console.warn('Failed to update delegate in Supabase', e);
+      } catch (e: any) {
+        console.error('Failed to update delegate in Supabase', e);
+        throw e;
       }
     }
+    mockStore.updateDelegate(delegate);
     return true;
   },
 
   // Edit house details (Admin)
   async updateHouse(house: Partial<House> & { id: string }): Promise<boolean> {
     invalidateCache('houses');
-    mockStore.updateHouse(house);
+    const safeMapUrl = house.map_url !== undefined ? (isSafeUrl(house.map_url) ? house.map_url : '') : undefined;
+    const cleanHouse = {
+      ...house,
+      ...(safeMapUrl !== undefined ? { map_url: safeMapUrl } : {}),
+    };
     if (supabase) {
       try {
         const { error } = await supabase
           .from('houses')
           .update({
-            name: house.name,
-            address: house.address,
-            map_url: house.map_url,
-            host_name: house.host_name,
-            host_phone: house.host_phone,
-            capacity: house.capacity,
-            gender_restriction: house.gender_restriction,
-            notes: house.notes,
+            name: cleanHouse.name,
+            address: cleanHouse.address,
+            ...(safeMapUrl !== undefined ? { map_url: safeMapUrl } : {}),
+            host_name: cleanHouse.host_name,
+            host_phone: cleanHouse.host_phone,
+            capacity: cleanHouse.capacity,
+            gender_restriction: cleanHouse.gender_restriction,
+            notes: cleanHouse.notes,
           })
-          .eq('id', house.id);
+          .eq('id', cleanHouse.id);
         if (error) {
-          console.warn('Supabase updateHouse error:', error);
+          console.error('Supabase updateHouse error:', error);
+          throw new Error(error.message || 'Failed to update house');
         }
-      } catch (e) {
-        console.warn('Failed to update house in Supabase', e);
+      } catch (e: any) {
+        console.error('Failed to update house in Supabase', e);
+        throw e;
       }
     }
+    mockStore.updateHouse(cleanHouse);
     return true;
   },
 
   // Add new house (Admin)
   async addHouse(houseData: Omit<House, 'id'> & { id?: string }): Promise<House> {
     invalidateCache('houses');
+    const safeMapUrl = isSafeUrl(houseData.map_url) ? houseData.map_url : '';
     const newHouse: House = {
       ...houseData,
+      map_url: safeMapUrl,
       id: houseData.id || 'h-' + Date.now(),
     };
-    mockStore.addHouse(newHouse);
     if (supabase) {
       try {
         const { data, error } = await supabase
@@ -910,29 +1073,48 @@ export const api = {
           })
           .select()
           .single();
-        if (!error && data) {
-          return {
+        if (error) {
+          console.error('Supabase addHouse error:', error);
+          throw new Error(error.message || 'Failed to add house');
+        }
+        if (data) {
+          const created = {
             ...newHouse,
             id: data.id,
           };
+          mockStore.addHouse(created);
+          return created;
         }
-      } catch (e) {
-        console.warn('Failed to insert house into Supabase', e);
+      } catch (e: any) {
+        console.error('Failed to insert house into Supabase', e);
+        throw e;
       }
     }
+    mockStore.addHouse(newHouse);
     return newHouse;
   },
 
-  // Fetch announcements (Supabase live with fallback to mockStore, with deduplication & caching)
+  // Fetch announcements (Supabase live with 5-hour persistent browser cache, live refresh on page reload)
   async getAnnouncements(targetDistrictId?: number | null, forceRefresh = false): Promise<Announcement[]> {
-    const cacheKey = targetDistrictId ? `dist-${targetDistrictId}` : 'all';
-    const cached = announcementsCache.get(cacheKey);
-    if (!forceRefresh && cached && Date.now() - cached.timestamp < TTL_ANNOUNCEMENTS) {
-      return cached.data;
+    const memoryKey = targetDistrictId ? `dist-${targetDistrictId}` : 'all';
+    const storageKey = CACHE_KEYS.ANNOUNCEMENTS(targetDistrictId);
+    const mustRefresh = shouldLiveFetchOnLoad(storageKey, forceRefresh);
+
+    if (!mustRefresh) {
+      const cached = announcementsCache.get(memoryKey);
+      if (cached && Date.now() - cached.timestamp < TTL_BROWSER_CACHE_MS) {
+        return cached.data;
+      }
+      const localCached = browserCache.get<Announcement[]>(storageKey, TTL_BROWSER_CACHE_MS);
+      if (localCached && localCached.length > 0) {
+        announcementsCache.set(memoryKey, { data: localCached, timestamp: Date.now() });
+        mockStore.setAnnouncements(localCached, false);
+        return localCached;
+      }
     }
 
-    if (inflightAnnouncements.has(cacheKey)) {
-      return inflightAnnouncements.get(cacheKey)!;
+    if (inflightAnnouncements.has(memoryKey)) {
+      return inflightAnnouncements.get(memoryKey)!;
     }
 
     const promise = (async () => {
@@ -950,25 +1132,32 @@ export const api = {
 
           const { data, error } = await query;
           if (!error && data) {
-            announcementsCache.set(cacheKey, { data, timestamp: Date.now() });
+            announcementsCache.set(memoryKey, { data, timestamp: Date.now() });
+            browserCache.set(storageKey, data);
             mockStore.setAnnouncements(data, false);
             return data;
           }
         } catch (err) {
-          console.warn('Failed to fetch announcements from Supabase, fallback to mockStore', err);
+          console.warn('Failed to fetch announcements from Supabase, fallback to cache', err);
         }
+      }
+      const fallbackCached = browserCache.get<Announcement[]>(storageKey, TTL_BROWSER_CACHE_MS);
+      if (fallbackCached && fallbackCached.length > 0) {
+        announcementsCache.set(memoryKey, { data: fallbackCached, timestamp: Date.now() });
+        return fallbackCached;
       }
       const storeAnnouncements = mockStore.getAnnouncements();
       const filtered = targetDistrictId
         ? storeAnnouncements.filter((a) => !a.target_district_id || a.target_district_id === targetDistrictId)
         : storeAnnouncements;
-      announcementsCache.set(cacheKey, { data: filtered, timestamp: Date.now() });
+      announcementsCache.set(memoryKey, { data: filtered, timestamp: Date.now() });
+      browserCache.set(storageKey, filtered);
       return filtered;
     })().finally(() => {
-      inflightAnnouncements.delete(cacheKey);
+      inflightAnnouncements.delete(memoryKey);
     });
 
-    inflightAnnouncements.set(cacheKey, promise);
+    inflightAnnouncements.set(memoryKey, promise);
     return promise;
   },
 
@@ -1001,14 +1190,20 @@ export const api = {
           .select()
           .single();
 
-        if (!error && data) {
+        if (error) {
+          console.error('Supabase createAnnouncement error:', error);
+          mockStore.deleteAnnouncement(local.id);
+          throw new Error(error.message || 'Failed to publish announcement');
+        }
+
+        if (data) {
           mockStore.deleteAnnouncement(local.id);
           return mockStore.addAnnouncement(data);
-        } else if (error) {
-          console.warn('Supabase createAnnouncement error:', error);
         }
-      } catch (err) {
-        console.warn('Failed to insert announcement into Supabase', err);
+      } catch (err: any) {
+        mockStore.deleteAnnouncement(local.id);
+        console.error('Failed to insert announcement into Supabase', err);
+        throw err;
       }
     }
     return local;
@@ -1017,17 +1212,19 @@ export const api = {
   // Delete announcement (Admin)
   async deleteAnnouncement(id: string): Promise<boolean> {
     invalidateCache('announcements');
-    mockStore.deleteAnnouncement(id);
     if (supabase) {
       try {
         const { error } = await supabase.from('announcements').delete().eq('id', id);
         if (error) {
-          console.warn('Supabase deleteAnnouncement error:', error);
+          console.error('Supabase deleteAnnouncement error:', error);
+          throw new Error(error.message || 'Failed to delete announcement');
         }
-      } catch (err) {
-        console.warn('Failed to delete announcement from Supabase', err);
+      } catch (err: any) {
+        console.error('Failed to delete announcement from Supabase', err);
+        throw err;
       }
     }
+    mockStore.deleteAnnouncement(id);
     return true;
   }
 };

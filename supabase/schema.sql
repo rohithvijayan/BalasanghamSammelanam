@@ -209,7 +209,11 @@ CREATE POLICY "Users update own profile"
     ON profiles FOR UPDATE
     TO authenticated
     USING (id = auth.uid())
-    WITH CHECK (id = auth.uid());
+    WITH CHECK (
+        id = auth.uid() AND
+        role = (SELECT role FROM profiles WHERE id = auth.uid()) AND
+        district_id IS NOT DISTINCT FROM (SELECT district_id FROM profiles WHERE id = auth.uid())
+    );
 
 -- Auto-provision profile trigger when user is created in auth.users
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -220,12 +224,13 @@ BEGIN
     new.id,
     COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
     COALESCE(new.phone, ''),
-    COALESCE((new.raw_user_meta_data->>'role')::user_role, 'admin')
+    -- SECURITY FIX: New users default to volunteer, never auto-escalate to admin
+    COALESCE((new.raw_app_meta_data->>'role')::user_role, 'volunteer')
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created

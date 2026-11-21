@@ -1,6 +1,7 @@
 import React from 'react';
 import { House } from '../types';
 import { useI18n } from '../i18n/i18nContext';
+import { isSafeUrl } from '../lib/supabase';
 import { Phone, MapPin, CheckCircle, Navigation, Droplet, Wind, ShieldCheck } from 'lucide-react';
 
 interface StayCardProps {
@@ -30,7 +31,8 @@ export const StayCard: React.FC<StayCardProps> = ({ house }) => {
     );
   }
 
-  const mapLink = house.map_url || (house.lat && house.lng ? `https://www.google.com/maps/search/?api=1&query=${house.lat},${house.lng}` : null);
+  const safeMapUrl = isSafeUrl(house.map_url) ? house.map_url : null;
+  const mapLink = safeMapUrl || (house.lat && house.lng ? `https://www.google.com/maps/search/?api=1&query=${house.lat},${house.lng}` : null);
 
   return (
     <div className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-sm border border-slate-200/80 flex flex-col gap-5 relative overflow-hidden">

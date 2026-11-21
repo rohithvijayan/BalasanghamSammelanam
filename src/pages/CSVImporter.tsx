@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
 import { mockStore, initialDistricts, getHouseNaturalKey } from '../lib/mockData';
 import { Delegate, House } from '../types';
-import { api, isSupabaseConfigured } from '../lib/supabase';
+import { api, isSupabaseConfigured, isSafeUrl } from '../lib/supabase';
 import { useI18n } from '../i18n/i18nContext';
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Download, ArrowRight, CloudUpload, RefreshCw, Trash2, Database } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -63,6 +62,32 @@ export const CSVImporter: React.FC = () => {
   const hasLocalDelegates = uniqueLocalDelegates.length > 0;
   const hasLocalHouses = uniqueLocalHouses.length > 0;
 
+  // SECURITY FIX: Neutralize formula injection in CSV cells (=, +, -, @, \t, \r)
+  const sanitizeCell = (val: any): string => {
+    if (val === null || val === undefined) return '';
+    const str = String(val).trim();
+    if (/^[=+@\-\t\r]/.test(str)) {
+      return `'${str}`;
+    }
+    return str;
+  };
+
+  // SECURITY FIX: Generate cryptographically secure tokens with high entropy
+  const generateCryptographicToken = (districtPrefix: string): string => {
+    const prefix = districtPrefix ? districtPrefix.toLowerCase().replace(/\s+/g, '-') : 'del';
+    try {
+      if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {
+        const bytes = new Uint8Array(8);
+        window.crypto.getRandomValues(bytes);
+        const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+        return `${prefix}-${hex}`;
+      }
+    } catch {
+      // Fallback
+    }
+    return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
+  };
+
   const processRows = (rawData: any[]) => {
     const validationErrors: string[] = [];
 
@@ -71,7 +96,7 @@ export const CSVImporter: React.FC = () => {
         // Normalize keys to tolerate whitespace, casing, or language variants
         const normalized: Record<string, any> = {};
         for (const k of Object.keys(row)) {
-          normalized[k.trim().toLowerCase()] = row[k];
+          normalized[k.trim().toLowerCase()] = sanitizeCell(row[k]);
         }
 
         const fullName = normalized['full_name'] || normalized['name'] || normalized['പേര്'] || '';
@@ -95,10 +120,7 @@ export const CSVImporter: React.FC = () => {
 
         return {
           id: 'del-' + Date.now() + '-' + idx,
-          token:
-            (district ? district.toLowerCase().replace(/\s+/g, '-') : 'del') +
-            '-' +
-            Math.random().toString(36).substring(2, 8),
+          token: generateCryptographicToken(district),
           full_name: fullName || 'Unnamed',
           phone: phone,
           district_id: dist ? dist.id : 2, // default Kannur if unmatched
@@ -126,12 +148,13 @@ export const CSVImporter: React.FC = () => {
       const validated = rawData.map((row, idx) => {
         const normalized: Record<string, any> = {};
         for (const k of Object.keys(row)) {
-          normalized[k.trim().toLowerCase()] = row[k];
+          normalized[k.trim().toLowerCase()] = sanitizeCell(row[k]);
         }
 
         const name = normalized['name'] || normalized['house_name'] || normalized['വീട്ടുപേര്'] || 'Unnamed House';
         const address = normalized['address'] || normalized['മേൽവിലാസം'] || '';
-        const mapUrl = normalized['map_url'] || normalized['maps'] || '';
+        const rawMapUrl = normalized['map_url'] || normalized['maps'] || '';
+        const mapUrl = isSafeUrl(rawMapUrl) ? rawMapUrl : '';
         const hostName = normalized['host_name'] || normalized['host'] || normalized['ആതിഥേയൻ'] || 'Host';
         const hostPhone = String(normalized['host_phone'] || normalized['phone'] || normalized['ഫോൺ'] || '').trim();
         const capacity = parseInt(normalized['capacity'] || normalized['കപ്പാസിറ്റി'], 10) || 4;
@@ -172,11 +195,19 @@ export const CSVImporter: React.FC = () => {
     setSuccessMsg(null);
     setErrors([]);
 
+    // SECURITY FIX: Limit upload file size to 5MB to prevent client DoS
+    const MAX_FILE_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+      setErrors([language === 'ml' ? 'ഫയൽ സൈസ് 5MB-യിൽ താഴെയായിരിക്കണം.' : 'File size exceeds maximum 5MB limit.']);
+      return;
+    }
+
     const fileName = file.name.toLowerCase();
 
-    // Check for Excel (.xlsx, .xls)
+    // Check for Excel (.xlsx, .xls) - loaded dynamically on demand to keep initial bundle lean
     if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
       try {
+        const XLSX = await import('xlsx');
         const buffer = await file.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];

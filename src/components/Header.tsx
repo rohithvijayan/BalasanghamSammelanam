@@ -23,7 +23,7 @@ export const Header: React.FC = () => {
         {/* Left: Branding */}
         <Link to="/" className="flex items-center gap-1.5 sm:gap-2.5 group shrink min-w-0 md:min-w-fit">
           <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white p-0.5 border border-slate-100 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform overflow-hidden shrink-0">
-            <img src="/images/logo.png" alt="Balasangham Logo" className="w-full h-full object-contain" />
+            <img src="/images/logo.webp" alt="Balasangham Logo" width="40" height="40" className="w-full h-full object-contain" />
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-primary truncate leading-tight">

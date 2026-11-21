@@ -11,7 +11,11 @@ export const LoginPage: React.FC = () => {
   const location = useLocation();
 
   const searchParams = new URLSearchParams(location.search);
-  const redirectUrl = searchParams.get('redirect') || '/admin';
+  const rawRedirect = searchParams.get('redirect') || '/admin';
+  // SECURITY FIX: Prevent Open Redirects by strictly validating relative internal path
+  const redirectUrl = (rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') && !rawRedirect.includes(':'))
+    ? rawRedirect
+    : '/admin';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -55,7 +59,7 @@ export const LoginPage: React.FC = () => {
         {/* Heading & Logo */}
         <div className="flex flex-col items-center text-center gap-2 pt-2">
           <div className="w-16 h-16 rounded-2xl bg-white border border-slate-100 p-1 shadow-sm flex items-center justify-center">
-            <img src="/images/logo.png" alt="Balasangham Logo" className="w-full h-full object-contain" />
+            <img src="/images/logo.webp" alt="Balasangham Logo" width="64" height="64" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-xl sm:text-2xl font-malayalam-bold text-slate-900 mt-1">
             {language === 'ml' ? 'സ്റ്റാഫ് ലോഗിൻ (Staff Sign In)' : 'Staff Sign In'}

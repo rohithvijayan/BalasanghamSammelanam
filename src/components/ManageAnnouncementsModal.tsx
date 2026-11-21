@@ -92,11 +92,12 @@ export const ManageAnnouncementsModal: React.FC<ManageAnnouncementsModalProps> =
 
       const districtIdNum = targetDistrictId === 'all' ? null : parseInt(targetDistrictId, 10);
 
+      // SECURITY FIX: Limit title and body lengths
       await onCreateAnnouncement({
-        title_ml: titleMl.trim(),
-        title_en: titleEn.trim(),
-        body_ml: bodyMl.trim(),
-        body_en: bodyEn.trim(),
+        title_ml: titleMl.trim().slice(0, 150),
+        title_en: titleEn.trim().slice(0, 150),
+        body_ml: bodyMl.trim().slice(0, 2000),
+        body_en: bodyEn.trim().slice(0, 2000),
         pinned,
         target_district_id: districtIdNum,
       });

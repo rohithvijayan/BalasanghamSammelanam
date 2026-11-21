@@ -63,6 +63,7 @@ export default defineConfig({
     host: true,
   },
   build: {
+    sourcemap: false,
     rollupOptions: {
       output: {
         manualChunks: {
