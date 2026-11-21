@@ -9,7 +9,7 @@ import { StayCard } from '../components/StayCard';
 import { VolunteerCard } from '../components/VolunteerCard';
 import { HelplineSupportCard } from '../components/HelplineSupportCard';
 import { AnnouncementsFeed } from '../components/AnnouncementsFeed';
-import { CheckCircle2, Clock, AlertCircle, RefreshCw, Home, Bell } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, RefreshCw, Home, Bell, WifiOff } from 'lucide-react';
 import {
   isNotificationSupported,
   getNotificationPermission,
@@ -28,6 +28,22 @@ export const DelegatePortal: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<string>('Just now');
   const [knownAnnouncementIds, setKnownAnnouncementIds] = useState<Set<string>>(() => new Set());
   const [notifPermission, setNotifPermission] = useState(getNotificationPermission());
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      if (token) loadStayData(token, true);
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [token]);
 
   const loadStayData = async (delegateToken: string, isSilent = false) => {
     if (!isSilent) setLoading(true);
@@ -56,12 +72,28 @@ export const DelegatePortal: React.FC = () => {
           );
         }
       } else if (!cached && !isSilent) {
-        setError(t('error_invalid_token'));
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          setError(
+            language === 'ml'
+              ? 'ഇന്റർനെറ്റ് കണക്ഷൻ ലഭ്യമല്ല. ദയവായി നെറ്റ്‌വർക്ക് പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.'
+              : 'No internet connection. Please check your network and try again.'
+          );
+        } else {
+          setError(t('error_invalid_token'));
+        }
       }
     } catch (err) {
       console.error('Error fetching stay details', err);
       if (!cached && !isSilent) {
-        setError(t('error_invalid_token'));
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          setError(
+            language === 'ml'
+              ? 'ഇന്റർനെറ്റ് കണക്ഷൻ ലഭ്യമല്ല. ദയവായി നെറ്റ്‌വർക്ക് പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.'
+              : 'No internet connection. Please check your network and try again.'
+          );
+        } else {
+          setError(t('error_invalid_token'));
+        }
       }
     } finally {
       if (!isSilent) setLoading(false);
@@ -135,6 +167,18 @@ export const DelegatePortal: React.FC = () => {
     <div className="w-full flex flex-col">
       {/* 1. Full-Width Hero Section */}
       <HeroBanner compact />
+
+      {/* Offline Status Notice Banner */}
+      {!isOnline && (
+        <div className="bg-amber-600 text-white px-4 py-2 text-xs font-bold flex items-center justify-center gap-2 shadow-sm z-30">
+          <WifiOff className="w-3.5 h-3.5 shrink-0 animate-pulse" />
+          <span>
+            {language === 'ml'
+              ? 'ഓഫ്‌ലൈൻ മോഡ്: നെറ്റ്‌വർക്ക് കണക്ഷനില്ല. ഫോണിൽ സേവ് ചെയ്ത വിവരങ്ങൾ കാണിക്കുന്നു.'
+              : 'Offline Mode: No network connection. Displaying saved stay details.'}
+          </span>
+        </div>
+      )}
 
       {/* 2. Main Delegate Portal Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-5 w-full">
