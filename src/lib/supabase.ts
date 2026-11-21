@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { mockStore, getHouseNaturalKey } from './mockData';
+import { mockStore, getHouseNaturalKey, getVolunteerNaturalKey } from './mockData';
 import { StayPortalData, DelegateStatus, LocationPing, Delegate, House, Volunteer, VolunteerLocationPing, Announcement, PaginationParams, PaginatedResult } from '../types';
 import {
   browserCache,
@@ -133,7 +133,7 @@ export const api = {
             `)
             .order('created_at', { ascending: false });
 
-          if (!error && data && data.length > 0) {
+          if (!error && data) {
             const mapped = data.map((row: any) => ({
               id: row.id,
               token: row.token,
@@ -204,7 +204,7 @@ export const api = {
             .select('id, name, address, map_url, lat, lng, host_name, host_phone, capacity, gender_restriction, notes')
             .order('name', { ascending: true });
 
-          if (!error && data && data.length > 0) {
+          if (!error && data) {
             const mapped = data.map((row: any) => ({
               id: row.id,
               name: row.name,
@@ -282,7 +282,7 @@ export const api = {
             .select('id, name, phone, unit')
             .order('name', { ascending: true });
 
-          if (!error && data && data.length > 0) {
+          if (!error && data) {
             const mapped: Volunteer[] = data.map((row: any) => ({
               id: row.id,
               name: row.name,
@@ -700,6 +700,86 @@ export const api = {
     mockStore.importHouses(uniqueHouses);
     invalidateCache('houses');
     return { count: uniqueHouses.length };
+  },
+
+  // Bulk import volunteers to Supabase
+  async importVolunteers(volunteers: Volunteer[]): Promise<{ count: number; error?: string }> {
+    const uniqueMap = new Map<string, Volunteer>();
+    for (const v of volunteers) {
+      const key = getVolunteerNaturalKey(v);
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, v);
+      }
+    }
+    const uniqueVolunteers = Array.from(uniqueMap.values());
+
+    if (supabase) {
+      try {
+        const { data: existingRows } = await supabase
+          .from('volunteers')
+          .select('id, name, phone, unit');
+
+        const existingMap = new Map<string, string>(); // naturalKey -> id
+        if (existingRows) {
+          for (const r of existingRows) {
+            const key = getVolunteerNaturalKey(r);
+            existingMap.set(key, r.id);
+          }
+        }
+
+        const toInsert: any[] = [];
+        const toUpdate: { id: string; data: any }[] = [];
+
+        for (const v of uniqueVolunteers) {
+          const key = getVolunteerNaturalKey(v);
+          const existingId = existingMap.get(key);
+          const payload = {
+            name: v.name.trim(),
+            phone: v.phone.trim(),
+            unit: (v.unit || '').trim(),
+          };
+
+          if (existingId) {
+            toUpdate.push({ id: existingId, data: payload });
+          } else {
+            toInsert.push(payload);
+          }
+        }
+
+        if (toInsert.length > 0) {
+          const { error: insErr } = await supabase.from('volunteers').insert(toInsert);
+          if (insErr) {
+            console.error('Supabase importVolunteers insert error:', insErr);
+            if (insErr.message?.includes('permission denied')) {
+              throw new Error(
+                'Supabase permission denied for volunteers. Please run supabase/fix_permissions.sql in your Supabase SQL Editor.'
+              );
+            }
+            throw new Error(insErr.message);
+          }
+        }
+
+        if (toUpdate.length > 0) {
+          await Promise.all(
+            toUpdate.map((item) =>
+              supabase.from('volunteers').update(item.data).eq('id', item.id)
+            )
+          );
+        }
+
+        mockStore.importVolunteers(uniqueVolunteers);
+        invalidateCache('volunteers');
+        return { count: uniqueVolunteers.length };
+      } catch (err: any) {
+        console.warn('Supabase importVolunteers error, fallback to mockStore', err);
+        mockStore.importVolunteers(uniqueVolunteers);
+        invalidateCache('volunteers');
+        return { count: uniqueVolunteers.length, error: err.message };
+      }
+    }
+    mockStore.importVolunteers(uniqueVolunteers);
+    invalidateCache('volunteers');
+    return { count: uniqueVolunteers.length };
   },
   // Fetch delegate stay details using secure token (with 5-hour persistent cache & live reload refresh)
   async getMyStay(token: string, forceRefresh = false): Promise<StayPortalData | null> {

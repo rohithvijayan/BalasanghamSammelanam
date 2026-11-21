@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
-import { mockStore, initialDistricts, getHouseNaturalKey } from '../lib/mockData';
-import { Delegate, House } from '../types';
+import { mockStore, initialDistricts, getHouseNaturalKey, getVolunteerNaturalKey } from '../lib/mockData';
+import { Delegate, House, Volunteer } from '../types';
 import { api, isSupabaseConfigured, isSafeUrl } from '../lib/supabase';
 import { useI18n } from '../i18n/i18nContext';
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Download, ArrowRight, CloudUpload, RefreshCw, Trash2, Database } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Download, ArrowRight, CloudUpload, RefreshCw, Trash2, Database, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const CSVImporter: React.FC = () => {
   const { language, t } = useI18n();
   const navigate = useNavigate();
 
-  const [importType, setImportType] = useState<'delegates' | 'houses'>('delegates');
+  const [importType, setImportType] = useState<'delegates' | 'houses' | 'volunteers'>('delegates');
   const [parsedRows, setParsedRows] = useState<any[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -23,11 +23,13 @@ export const CSVImporter: React.FC = () => {
   // Reactive store subscription
   const [delegates, setDelegates] = useState<Delegate[]>(() => mockStore.getDelegates());
   const [houses, setHouses] = useState<House[]>(() => mockStore.getHouses());
+  const [volunteers, setVolunteers] = useState<Volunteer[]>(() => mockStore.getVolunteers());
 
   useEffect(() => {
     const unsub = mockStore.subscribe(() => {
       setDelegates(mockStore.getDelegates());
       setHouses(mockStore.getHouses());
+      setVolunteers(mockStore.getVolunteers());
     });
 
     if (isSupabaseConfigured) {
@@ -59,8 +61,19 @@ export const CSVImporter: React.FC = () => {
     return Array.from(map.values());
   }, [houses]);
 
+  // Deduplicate local volunteers by natural key
+  const uniqueLocalVolunteers = useMemo(() => {
+    const map = new Map<string, Volunteer>();
+    for (const v of volunteers) {
+      const key = getVolunteerNaturalKey(v);
+      map.set(key, v);
+    }
+    return Array.from(map.values());
+  }, [volunteers]);
+
   const hasLocalDelegates = uniqueLocalDelegates.length > 0;
   const hasLocalHouses = uniqueLocalHouses.length > 0;
+  const hasLocalVolunteers = uniqueLocalVolunteers.length > 0;
 
   // SECURITY FIX: Neutralize formula injection in CSV cells (=, +, -, @, \t, \r)
   const sanitizeCell = (val: any): string => {
@@ -300,27 +313,30 @@ export const CSVImporter: React.FC = () => {
     setSuccessMsg(null);
 
     try {
+      api.invalidateCache('delegates');
       mockStore.clearLocalDelegates();
       if (isSupabaseConfigured) {
         try {
-          const cloudData = await api.getDelegates();
-          if (cloudData && cloudData.length > 0) {
-            mockStore.setDelegates(cloudData);
-            setCloudCount(cloudData.length);
-            setSuccessMsg(
-              language === 'ml'
-                ? `ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു, ക്ലൗഡിൽ നിന്നുള്ള ${cloudData.length} പ്രതിനിധികളെ പുതുക്കി ലോഡ് ചെയ്തു.`
-                : `Local cache cleared and refreshed with ${cloudData.length} delegates from cloud.`
-            );
-            return;
-          }
+          const cloudData = await api.getDelegates(true);
+          mockStore.setDelegates(cloudData, false);
+          setCloudCount(cloudData.length);
+          setDelegates(cloudData);
+          setSuccessMsg(
+            language === 'ml'
+              ? `ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു, ക്ലൗഡിൽ നിന്നുള്ള ${cloudData.length} പ്രതിനിധികളെ പുതുക്കി ലോഡ് ചെയ്തു.`
+              : `Local cache cleared and refreshed with ${cloudData.length} delegates from cloud.`
+          );
+          return;
         } catch {
           // fall through
         }
       }
+      setDelegates([]);
       setSuccessMsg(language === 'ml' ? 'ഈ ഡിവൈസിലെ ലോക്കൽ കാഷെ വിജയകരമായി ക്ലിയർ ചെയ്തു.' : 'Local cache on this device cleared successfully.');
     } catch (err: any) {
+      api.invalidateCache('delegates');
       mockStore.clearLocalDelegates();
+      setDelegates([]);
       setSuccessMsg(language === 'ml' ? 'ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു.' : 'Local cache cleared.');
     } finally {
       setIsClearing(false);
@@ -333,11 +349,13 @@ export const CSVImporter: React.FC = () => {
     setSuccessMsg(null);
 
     try {
+      api.invalidateCache('houses');
       mockStore.clearLocalHouses();
       if (isSupabaseConfigured) {
         try {
-          const cloudHouses = await api.getHouses();
-          mockStore.setHouses(cloudHouses);
+          const cloudHouses = await api.getHouses(true);
+          mockStore.setHouses(cloudHouses, false);
+          setHouses(cloudHouses);
           setSuccessMsg(
             language === 'ml'
               ? `വീടുകളുടെ ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു, ക്ലൗഡിൽ നിന്നുള്ള ${cloudHouses.length} വീടുകൾ പുതുക്കി ലോഡ് ചെയ്തു.`
@@ -348,13 +366,16 @@ export const CSVImporter: React.FC = () => {
           // fall through
         }
       }
+      setHouses([]);
       setSuccessMsg(
         language === 'ml'
           ? 'ഈ ഡിവൈസിലെ വീടുകളുടെ ലോക്കൽ കാഷെ വിജയകരമായി ക്ലിയർ ചെയ്തു.'
           : 'Local house cache on this device cleared successfully.'
       );
     } catch (err: any) {
+      api.invalidateCache('houses');
       mockStore.clearLocalHouses();
+      setHouses([]);
       setSuccessMsg(language === 'ml' ? 'ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു.' : 'Local cache cleared.');
     } finally {
       setIsClearing(false);

@@ -25,7 +25,8 @@ import {
   Plus,
   Bell,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  RefreshCw
 } from 'lucide-react';
 
 export const AdminWorkbench: React.FC = () => {
@@ -58,6 +59,16 @@ export const AdminWorkbench: React.FC = () => {
   const [editingDelegate, setEditingDelegate] = useState<Delegate | null>(null);
   const [editingHouse, setEditingHouse] = useState<House | null>(null);
   const [isAddingHouse, setIsAddingHouse] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await loadData(true);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const loadData = async (forceRefresh = false) => {
     try {
@@ -303,6 +314,17 @@ export const AdminWorkbench: React.FC = () => {
                 ? `അറിയിപ്പുകൾ (${announcements.length})`
                 : `Announcements (${announcements.length})`}
             </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 border border-slate-200 shadow-2xs transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
+            title={language === 'ml' ? 'ക്ലൗഡിൽ നിന്ന് ഡാറ്റ പുതുക്കുക' : 'Refresh data from Supabase'}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{language === 'ml' ? 'പുതുക്കുക' : 'Refresh'}</span>
           </button>
 
           {/* District Filter: Lock for district coordinators, dropdown for state admins */}
