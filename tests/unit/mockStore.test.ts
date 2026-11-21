@@ -34,6 +34,32 @@ describe('mockStore - State Conference Data Store', () => {
     expect(upperData?.delegate.id).toBe(data?.delegate.id);
   });
 
+  it('should retrieve delegate by phone number and delegate ID (homepage search support)', () => {
+    // 1. By exact phone stored with country code (+91 98470 11223)
+    const exactPhoneData = mockStore.getDelegateByToken('+91 98470 11223');
+    expect(exactPhoneData).not.toBeNull();
+    expect(exactPhoneData?.delegate.token).toBe('kannur-arjun-412');
+
+    // 2. By raw 10-digit phone number (9847011223)
+    const tenDigitData = mockStore.getDelegateByToken('9847011223');
+    expect(tenDigitData).not.toBeNull();
+    expect(tenDigitData?.delegate.token).toBe('kannur-arjun-412');
+
+    // 3. By phone with spaces and dashes (+91-98470-11223 / 98470 11223)
+    const formattedData = mockStore.getDelegateByToken('98470 11223');
+    expect(formattedData).not.toBeNull();
+    expect(formattedData?.delegate.token).toBe('kannur-arjun-412');
+
+    // 4. By delegate ID (del-1)
+    const idData = mockStore.getDelegateByToken('del-1');
+    expect(idData).not.toBeNull();
+    expect(idData?.delegate.token).toBe('kannur-arjun-412');
+
+    // 5. Non-existent phone returns null
+    const nonExistentPhone = mockStore.getDelegateByToken('9999999999');
+    expect(nonExistentPhone).toBeNull();
+  });
+
   it('should return null for non-existent token', () => {
     const data = mockStore.getDelegateByToken('non-existent-token-999');
     expect(data).toBeNull();

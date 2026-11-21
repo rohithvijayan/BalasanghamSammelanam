@@ -25,7 +25,7 @@ export const LandingPage: React.FC = () => {
 
   const handleSearch = (token: string) => {
     if (token.trim()) {
-      navigate(`/d/${token.trim()}`);
+      navigate(`/d/${encodeURIComponent(token.trim())}`);
     }
   };
 

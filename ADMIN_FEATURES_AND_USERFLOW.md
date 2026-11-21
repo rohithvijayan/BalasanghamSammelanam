@@ -1,377 +1,287 @@
-# Balasangham State Conference – Admin Features & User Flow
-### ബാലസംഘം സംസ്ഥാന സമ്മേളനം – അഡ്മിൻ ഗൈഡ്
+# Balasangham State Conference – Web App Features & Promotional Video Guide
+### ബാലസംഘം സംസ്ഥാന സമ്മേളനം – താമസ വിവര പോർട്ടൽ: ഫീച്ചറുകളും പ്രമോഷണൽ വീഡിയോ സ്ക്രിപ്റ്റും
 
-**Event:** 8th Balasangham State Conference (*നീലേശ്വരം, പാലായി, കാസർഗോഡ്*)  
-**Dates:** November 27, 28, 29, 2026  
-**Role:** **State Admin (Superadmin / സംസ്ഥാന അഡ്മിൻ)**  
-**Target:** 500–700 Child Delegates (Aged 10–14), Coordinators, Host Homes & Volunteers  
-**Scope:** Full Statewide Cross-District Authority, Initial Data Setup & Ingestion, Accommodation Allocation, Direct & Bulk Volunteer Assignment, Inline Editing & Creation, Interactive Training Guide Quest, Real-Time Cloud Polling, Check-in Attendance Oversight & Child Safety Controls.
-
----
-
-## 1. Overview of the Admin Role
-
-In the Balasangham State Conference Accommodation & Stay Tracker, the **State Admin** represents the apex administrative authority (State Reception & Accommodation Committee). While District Coordinators are restricted to their specific home district and Volunteers are scoped strictly to their assigned child delegates, the **State Admin** holds complete cross-district governance, write privileges, and data management rights across all 14 Kerala districts.
-
-### Role Permission Matrix
-
-| Capability | State Admin | District Coordinator | Helpdesk Volunteer | Delegate / Parent |
-| :--- | :---: | :---: | :---: | :---: |
-| **All 14 Districts Visibility** | **Full (Statewide)** | Single District Only | Assigned Units | Own Stay Only |
-| **CSV & Excel Spreadsheet Importer (`/import`)** | **Yes (.csv, .xlsx, .xls)** | No | No | No |
-| **Assign / Reallocate Houses** | **Yes** | No (Read-Only) | No | No |
-| **Bulk & Direct Volunteer Assignment (FR-ASN-6)** | **Yes (Workbench + Modal)** | No | No | No |
-| **Add / Edit Host Houses from UI** | **Yes (`+ Add House` & Modal)** | No | No (Read-Only) | No |
-| **Inline Edit Delegate Details** | **Yes (UI Modal)** | No (Read-Only) | Yes (Quick Phone Fix) | No |
-| **Interactive "How to Use" Quest Simulator** | **Yes (Full 5-Step Simulation)**| Yes | Yes (Desk Simulation) | No |
-| **Override House Capacity** | **Yes (Soft Warning)** | No | No | No |
-| **Arrival Check-In Toggle** | **Yes** | Own District Only | Assigned Delegates | No |
-| **View Host & Emergency Contacts** | **All Houses & Parents** | Own District | Assigned Delegates | Own Host & Volunteer |
-| **Live GPS Location Pings** | **All Active (30m TTL)** | Own District | Assigned Delegates | Self-Share Only |
-| **Auto Cloud Polling & Sync (15s)** | **Yes (Active)** | Yes (Active) | Yes (Active) | On Refresh |
-| **Database Sync & Purge** | **Yes** | No | No | No |
+> **Event:** 8th Balasangham State Conference (*നീലേശ്വരം, പാലായി, കാസർഗോഡ്*)  
+> **Dates:** November 27, 28, 29, 2026  
+> **Audience:** State Administrators, District Coordinators, Reception Volunteers & Child Delegates  
+> **Purpose:** Comprehensive feature reference & scene-by-scene script designed to produce a **Promotional "How-to-Use" Walkthrough Video** for reception committee members, volunteers, and parents.
 
 ---
 
-## 2. Chronological Feature Breakdown & Modules
+## Part I: Promotional "How-to-Use" Video Script & Storyboard
 
-The platform is designed around a natural operational journey for the State Admin:
-
-```
-[1. Sign In & Guide Quest] ➔ [2. Initial Setup: /import] ➔ [3. Allocation & Volunteer Assignment: /admin] ➔ [4. Dispatch & Reception: /volunteer]
-```
-
----
-
-### Step 1: Authentication & Interactive Training Guide Quest
-
-#### A. Authentication & Role Recognition (`/login`)
-- **Direct Authentication:** Secure sign-in using email and password powered by Supabase Auth (or interactive local mock storage fallback).
-- **Default Admin Account:** `admin@balasangham.in` / `admin123`.
-- **Dynamic Role Navigation:** Upon signing in as Admin, the top navigation automatically unlocks:
-  - **Data Import (CSV / Excel)** (`/import`)
-  - **Admin Workbench** (`/admin`)
-  - **Volunteer Desk** (`/volunteer`)
-- **Role Badge:** Top header displays the authenticated session status: `സംസ്ഥാന അഡ്മിൻ (State Admin)` with an active green pulse indicator.
-
-#### B. Interactive "How to Use" Quest & Simulator (`InteractiveGuideModal.tsx`)
-A complete **Interactive Training Simulator** built directly into the app header to train reception committee members and state admins without modifying real event data:
-- **Header Trigger Button:** An amber **"How to Use / ഗൈഡ്"** button prominently positioned in both the desktop header and mobile drawer.
-- **React Portal Architecture:** Mounts via `createPortal` directly to `document.body` so it breaks out of the sticky header stacking context and overlays cleanly on any mobile or desktop screen.
-- **5-Step Role-Aware Admin Quest Simulation:**
-  1. **Step 1 (Data Ingestion Simulator):** Teaches how to drag-and-drop Excel/CSV spreadsheets and commit delegates/houses with auto-token generation.
-  2. **Step 2 (Exact Workbench Allocation Replica):** A realistic interactive sandbox replicating the Admin Workbench. Admins practice multi-selecting delegates, testing the `+ Assign Volunteer` dropdown, inspecting capacity progress bars, and clicking "Assign Here" with real-time toast feedback.
-  3. **Step 3 (Exact Edit Delegate Modal Replica):** A live interactive sandbox of `EditDelegateModal`. Admins practice updating Name, Phone, Gender, District, Guardian Emergency Contacts, and assigning a Squad Volunteer In-Charge.
-  4. **Step 4 (Volunteer Desk & WhatsApp Dispatch):** Teaches search filtering, 1-tap arrival check-in toggle, and previewing pre-formatted WhatsApp stay link messages (`wa.me/?text=...`).
-  5. **Step 5 (Emergency GPS & Safety):** Teaches tracking 30-minute consent-based delegate location pings and 1-tap Google Maps navigation for lost delegates.
-- **Zero Production Risk:** Organizers can run the simulator repeatedly to get comfortable before the conference begins without touching live delegate records.
+* **Target Video Runtime:** ~3:30 to 4:00 minutes (or modular 30–60 second social media reels).  
+* **Pacing:** Dynamic, inspiring, professional, and clear.  
+* **Audio Track:** Energetic, uplifting background score (ducked during voiceover).  
+* **Bilingual Visuals:** Malayalam UI on screen with English/Malayalam captions and bilingual voiceover cues.
 
 ---
 
-### Step 2: Initial Setup — Data Ingestion & Onboarding (`/import`)
+### Scene 1: The Vision — Welcome to Nileshwaram (0:00 – 0:30)
 
-Immediately after logging in, the Admin's very first action is to populate the system with host houses and incoming child delegates. Without this initial setup, housing allocation cannot begin.
-
-#### A. Multi-Format Spreadsheet Ingestion
-- **Supported File Formats:** Ingests both **Microsoft Excel (`.xlsx`, `.xls`)** workbooks and standard **UTF-8 CSV (`.csv`)** files.
-- **Malayalam Unicode & BOM Support:** Native support for Malayalam font encodings exported directly from Excel or Google Sheets without corrupted characters or broken glyphs.
-- **Smart Natural Key Deduplication:** Normalizes houses using a natural composite key (`name + address + host_phone`) to eliminate duplicate houses if spreadsheets are re-uploaded.
-
-#### B. The Two Ingestion Modules:
-1. **Host Houses Import:**
-   - **Required Columns:** `name`, `address`, `map_url`, `host_name`, `host_phone`, `capacity`, `gender_restriction`, `notes`.
-   - Sets up the accommodation capacity matrix for Nileshwaram and Palayi.
-2. **Delegates Import:**
-   - **Required Columns:** `full_name`, `phone`, `district`, `gender`, `emergency_name`, `emergency_phone`, `notes`.
-   - **Automatic Token Generation (FR-IMP-2):** Every child delegate is automatically assigned a cryptographically random, unguessable personal link token (*e.g., `kannur-arjun-412` or `del-9x8a21`*). This enables frictionless mobile access for children and parents without any password or app installation friction (`/d/:token` or `/stay/:token`).
-
-#### C. Validation & Commit Controls
-- **Pre-Commit Preview Table:** Real-time parser validation checks for missing names, phone formatting, and valid district matching before committing.
-- **Cloud & Local Synchronization:**
-  - **"Sync Local to Cloud" Button:** Pushes staged local browser data to Supabase PostgreSQL in batched transactions.
-  - **"Clear Local Cache" Button:** Clears device storage and reloads clean records directly from the database.
+| Visual Direction (On-Screen Action) | On-Screen Graphic / Text | Voiceover Narration (English & Malayalam) |
+| :--- | :--- | :--- |
+| **Wide cinematic establishing shot** of the conference artwork and logo. Fade into the web app landing page (`/`) on both mobile and desktop. Smooth scroll over the Nileshwaram Palayi banner and the bilingual switcher (`മലയാളം` / `English`). | **8-ാമത് ബാലസംഘം സംസ്ഥാന സമ്മേളനം**<br>നീലേശ്വരം, പാലായി • 2026 നവംബർ 27–29<br>*600+ കുട്ടികളുടെ സുരക്ഷിത താമസം വിരൽത്തുമ്പിൽ!* | *"നവംബർ 27 മുതൽ 29 വരെ കാസർഗോഡ് നീലേശ്വരത്ത് നടക്കുന്ന 8-ാമത് ബാലസംഘം സംസ്ഥാന സമ്മേളനത്തിലേക്ക് എത്തുന്ന 600-ലധികം ബാലപ്രതിനിധികൾക്കായി അത്യാധുനിക താമസ വിവര പോർട്ടൽ സജ്ജമായിക്കഴിഞ്ഞു.*<br><br>Welcome to the official Balasangham State Conference Stay & Accommodation Platform—designed for frictionless reception, zero password hurdles, and 100% child safety." |
+| Close-up on the hero search bar and 24/7 helpline cards: Control Room Desk, Medical Emergency, and Volunteer Dispatch. | **Zero Passwords • 100% Child Safety • Instant Offline Access** | *"യാത്രയിലുടനീളം വിവരങ്ങൾ ലഭ്യമാക്കാൻ ലോഗിൻ ആവശ്യമില്ലാത്ത വ്യക്തിഗത ലിങ്കുകൾ, 24 മണിക്കൂർ കൺട്രോൾ റൂം ഹെൽപ്പ്‌ലൈനുകൾ, പൂർണ്ണ ഓഫ്‌ലൈൻ സൗകര്യം എന്നിവ ഈ പ്ലാറ്റ്‌ഫോമിന്റെ സവിശേഷതയാണ്."* |
 
 ---
 
-### Step 3: Housing Allocation, Volunteer Squad Assignment & Control Workbench (`/admin`)
+### Scene 2: Role-Based Sign In & Interactive Training Quest (0:30 – 1:00)
 
-Once data is committed at `/import`, the Admin navigates to `/admin` to orchestrate room assignments, pair delegates with volunteers, and manage capacities.
-
-#### A. Statewide Control Header & District Filter
-- **14-District Selector:** Unlike District Coordinators whose district is locked, Admin has an active dropdown menu allowing instant switching between:
-  - `All Districts (14 ജില്ലകൾ)` — statewide aggregate view.
-  - Any single district (*e.g., Kannur, Kasaragod, Malappuram, Thiruvananthapuram, Kozhikode*).
-- **Bilingual Interface:** Instant Malayalam (official **Anek Malayalam 800 Bold**) / English switcher.
-- **Auto Cloud Polling (15s):** Automatically synchronises state with the central database every 15 seconds so multiple committee members see assignments in real time.
-
-#### B. Live Metric Cards
-Real-time summary counters dynamically updated upon every allocation or status toggle:
-1. **Total Registered Delegates:** Aggregate count across all districts or filtered district.
-2. **Accommodated Count:** Number of delegates currently assigned to a home + percentage completion progress indicator.
-3. **Checked-In (ഹാജർ നില):** Real-time tally of child delegates who have reached the venue/station.
-4. **Pending Arrival (വഴിയിലാണ്):** Delegates currently en route.
-
-#### C. Left Pane: Unassigned Queue & Bulk Volunteer Assignment
-- Lists all delegates who currently do not have a room or host house assigned (`house_id === null`).
-- **Real-Time Filters:**
-  - **Search:** Instant substring filter across delegate names and phone numbers.
-  - **Gender Filter:** 1-tap toggles for `All`, `Boys (ആൺകുട്ടികൾ)`, and `Girls (പെൺകുട്ടികൾ)`.
-- **Multi-Select Batch Allocation:** Checkbox selection allowing the Admin to choose 1, 2, 4, or more delegates simultaneously for bulk assignment.
-- **Bulk Volunteer Squad Assignment (`FR-ASN-6`):**
-  - When one or more delegates are selected via checkboxes, a new **`+ Assign Volunteer (+ വളണ്ടിയറെ നൽകുക)`** dropdown activates in the queue header.
-  - Selecting a registered volunteer (*e.g., Reshma P., Anjali Krishnan, Pranav M.*) assigns that volunteer as the squad leader to all selected children in a single click.
-- **Delegate Meta Badges & Inline Edit:**
-  - Displays district name, gender pill (Pink/Blue), phone number, and unit.
-  - **Volunteer Tag (`👤 Volunteer Name`):** Displays an indigo badge showing the child's assigned caretaker.
-  - **Edit Pencil Icon (`Edit2`):** Clicking opens the **Edit Delegate Modal** to modify spelling, phone number, gender, district, guardian emergency contacts, or assigned volunteer on the fly.
-
-#### D. Right Pane: Host Houses & Capacity Matrix (`/admin`)
-- **Direct House Creation (`+ Add House`):** Admin can click the `+ Add House (വീട് ചേർക്കുക)` button to add a new host home directly from the UI without needing to re-upload a spreadsheet.
-- **Inline House Editing:** Every house card features an **"Edit (തിരുത്തുക)"** button to update host contact numbers, capacity limits, gender restrictions, or navigation links in real time.
-- **Capacity Progress Bar:**
-  - Visual status bar showing occupants vs. maximum capacity (e.g., `3 / 4 persons`).
-  - Color-coded badges: Green for `X slots free`, Amber for `Full (കപ്പാസിറ്റി പൂർത്തിയായി)`.
-- **Gender Restriction Indicators:** Flags houses designated as `Girls Only (പെൺകുട്ടികൾക്ക് മാത്രം)` or `Boys Only (ആൺകുട്ടികൾക്ക് മാത്രം)`.
-- **Bulk "Assign Here" Button:** Allots all currently selected delegates from the left pane into the target house with one tap.
-- **Soft Over-Capacity Guard (FR-ASN-3):** If assigning exceeds the house's stated capacity, a confirmation modal alerts the Admin:
-  > *"Warning: This house capacity is 4. Total will become 5. Do you wish to continue?"*  
-  The Admin can confirm to deliberately override or cancel without saving.
-- **Current Occupants Management:**
-  - Shows an inline pill list of every child staying in that house, including their assigned volunteer tag (`👤 Volunteer`).
-  - **Inline Delegate Edit Icon:** Tap the pencil icon directly on an occupant pill to edit their details or switch their volunteer.
-  - **1-Click Check-in Toggle:** Tap the check circle next to an occupant's name to toggle arrival status.
-  - **1-Click Unassign Button (`X`):** Immediately removes a delegate from the house and places them back into the unassigned queue.
+| Visual Direction (On-Screen Action) | On-Screen Graphic / Text | Voiceover Narration (English & Malayalam) |
+| :--- | :--- | :--- |
+| Click **"Sign In (ലോഗിൻ)"** from the header or landing card (`/login`). Show the smart **Tabbed Login Interface**: <br>1. **Volunteer Tab (Phone + PIN)**<br>2. **Admin Tab (Email + Password)**. | **Smart Tabbed Sign-In**<br>• Volunteers: Mobile Number + Conference PIN<br>• Admins: Official Email & Password | *"സംഘാടകർക്കും വളണ്ടിയർമാർക്കും പ്രവേശിക്കാൻ ലളിതമായ രണ്ട് ലോഗിൻ രീതികൾ. ഗ്രൗണ്ട് വളണ്ടിയർമാർക്ക് അവരുടെ രജിസ്റ്റർ ചെയ്ത മൊബൈൽ നമ്പറും സമ്മേളന പിൻ നമ്പറും (Conference PIN) മാത്രം മതി.*<br><br>Ground volunteers sign in in seconds with just their phone number and PIN—no forgotten password delays at the railway station." |
+| Switch to Admin tab, fill `admin@balasangham.in`, tap Sign In. Camera zooms into the header to reveal the amber **"How to Use / ഗൈഡ്"** Quest button. | **Interactive Guide Quest**<br>*എങ്ങനെ ഉപയോഗിക്കാം? (5-Step Training Simulator)* | *"ആദ്യമായി ഉപയോഗിക്കുന്നവരാണോ? ഹെഡറിലെ 'How to Use' ഗൈഡ് വഴി യഥാർത്ഥ ഡാറ്റയെ ബാധിക്കാതെ സിമുലേറ്ററിലൂടെ 5 സ്റ്റെപ്പുകളിൽ കാര്യങ്ങൾ പരിശീലിക്കാം!"*<br><br>Before managing live delegates, organizers can launch the built-in Interactive Quest to master the entire system in a zero-risk simulator." |
 
 ---
 
-### Step 4: Inline Editing & House Creation Modals
+### Scene 3: Initial Setup — 3-in-1 Data Importer (`/import`) (1:00 – 1:40)
 
-To eliminate spreadsheet re-imports for minor corrections during live conference operations, full inline editing and creation is integrated into the UI.
-
-#### A. Edit Delegate Modal with Volunteer Assignment (`EditDelegateModal.tsx`)
-Accessible from the **Unassigned Queue**, **House Occupant Pills**, and the **Volunteer Desk**:
-- **Full Name:** Update spelling or honorifics (*Malayalam or English*).
-- **Phone Number:** Correct typing mistakes in delegate contact numbers.
-- **Gender Toggle:** Switch between `Boy (ആൺകുട്ടി)` and `Girl (പെൺകുട്ടി)` with visual color-coded selectors.
-- **District Re-assignment:** Move delegate to any of Kerala's 14 districts via a dropdown.
-- **Guardian Emergency Details:** Dedicated amber-accented section to update parent/guardian name and phone number.
-- **Assigned Volunteer In-Charge Section (FR-ASN-6):**
-  - Dedicated indigo-accented block displaying **"Volunteer In-Charge (ചുമതലയുള്ള വളണ്ടിയർ)"**.
-  - **Quick Dropdown Pick:** Choose from pre-registered conference volunteers (*Reshma P., Anjali Krishnan, Sujith K., Pranav M.*).
-  - **Custom Volunteer Inputs:** Input fields for custom volunteer name and phone number.
-  - **Removal of Ward Heuristics:** Replaces generic ward approximations by linking a real volunteer directly to the child's stay portal.
-- **Unit & Special Notes:** Dietary requirements (vegetarian/non-vegetarian), unit name, or medical notes.
-- **Real-Time Persistence:** Persists updates directly to Supabase (`delegates` table) and local cache with toast confirmation.
-
-#### B. Add / Edit House Modal (`EditHouseModal.tsx`)
-Accessible via the **"Add House"** header button and the **"Edit"** button on any house card:
-- **House Name:** e.g., *പൂന്തോട്ടം വീട് (Poonthottam House)*.
-- **Address:** Ward, municipality, street, and landmark details.
-- **Host Contact:** Host name and primary mobile number.
-- **Capacity / Beds:** Configurable number of occupants (1 to 100 beds).
-- **Gender Restriction:** Set to `Any (ആൺ / പെൺ)`, `Boys Only (ആൺകുട്ടികൾ മാത്രം)`, or `Girls Only (പെൺകുട്ടികൾ മാത്രം)`.
-- **Google Maps Route URL:** Direct Google Maps navigation link (`https://maps.google.com/?q=...`) for delegates and volunteers.
-- **Landmark / Special Notes:** Walking distance from railway station, fan/water amenities, etc.
+| Visual Direction (On-Screen Action) | On-Screen Graphic / Text | Voiceover Narration (English & Malayalam) |
+| :--- | :--- | :--- |
+| Navigate to `/import`. Highlight the 3 unified module tabs: **Delegates**, **Host Houses**, and **Volunteers**. Show drag-and-drop of an Excel (`.xlsx`) or CSV file. | **Multi-Format 3-in-1 Importer**<br>• Delegates • Host Houses • Volunteers<br>• Excel (.xlsx, .xls) & UTF-8 CSV | *"സമ്മേളന ഒരുക്കങ്ങളുടെ ആദ്യ പടി ഡാറ്റ അപ്‌ലോഡ് ചെയ്യലാണ്. എക്സൽ, സിഎസ്വി ഫയലുകൾ നേരിട്ട് ഇമ്പോർട്ട് ചെയ്യാം. മലയാളം പേരുകൾ കൃത്യമായി സപ്പോർട്ട് ചെയ്യുന്ന യൂണികോഡ് എഞ്ചിൻ ഇതിലുണ്ട്."*<br><br>The Admin setup begins at the Importer. Upload delegate lists, host residences, and volunteers in Excel or CSV format with native Malayalam Unicode support." |
+| Show instant pre-commit validation preview. Point out that delegates get **auto-generated random tokens** (*e.g., `kannur-arjun-412`*). Show natural key deduplication badge (`Clean & Unique`). | **Auto Token Generation (FR-IMP-2)**<br>• Unguessable Personal Stay URLs<br>• Smart Natural Key Deduplication | *"ഓരോ കുട്ടിക്കും പാസ്‌വേഡില്ലാതെ തുറക്കാവുന്ന യുണീക്ക് ടോക്കണുകൾ ഓട്ടോമാറ്റിക്കായി ജനറേറ്റ് ചെയ്യപ്പെടുന്നു. വീടുകളുടെ വിവരങ്ങൾ ആവർത്തിക്കാതിരിക്കാൻ സ്മാർട്ട് ഡീഡ്യൂപ്ലിക്കേഷനും ഉറപ്പാക്കിയിരിക്കുന്നു."* |
+| Tap **"Commit to Database"**, followed by the green success badge and real-time Supabase cloud synchronization counter. | **One-Click Cloud Sync**<br>Instant PostgreSQL Sync | *"ഡാറ്റ പരിശോധിച്ച് ഒറ്റ ക്ലിക്കിൽ ക്ലൗഡ് ഡാറ്റാബേസിലേക്ക് സിങ്ക് ചെയ്യാം. ഇതോടെ താമസ അലോട്ട്മെന്റിനായി സിസ്റ്റം സജ്ജമായി!"* |
 
 ---
 
-### Step 5: Reception Desk, WhatsApp Dispatch & Child Safety (`/volunteer`)
+### Scene 4: Housing Allocation & Volunteer Squad Assignment (`/admin`) (1:40 – 2:30)
 
-Once accommodation is assigned, the Admin monitors arrival operations and provides real-time emergency guidance:
-- **Instant Lookup:** Search delegates by name, registration token, or phone number.
-- **Status Filter:** View `All`, `Pending`, `Checked In`, or `With Live Location`.
-- **Inline Delegate Edit:** Direct pencil edit button next to every delegate to fix phone numbers, guardians, or volunteer assignments during station reception.
-- **1-Tap Attendance Check-In:** Instantly toggle delegate arrival state with floating toast notifications (`അർജുൻ കെ. - ഹാജർ രേഖപ്പെടുത്തി!`).
-- **1-Click WhatsApp Dispatch (`wa.me`):** Pre-formats a WhatsApp message in Malayalam or English containing the child's direct stay link (`/d/:token` or `/stay/:token`) to send to parents with one tap.
-- **Host Directory Tab & Inline House Edit:** Switch to the "Houses" tab to view capacity utilisation, call hosts directly (`tel:`), view occupant lists, and click the edit icon to adjust house details.
-- **Live GPS Emergency Tracking:** 
-  - Polls active location pings submitted by delegates via their mobile browsers.
-  - Enforces a strict 30-minute expiration window for child safety.
-  - Provides a 1-tap **"Open in Google Maps"** navigation shortcut to route volunteers directly to lost delegates.
+| Visual Direction (On-Screen Action) | On-Screen Graphic / Text | Voiceover Narration (English & Malayalam) |
+| :--- | :--- | :--- |
+| Navigate to `/admin`. Pan across the **Two-Pane Operational Workbench**: <br>• Left: Unassigned Delegate Queue<br>• Right: Host Houses & Capacity Matrix. | **Two-Pane Housing Workbench**<br>• 14 Districts Filter • Real-Time Metrics<br>• Live Capacity Tracking | *"ഇതാണ് അഡ്മിൻ വർക്ക് ബെഞ്ച്. 14 ജില്ലകളിലെയും പ്രതിനിധികളെ ഒന്നിച്ച് കാണാനും ഓരോ ജില്ല തിരിച്ചെടുക്കാനും സാധിക്കും.*<br><br>The Admin Workbench provides a unified two-pane command center: unassigned delegates on the left, host houses on the right." |
+| Filter by Gender: Click **"Girls (പെൺകുട്ടികൾ)"**. Check 3 delegates in the unassigned queue. | **Smart Batch Allotment**<br>Multi-Select Delegates + Gender Filter | *"ആൺകുട്ടികൾ, പെൺകുട്ടികൾ എന്നിങ്ങനെ ഫിൽട്ടർ ചെയ്ത് ഒരുമിച്ച് താമസിക്കേണ്ട കുട്ടികളെ ഒരൊറ്റ ക്ലിക്കിൽ സെലക്ട് ചെയ്യാം."* |
+| Show the new **`+ Assign Volunteer (+ വളണ്ടിയറെ നൽകുക)`** dropdown activating in the queue header. Select `രേഷ്മ പി.`. An indigo badge `👤 രേഷ്മ പി.` appears on each child's card. | **Direct Volunteer Squad Assignment**<br>*കുട്ടികൾക്ക് വളണ്ടിയർ ഇൻ-ചാർജ്ജ്* | *"സെലക്ട് ചെയ്ത കുട്ടികൾക്ക് ഉത്തരവാദിയായ സ്ക്വാഡ് വളണ്ടിയറെ മുകളിലെ ഡ്രോപ്പ്ഡൗൺ വഴി ഒന്നിച്ച് ചുമതലപ്പെടുത്താം!"*<br><br>Instantly pair delegates with squad volunteers using the bulk volunteer assignment tool." |
+| On the right pane, locate *സൗപർണിക (Souparnika House)* with 3 slots free. Point out the **House Volunteer In-Charge** dropdown and tap **"Assign Here"**. The capacity bar smoothly animates to 100%. | **Auto-Inheritance & Capacity Guards**<br>• Auto-assigned House Volunteer<br>• Soft Over-Capacity Warning Override | *"വീടിന്റെ കപ്പാസിറ്റി ബാർ തത്സമയം അപ്ഡേറ്റാകുന്നു. വീടിന് നിശ്ചയിച്ച വളണ്ടിയറെ കുട്ടികൾക്ക് സ്വമേധയാ ലഭിക്കും. കപ്പാസിറ്റി കവിയുന്നുവെങ്കിൽ കൃത്യമായ വാണിംഗ് അലേർട്ടും ലഭിക്കും."*<br><br>Delegates allotted to a house automatically inherit that home's in-charge volunteer, while soft warnings prevent accidental overcrowding." |
+| Highlight the **`+ Add House (വീട് ചേർക്കുക)`** button and the **Edit (`Edit2`)** pencil on delegate pills. Click Edit to show updating guardian phone and volunteer on the fly. | **Inline Creation & Live Editing**<br>• + Add House on the fly<br>• EditDelegateModal without re-importing | *"പുതിയ വീടുകൾ ചേർക്കാനോ ഫോൺ നമ്പറുകൾ തിരുത്താനോ സ്പ്രെഡ്ഷീറ്റ് വീണ്ടും അപ്‌ലോഡ് ചെയ്യേണ്ടതില്ല; വർക്ക് ബെഞ്ചിൽ നിന്ന് തന്നെ നേരിട്ട് തിരുത്താം."* |
 
 ---
 
-## 3. Visual Architecture & Navigation Flow
+### Scene 5: Reception Gate & WhatsApp Stay Dispatch (`/volunteer`) (2:30 – 3:15)
+
+| Visual Direction (On-Screen Action) | On-Screen Graphic / Text | Voiceover Narration (English & Malayalam) |
+| :--- | :--- | :--- |
+| Transition to the **Volunteer Helpdesk (`/volunteer`)**. Show a train arriving at Nileshwaram station. The volunteer searches for a delegate by name or phone. | **Volunteer Helpdesk**<br>• Instant Search • 1-Tap Attendance Check-In<br>• Strict Volunteer Privacy Scope | *"ട്രെയിനുകൾ നീലേശ്വരം റെയിൽവേ സ്റ്റേഷനിൽ എത്തുമ്പോൾ ഹെൽപ്പ് ഡെസ്ക് വളണ്ടിയർമാർക്ക് നിമിഷങ്ങൾക്കകം കുട്ടികളെ സ്വീകരിക്കാം.*<br><br>At the reception desk, search by name or phone, and tap the checkmark to record arrival instantly." |
+| Tap the checkmark icon next to a child. A floating toast appears: `അർജുൻ കെ. - ഹാജർ രേഖപ്പെടുത്തി!`. Attendance tallies increment immediately. | **Live Attendance Metrics**<br>15-Second Background Cloud Sync | *"ഹാജർ നില ഉടൻ തന്നെ സംസ്ഥാന കൺട്രോൾ റൂമിലും വർക്ക് ബെഞ്ചിലും തത്സമയം പ്രതിഫലിക്കുന്നു."* |
+| Click the green **WhatsApp (`Share2`)** button on the delegate card. Show the pre-populated WhatsApp message with the child's personal stay link (`wa.me/?text=...`) ready to send to parents. | **1-Click WhatsApp Dispatch**<br>Personal Stay Link sent directly to Parents | *"രക്ഷിതാക്കൾക്ക് കുട്ടിയുടെ താമസ വിവരങ്ങളും ഗൂഗിൾ മാപ്പും അടങ്ങിയ പേഴ്സണൽ ലിങ്ക് വാട്ട്സ്ആപ്പിലൂടെ ഒറ്റ ക്ലിക്കിൽ അയച്ചു നൽകാം!"*<br><br>One tap dispatches a pre-formatted WhatsApp message directly to parents with their child's personal stay link." |
+| Show the **"Host Houses"** tab on the Volunteer Desk with direct-dial `tel:` phone shortcuts to host families. | **Host House Directory**<br>1-Tap Phone Dialing to Hosts | *"താമസ കേന്ദ്രങ്ങളിലെ ആതിഥേയരെ ഫോണിൽ വിളിക്കാനും റൂട്ട് മാപ്പ് കാണാനും വളണ്ടിയർ ഡെസ്കിൽ സൗകര്യമുണ്ട്."* |
+
+---
+
+### Scene 6: Child Safety Portal, Live GPS & PWA Offline Engine (3:15 – 3:45)
+
+| Visual Direction (On-Screen Action) | On-Screen Graphic / Text | Voiceover Narration (English & Malayalam) |
+| :--- | :--- | :--- |
+| Show a child/parent opening their personal link on mobile (`/d/kannur-arjun-412` or `/stay/kannur-arjun-412`). Display: host house card, volunteer in-charge phone, Google Maps button, and emergency hotlines. | **Delegate Stay Portal (/d/:token)**<br>• Verified House Address & Map<br>• Direct Dial Host & Volunteer In-Charge<br>• 24/7 Control Room Helplines | *"കുട്ടികൾക്കോ രക്ഷിതാക്കൾക്കോ ലഭിച്ച ലിങ്ക് തുറന്നാൽ താമസിക്കുന്ന വീടിന്റെ പേര്, ലൊക്കേഷൻ, ഗൂഗിൾ മാപ്പ് റൂട്ട്, ചുമതലയുള്ള വളണ്ടിയറുടെ ഫോൺ നമ്പർ എന്നിവ കൃത്യമായി കാണാം."*<br><br>Delegates see verified stay info, their assigned volunteer's contact, Google Maps directions, and 24/7 helplines." |
+| Simulate a child tapping **"Share Location"**. On the Admin Volunteer Desk, an animated green badge appears: `Active GPS (Live)`. The volunteer taps **"Open in Google Maps"** to navigate directly to the lost child. | **Consent-Based GPS Safety (FR-LOC-1)**<br>• 30-Minute Safe Location Ping<br>• 1-Tap Google Maps Routing | *"വഴി തെറ്റുകയോ സഹായം ആവശ്യമായി വരികയോ ചെയ്താൽ 'Share Location' ക്ലിക്ക് ചെയ്താൽ 30 മിനിറ്റ് നേരത്തേക്ക് വളണ്ടിയർമാർക്ക് കുട്ടിയുടെ ലൊക്കേഷൻ മാപ്പിൽ കാണാനും സഹായിക്കാനും കഴിയും."* |
+| Simulate turning on Airplane Mode. Show the live **"ഓഫ്‍ലൈൻ മോഡ് (Offline Mode)"** banner appearing gracefully while cached stay cards remain 100% accessible. | **100% PWA Offline Ready**<br>Works without Network during Train Journeys | *"നെറ്റ്‌വർക്ക് ഇല്ലാത്ത ട്രെയിൻ യാത്രയിലും വിവരങ്ങൾ ലഭ്യമാകുന്ന പൂർണ്ണ ഓഫ്‌ലൈൻ PWA സാങ്കേതികവിദ്യ!"* |
+
+---
+
+### Scene 7: Outro & Call to Action (3:45 – 4:00)
+
+| Visual Direction (On-Screen Action) | On-Screen Graphic / Text | Voiceover Narration (English & Malayalam) |
+| :--- | :--- | :--- |
+| Split-screen showcasing the entire unified ecosystem: Admin Workbench, Volunteer Desk, and Mobile Delegate Portal. Balasangham State Conference organizing committee credentials and official portal URL fade in. | **ബാലസംഘം സംസ്ഥാന സമ്മേളനം**<br>സ്വാഗതസംഘം ഓഫീസ് • നീലേശ്വരം, പാലായി<br>*സുരക്ഷിതമായ താമസ സൗകര്യങ്ങളോടെ സമ്മേളനത്തിലേക്ക് സ്വാഗതം!* | *"8-ാമത് ബാലസംഘം സംസ്ഥാന സമ്മേളനത്തിലേക്ക് എല്ലാ പ്രിയ കൂട്ടുകാർക്കും ഹൃദ്യമായ സ്വാഗതം!*<br><br>Welcome to the 8th Balasangham State Conference. Technology powering seamless care for every child." |
+
+---
+
+## Part II: Complete Feature Specification & Admin Modules
+
+This section details every feature implemented in the platform, linking operational workflows to technical capabilities.
+
+### 1. Authentication & Role-Based Access Control (RBAC)
+
+| User Role | Credentials / Auth Mechanism | Unlocked Pages & Privileges | Privacy & Security Isolation |
+| :--- | :--- | :--- | :--- |
+| **State Admin** | Official Email & Password (`admin@balasangham.in`) | Full access to `/admin`, `/import`, `/volunteer`, `/`, and management modals. | Unrestricted statewide read/write across all 14 Kerala districts. |
+| **District Coordinator** | District Email & Password (`kannur@balasangham.in`) | Access to `/admin` and `/volunteer`. | Strictly locked to delegates of their assigned home district. |
+| **Ground Volunteer** | **Registered Mobile Phone Number + Conference PIN** (`2026`) | Unlocks `/volunteer` (Volunteer Desk). | **Strict Scope Isolation:** Volunteers can ONLY see delegates and host houses specifically assigned to their care. |
+| **Delegate / Parent** | **Zero Login!** Unguessable URL token (`/d/:token` & `/stay/:token`) | Public read-only stay portal with verified host, volunteer in-charge, and emergency SOS. | Accessible via `SECURITY DEFINER` RPCs (`get_my_stay`). Never exposes lists of other children. |
+
+---
+
+### 2. The 3-in-1 Data Importer (`/import` - Admin Exclusive)
+
+The initial setup begins at `/import`, where the Admin populates the system with 3 synchronized datasets:
+
+1. **Delegates Module:**
+   - **Supported File Types:** Microsoft Excel (`.xlsx`, `.xls`) and UTF-8 CSV (`.csv`).
+   - **Fields Ingested:** `full_name`, `phone`, `district`, `gender`, `emergency_name`, `emergency_phone`, `notes`.
+   - **Automatic Token Generation (FR-IMP-2):** Generates URL-safe random tokens (*e.g., `kannur-arjun-412`*) during upload.
+2. **Host Houses Module:**
+   - **Fields Ingested:** `name`, `address`, `map_url`, `host_name`, `host_phone`, `capacity`, `gender_restriction`, `notes`.
+   - **Smart Natural Key Deduplication:** Normalizes entries by `name + address + host_phone` to ensure re-uploading spreadsheets never creates duplicate host residences.
+3. **Volunteers Roster Module:**
+   - **Fields Ingested:** `name`, `phone`, `unit`, `role`.
+   - Populates the official volunteer directory for squad leader assignments and phone+PIN gate login.
+4. **Cloud Persistence & Cache Controls:**
+   - **Sync to Cloud Button:** Pushes local data directly to Supabase in atomic transactions.
+   - **Refresh from Cloud Button:** Pulls live server records into local memory.
+   - **Clear Cache Button:** Resets device storage for a fresh pull.
+
+---
+
+### 3. Housing Allocation & Volunteer Squad Workbench (`/admin`)
+
+The operational center for allocating accommodations and grouping children under volunteers:
+
+* **Real-Time Statewide Counters:** Live cards tracking Total Registered, Accommodated (with % progress bar), Checked-in, and Pending Arrival.
+* **14-District Filter:** Dropdown to switch between statewide aggregate view or filter by individual districts.
+* **Unassigned Delegate Queue (Left Pane):**
+  * Instant search by name, phone, or token.
+  * Gender toggles (`All`, `Boys`, `Girls`).
+  * Checkbox multi-selection for batch assignments.
+  * **Bulk Volunteer Squad Assignment (`FR-ASN-6`):** Select delegates and choose a squad leader from the `+ Assign Volunteer` dropdown to pair an entire cohort with one click.
+  * Inline volunteer badges (`👤 Volunteer Name`) on delegate cards.
+* **Host Houses & Capacity Matrix (Right Pane):**
+  * Color-coded capacity progress bars showing occupied slots vs. maximum capacity.
+  * Gender restriction badges (`Boys Only`, `Girls Only`, `Any`).
+  * **Direct House Creation (`+ Add House`):** Click the header button to register community host homes on the fly.
+  * **Volunteer In-Charge Auto-Inheritance:** Houses can have an assigned in-charge volunteer. When delegates are allotted to that house, they **automatically inherit** that home's volunteer!
+  * **Soft Over-Capacity Guard (FR-ASN-3):** Triggers an explicit confirmation modal before allowing intentional overcrowding.
+  * **Current Residents View:** Inline occupant pills with 1-tap check-in toggles and 1-tap unassign (`X`) buttons.
+
+---
+
+### 4. Inline Editing & Roster Management Modals
+
+Eliminates the need to edit spreadsheets and re-import during live conference operations:
+
+* **Edit Delegate Modal (`EditDelegateModal.tsx`):**
+  * Modify Full Name, Phone, Gender, District, Guardian Emergency Details, and Special Notes.
+  * **Assigned Volunteer In-Charge Section:** Pick from registered volunteers or enter a custom volunteer name and phone number.
+* **Add / Edit House Modal (`EditHouseModal.tsx`):**
+  * Modify House Name, Address, Host Phone, Capacity/Beds, Gender Restrictions, Google Maps URL, and Landmark Notes.
+  * **Select House Volunteer In-Charge:** Links a designated volunteer to look after all occupants in that residence.
+* **Manage Volunteers Modal (`ManageVolunteersModal.tsx`):**
+  * Dedicated directory to manage ground volunteers, verify phone numbers for PIN login, and adjust assigned units.
+
+---
+
+### 5. Volunteer Reception Desk & WhatsApp Dispatch (`/volunteer`)
+
+Designed for speed and child safety at Nileshwaram railway station and venue gates:
+
+* **1-Tap Arrival Check-In:** Search by name, phone, or token, and tap the checkmark to record arrival with instant timestamping (`checked_in_at`).
+* **1-Click WhatsApp Dispatch (`wa.me/?text=...`):** Pre-formats a WhatsApp message in Malayalam or English with the child's personal stay link to send directly to parents.
+* **Host Houses Directory:** View house utilization, full resident lists, and 1-tap phone dialing (`tel:`) to host parents.
+* **Strict Privacy Isolation:** Volunteers only see children assigned to their care, preventing unauthorized access to other delegates' phone numbers or guardian information.
+* **Live GPS Emergency Tracking (FR-LOC-1):**
+  * Polls active 30-minute consent-based location pings.
+  * Provides an **"Open in Google Maps"** navigation button to guide volunteers directly to stranded children.
+
+---
+
+### 6. PWA Offline Resilience & 15-Second Auto-Polling
+
+* **Automatic 15-Second Cloud Polling:** The Admin Workbench and Volunteer Desk automatically synchronize with Supabase every 15 seconds, keeping multiple committee laptops and volunteer phones perfectly synchronized.
+* **Offline Service Worker Caching:** Bundles local fonts (**Anek Malayalam 800 Bold**) and caches stay portals in `localStorage` so delegates can view host details even without cellular connectivity.
+* **Live Network Status Banner:** Displays a real-time banner when the device goes offline or returns online.
+
+---
+
+## Part III: Visual Architecture & Flowcharts
+
+### 1. Unified Navigation & Operations Flow
 
 ```mermaid
 flowchart TD
-    Login["1. Staff Sign In (/login)"] --> AdminAuth{"Role == 'admin'?"}
-    AdminAuth -->|Yes| SetupNav["2. Initial Setup: Importer (/import)"]
-
-    HeaderGuide["Interactive Guide / Quest (Header Button)"] -.->|Simulates All Workflows| AdminAuth
-
-    subgraph Initial Setup Phase
-        SetupNav --> ImportHouses["Upload Houses (.xlsx / .csv)"]
-        SetupNav --> ImportDelegates["Upload Delegates (.xlsx / .csv)"]
-        ImportDelegates --> TokenGen["Auto-generate Personal Tokens (/d/:token)"]
-        ImportHouses & TokenGen --> CommitDB[("Commit to Supabase / Local Cache")]
+    subgraph Onboarding & Training
+        Login["Sign In (/login)<br>• Admin: Email + Password<br>• Volunteer: Phone + PIN"]
+        GuideQuest["Interactive Guide Quest<br>(Header Simulator)"]
+        Login -.->|Practice| GuideQuest
     end
 
-    CommitDB --> WorkbenchNav["3. Housing Allocation Workbench (/admin)"]
-
-    subgraph Allocation & Volunteer Squad Phase
-        WorkbenchNav --> FilterDist["Select District & Gender"]
-        WorkbenchNav --> InlineEdit["Inline Modals: + Add House / Edit Delegate"]
-        FilterDist --> MultiSelect["Multi-Select Delegates"]
-        MultiSelect --> AssignVolunteer["Bulk Assign Volunteer (+ വളണ്ടിയർ)"]
-        MultiSelect --> AssignHouse["Assign to Host House"]
-        AssignHouse --> CapacityCheck{"Over Capacity?"}
-        CapacityCheck -->|Yes| SoftWarn["Soft Warning & Admin Override"]
-        CapacityCheck -->|No| SavedAlloc["Allocation Saved & Live Count Updated"]
-        SoftWarn -->|Confirm| SavedAlloc
+    subgraph Step 1: Initial Setup
+        Login -->|Admin| Importer["3-in-1 Data Importer (/import)<br>• Delegates • Houses • Volunteers<br>• Excel (.xlsx) & CSV"]
+        Importer --> TokenGen["Auto Token Generation (/d/:token)"]
+        TokenGen --> CloudCommit[("Supabase PostgreSQL Cloud")]
     end
 
-    SavedAlloc --> VolDeskNav["4. Volunteer Reception Desk (/volunteer)"]
-
-    subgraph Live Event Operations
-        VolDeskNav --> WhatsAppSend["1-Click WhatsApp Dispatch (/d/:token)"]
-        VolDeskNav --> CheckinToggle["1-Tap Arrival Check-In"]
-        VolDeskNav --> LiveGPS["30-Min GPS Emergency Tracking"]
+    subgraph Step 2: Allocation & Pairing
+        CloudCommit --> Workbench["Admin Workbench (/admin)"]
+        Workbench --> FilterCohorts["Filter District & Gender"]
+        Workbench --> BulkVolunteer["Bulk Assign Volunteer Squad"]
+        Workbench --> HouseAllot["Assign to Host House"]
+        HouseAllot --> AutoInherit["Auto-Inherit House Volunteer"]
+        AutoInherit --> CapacityCheck{"Over Capacity?"}
+        CapacityCheck -->|Yes| OverrideWarn["Soft Warning & Admin Override"]
+        CapacityCheck -->|No| CommitAlloc["Saved & Real-Time Sync"]
+        OverrideWarn -->|Confirm| CommitAlloc
     end
 
-    WhatsAppSend --> DelegateView["Delegate / Parent Portal (/d/:token & /stay/:token)"]
+    subgraph Step 3: Reception & Parent Dispatch
+        CommitAlloc --> VolDesk["Volunteer Reception Desk (/volunteer)"]
+        VolDesk --> GateCheckin["1-Tap Arrival Check-In"]
+        VolDesk --> WhatsAppShare["1-Click WhatsApp Dispatch (wa.me)"]
+    end
+
+    subgraph Step 4: Delegate Stay & Child Safety
+        WhatsAppShare --> DelegatePortal["Delegate Stay Portal (/d/:token & /stay/:token)"]
+        DelegatePortal --> VerifiedStay["Host Address & Google Maps Route"]
+        DelegatePortal --> ContactCards["Call Host & Assigned Volunteer"]
+        DelegatePortal --> SafeGPS["30-Min Consent GPS Location Ping"]
+        SafeGPS -.->|Real-time Route| VolDesk
+    end
 ```
 
 ---
 
-## 4. End-to-End User Flow for Admin
+### 2. End-to-End Operational Sequence
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Admin as State Admin
-    participant Guide as Guide Quest (Header)
-    participant Login as Login Screen (/login)
-    participant CSV as Data Importer (/import)
+    actor Vol as Reception Volunteer
+    participant CSV as Importer (/import)
     participant UI as Housing Workbench (/admin)
-    participant Modal as Inline Edit Modals
     participant Desk as Volunteer Desk (/volunteer)
-    participant Store as Supabase DB (15s Auto-Poll)
+    participant DB as Supabase PostgreSQL (15s Sync)
     participant Parent as Delegate / Parent (/d/:token)
 
-    opt Pre-Conference Staff Practice
-        Admin->>Guide: Click "How to Use / ഗൈഡ്" in header
-        Guide->>Guide: Complete 5-Step interactive simulation (risk-free)
-    end
+    Note over Admin,CSV: Step 1: Data Ingestion & Setup
+    Admin->>CSV: Upload Houses, Volunteers & Delegates (.xlsx / .csv)
+    CSV->>DB: Commit rows & generate URL tokens
+    DB-->>Admin: Success confirmation & cloud count updated
 
-    Note over Admin,CSV: Step 1 & 2: Login & Initial Data Ingestion
-    Admin->>Login: Sign in with admin credentials
-    Login->>CSV: Navigate to /import for setup
-    Admin->>CSV: Upload Host Houses (.xlsx / .csv)
-    Admin->>CSV: Upload Delegates (.xlsx / .csv)
-    CSV->>CSV: Validate rows, parse Malayalam, generate tokens
-    CSV->>Store: Commit records (RPC import_delegates / import_houses)
-    Store-->>Admin: Success confirmation & cloud sync
+    Note over Admin,UI: Step 2: Housing & Volunteer Squad Allocation
+    Admin->>UI: Filter by District & Gender
+    Admin->>UI: Multi-select delegates & assign Squad Volunteer
+    Admin->>UI: Assign cohort to Host House (Auto-inherits House Volunteer)
+    UI->>DB: Persist house_id & volunteer_id
+    DB-->>UI: Real-time capacity bar & occupant list update
 
-    Note over Admin,UI: Step 3: Accommodation & Volunteer Assignment
-    Admin->>UI: Navigate to /admin
-    Admin->>UI: Select District filter & Gender filter
-    opt Add extra house or edit delegate
-        Admin->>Modal: Open "+ Add House" or "Edit Delegate" (with Volunteer assign)
-        Modal->>Store: Persist immediate update
-    end
-    Admin->>UI: Multi-select unassigned delegates
-    Admin->>UI: Select "+ Assign Volunteer" (Bulk assign squad leader)
-    Admin->>UI: Click "Assign Here" on target Host House
-    alt Total > Capacity
-        UI-->>Admin: Soft Warning Dialog (Capacity Exceeded)
-        Admin->>UI: Confirm Override
-    end
-    UI->>Store: Update house_id & volunteer for selected delegate IDs
-    Store-->>UI: Real-time capacity bar & occupant list update
-
-    Note over Admin,Desk: Step 4: Parent Communication & Arrival Desk
-    Admin->>Desk: Navigate to /volunteer
-    Admin->>Desk: Click WhatsApp Share icon on delegate row
-    Desk-->>Parent: WhatsApp message sent with personal link (/d/:token)
-    Parent->>Store: Opens link, views host address, phone & assigned volunteer
-
-    Note over Admin,Store: Step 5: Station Check-In & Safety Oversight
+    Note over Vol,Desk: Step 3: Volunteer Gate Sign In & Attendance
+    Vol->>Desk: Sign in with Registered Phone + Conference PIN (2026)
+    Desk->>DB: Load only assigned delegates (Strict Isolation)
     Admin->>Desk: Delegate arrives at Nileshwaram station
-    Admin->>Desk: 1-Tap Toggle "Checked In"
-    Store-->>Desk: Live attendance metrics increment (15s auto-poll syncs all desks)
-    opt Delegate Lost / Needs Guidance
-        Parent->>Store: Shares temporary GPS location (30 min)
-        Store-->>Desk: "Active GPS" badge appears on Volunteer Desk
-        Admin->>Desk: Tap "Open in Maps" to route volunteer to child
+    Vol->>Desk: 1-Tap Toggle "Checked In"
+    Desk->>DB: Record arrival timestamp (15s auto-poll syncs all desks)
+
+    Note over Vol,Parent: Step 4: WhatsApp Stay Link Dispatch
+    Vol->>Desk: Tap WhatsApp icon on delegate card
+    Desk-->>Parent: WhatsApp message with personal stay link (/d/:token)
+    Parent->>DB: Opens link (verified house, map route & volunteer contact)
+
+    Note over Parent,Desk: Step 5: Emergency Location & Safety
+    opt Child Lost / Needs Assistance
+        Parent->>DB: Tap "Share Location" (30-min active GPS ping)
+        DB-->>Desk: Active GPS badge appears on Volunteer Desk
+        Vol->>Desk: Tap "Open in Maps" to route volunteer directly to child
     end
 ```
 
 ---
 
-## 5. Step-by-Step Walkthrough of the Admin Workflow
+## Part IV: Administrator Quick-Reference Cheat Sheet
 
-### Step 0: Training via the Interactive Guide Quest (Optional Pre-Check)
-1. Tap the amber **"How to Use / ഗൈഡ്"** button in the header.
-2. Step through the 5 interactive simulations:
-   - Practice the spreadsheet upload and token generation.
-   - Test delegate selection, bulk volunteer squad assignment, and house allocation in the replica Workbench.
-   - Test the live replica of the Edit Delegate Modal.
-   - Practice 1-tap check-ins and WhatsApp dispatch previews.
-3. Close the modal when confident—no live production records are altered.
-
----
-
-### Phase 1: Sign In & Initial Setup at `/import` (Pre-Conference)
-1. **Sign In (`/login`):** Enter admin credentials (`admin@balasangham.in` / `admin123`).
-2. **Go to Data Import (`/import`):** Click **"Import CSV / Excel"** in the navigation header to perform the initial setup.
-3. **Upload Host Houses:**
-   - Select the **Houses** tab.
-   - Upload the houses file (`.xlsx`, `.xls`, or `.csv`) containing host names, phone numbers, addresses, Google Maps URLs, and bed capacities.
-   - Verify the pre-import table preview and click **"Commit Houses to Database"**.
-4. **Upload Delegates:**
-   - Select the **Delegates** tab.
-   - Upload the delegates spreadsheet containing delegate names (*Malayalam/English*), district IDs, genders, and guardian phone numbers.
-   - The platform automatically validates the rows and generates random tokens (*e.g., `kannur-arjun-412`*).
-   - Click **"Commit Delegates to Database"**.
-5. **Verify Cloud Synchronization:** Tap **"Sync Local to Cloud"** to ensure data redundancy on Supabase.
-
----
-
-### Phase 2: Housing Allocation & Volunteer Assignment at `/admin` (Day -1 & Day 1)
-1. **Open Workbench (`/admin`):** Navigate to `/admin` where all unassigned delegates and registered houses now appear.
-2. **Add Extra Host Houses (If Needed):**
-   - Click **"+ Add House (വീട് ചേർക്കുക)"** in the Houses pane header.
-   - Enter house name, address, host phone, capacity, gender restriction, and Google Maps URL.
-   - Click **"Create House"** to immediately make it available for allocation.
-3. **Select Target District:** Use the top district selector to focus on incoming cohorts (*e.g., select "Kannur" to allocate the Kannur contingent*).
-4. **Select Delegates:** Check the boxes next to the delegates you wish to group together.
-5. **Bulk Assign Squad Volunteer (`FR-ASN-6`):**
-   - While delegates are selected, click the **`+ Assign Volunteer (+ വളണ്ടിയറെ നൽകുക)`** dropdown in the unassigned queue header.
-   - Select the volunteer leader who will accompany this group.
-   - An indigo tag `👤 <Volunteer Name>` will appear on each selected child's card.
-6. **Assign to House:** Locate a house with sufficient free capacity in the right pane and tap **"Assign Here"**.
-   - If capacity is sufficient: Instant allocation with an emerald success notification.
-   - If over capacity: Confirm the soft warning dialog if you intentionally wish to add an extra occupant.
-7. **Fix Typos & Edit Volunteers On-the-Fly:** Tap the pencil icon (`Edit2`) next to any delegate to open the **Edit Delegate Modal** and adjust their contact details, guardian emergency numbers, or reassign their volunteer.
-8. **Reallocate if Needed:** If travel plans change, locate the child under the house card and click the **`X`** unassign button to immediately return them to the queue.
-
----
-
-### Phase 3: Reception Desk & Arrival Monitoring at `/volunteer` (Conference Days)
-1. **Open Volunteer Desk (`/volunteer`):** Navigate to `/volunteer`.
-2. **Search by Phone or Name:** As trains arrive at Nileshwaram Railway Station, search for arriving children or their accompanying coordinators.
-3. **Correct Contact Info at the Gate:** If a child informs the desk of a new contact number or emergency parent number, click the inline edit pencil to update their profile instantly.
-4. **Mark Attendance:** Tap the checkmark icon next to the delegate's record. The status updates to `Checked In`, timestamping the arrival.
-5. **Dispatch Stay Links:** For parents who do not have their link handy, tap the green **WhatsApp** icon to launch a pre-populated message with their child's `/d/:token` link.
-6. **Emergency GPS Assistance:** If a delegate is stranded or separated, instruct them to tap **"Share Location"** on their mobile portal. Their record on the Admin Volunteer Desk will highlight in green with an **"Open in Google Maps"** navigation button.
-7. **Automated Multi-Device Sync:** The 15-second background cloud polling ensures all reception desks and committee phones remain continuously synchronised.
-
----
-
-### Phase 4: Conference Conclusion & Child Data Privacy (Post-Event)
-1. **Final Audit & Export:** Run a final export of check-in tallies and stay records for official Balasangham State Committee archives.
-2. **Purge Runbook:** In accordance with child privacy policies (Section 9 of the Product Spec), the Admin can trigger a complete database wipe (`TRUNCATE` delegates, location pings, and emergency logs) to ensure no child personal contact data remains online.
-
----
-
-## 6. Summary of Admin Best Practices
-
-- **Interactive Training First:** Encourage new committee members and district conveners to run through the **"How to Use / ഗൈഡ്"** Quest Simulator before touching live event records.
-- **Initial Setup First:** Always complete spreadsheet uploads at `/import` before attempting allocation at `/admin`.
-- **Squad Pairing:** Always assign a squad volunteer using the **`+ Assign Volunteer`** dropdown when allotting cohorts so children have a designated coordinator upon arriving at Nileshwaram station.
-- **Instant Corrections:** Use the inline Edit Delegate Modal (`Edit2`) whenever a child or coordinator reports a phone number error rather than editing spreadsheets and re-importing.
-- **Dynamic Host Registration:** When local community members offer additional rooms during the conference rush, use the `+ Add House` button to register them instantly.
-- **Batch Operations:** Always filter by gender before multi-selecting unassigned delegates to prevent accidentally grouping mixed-gender cohorts into gender-restricted host homes.
-- **Over-Capacity Policy:** The system allows soft over-capacity overrides to account for emergency accommodation scenarios (*e.g., extra sibling or guardian accompanying a delegate*), but always verify host consent before confirming.
-- **Offline & Multi-Admin Sync:** With the 15-second automated background polling and local reactive caching, multiple admins working across different reception gates stay perfectly in sync without data collision.
+| Task | Where to Go | How to Do It | Pro Tip |
+| :--- | :--- | :--- | :--- |
+| **New House Added During Conference** | `/admin` | Tap **`+ Add House (വീട് ചേർക്കുക)`** in the houses header. Enter name, address, host phone, capacity, and volunteer in-charge. | No spreadsheet re-upload required; immediately ready for allocations. |
+| **Fix Typo in Child's Phone Number** | `/admin` or `/volunteer` | Click the pencil edit icon (`Edit2`) next to the child's name. Update phone, guardian details, or volunteer, and tap Save. | Changes persist instantly to the database and update the child's stay link. |
+| **Bulk Assign Squad Volunteer** | `/admin` | Select checkboxes next to delegates in the unassigned queue, then pick a volunteer from the **`+ Assign Volunteer`** dropdown. | Displays an indigo `👤 Volunteer` badge on cards. |
+| **Send Stay Info to Parents** | `/volunteer` | Search delegate and tap the green **WhatsApp (`Share2`)** button. | Opens WhatsApp Web / Mobile with a pre-filled bilingual message. |
+| **Track a Lost Child** | `/volunteer` | Ask the child/parent to tap **"Share Location"** on their portal. Filter desk by **"With Live Location"** and tap **"Open in Maps"**. | Location pings expire automatically after 30 minutes for child privacy. |
+| **Post-Conference Data Purge** | Supabase SQL Editor | Export final CSV attendance report, then execute the purge runbook (`TRUNCATE` tables) to wipe sensitive child contact data. | Strict adherence to child privacy guidelines. |

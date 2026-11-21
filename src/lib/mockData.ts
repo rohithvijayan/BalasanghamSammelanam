@@ -654,7 +654,22 @@ class MockStore {
 
   getDelegateByToken(token: string): StayPortalData | null {
     const clean = token.toLowerCase().trim();
-    let delegate = this.delegates.find((d) => d.token.toLowerCase() === clean || d.id.toLowerCase() === clean);
+    const cleanDigits = clean.replace(/[^0-9]/g, '');
+    const cleanLast10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
+
+    const matchesDelegate = (d: Delegate) => {
+      if (d.token.toLowerCase() === clean || d.id.toLowerCase() === clean) return true;
+      if (d.phone) {
+        const dDigits = d.phone.replace(/[^0-9]/g, '');
+        const dLast10 = dDigits.length >= 10 ? dDigits.slice(-10) : dDigits;
+        if (cleanDigits.length >= 7 && (dDigits === cleanDigits || (cleanLast10 && dLast10 && cleanLast10 === dLast10))) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    let delegate = this.delegates.find(matchesDelegate);
 
     const activeVolPings = this.getActiveVolunteerLocationPings();
     const resolveVol = (v?: Volunteer | null): Volunteer | null => {
@@ -674,7 +689,7 @@ class MockStore {
 
     // Fallback to demo delegates for tests or direct demo URL access
     if (!delegate) {
-      delegate = demoDelegates.find((d) => d.token.toLowerCase() === clean || d.id.toLowerCase() === clean);
+      delegate = demoDelegates.find(matchesDelegate);
       if (!delegate) return null;
       const demoHouse = demoHouses.find((h) => h.id === delegate?.house_id) || null;
       const targetDelegate = delegate;
@@ -735,10 +750,21 @@ class MockStore {
     }
     this.delegates = this.delegates.map((d) => {
       if (d.id === delegateId) {
+        if (!houseId) {
+          // Removal of delegate from a house -> Empty the volunteer field
+          return {
+            ...d,
+            house_id: null,
+            volunteer: null,
+            volunteer_id: null,
+          };
+        }
+        // Assigned to a house with volunteer B -> Overwrite volunteer field with the house's volunteer
         return {
           ...d,
           house_id: houseId,
-          ...(houseVol ? { volunteer: houseVol, volunteer_id: houseVol.id || null } : {}),
+          volunteer: houseVol,
+          volunteer_id: houseVol?.id || null,
         };
       }
       return d;
@@ -746,8 +772,8 @@ class MockStore {
     this.save();
   }
 
-  bulkAssign(delegateIds: string[], houseId: string) {
-    const targetHouse = this.houses.find((h) => h.id === houseId);
+  bulkAssign(delegateIds: string[], houseId: string | null) {
+    const targetHouse = houseId ? this.houses.find((h) => h.id === houseId) : null;
     let houseVol: Volunteer | null = targetHouse?.volunteer || null;
     if (!houseVol && targetHouse?.volunteer_id) {
       houseVol = this.volunteers.find((v) => v.id === targetHouse.volunteer_id) || null;
@@ -755,10 +781,21 @@ class MockStore {
     const idSet = new Set(delegateIds);
     this.delegates = this.delegates.map((d) => {
       if (idSet.has(d.id)) {
+        if (!houseId) {
+          // Removal of delegates from a house -> Empty the volunteer field
+          return {
+            ...d,
+            house_id: null,
+            volunteer: null,
+            volunteer_id: null,
+          };
+        }
+        // Assigned to a house with volunteer B -> Overwrite volunteer field with the house's volunteer
         return {
           ...d,
           house_id: houseId,
-          ...(houseVol ? { volunteer: houseVol, volunteer_id: houseVol.id || null } : {}),
+          volunteer: houseVol,
+          volunteer_id: houseVol?.id || null,
         };
       }
       return d;

@@ -215,7 +215,13 @@ export const AdminWorkbench: React.FC = () => {
       // Redundant loadData(true) removed to keep network traffic to exactly 1 API call.
     } catch (err: any) {
       console.error('Failed to assign house:', err);
-      alert(language === 'ml' ? `വീട് അലോട്ട് ചെയ്യുന്നതിൽ പിശക് സംഭവിച്ചു: ${err?.message || ''}` : `Failed to allot house: ${err?.message || ''}`);
+      const isNet = err?.name === 'TypeError' || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
+      const errorMsg = isNet
+        ? (language === 'ml'
+            ? 'നെറ്റ്‌വർക്ക് കണക്ഷൻ തകരാറിലായി. മാറ്റങ്ങൾ ഈ ഉപകരണത്തിൽ സേവ് ചെയ്തിട്ടുണ്ട്; കണക്ഷൻ ലഭിക്കുമ്പോൾ ക്ലൗഡിലേക്ക് സിങ്ക് ആകും.'
+            : 'Network connection issue. Changes saved locally on this device and will sync once reconnected.')
+        : (err?.message || '');
+      alert(language === 'ml' ? `വീട് അലോട്ട് ചെയ്യുന്നതിൽ പിശക് സംഭവിച്ചു: ${errorMsg}` : `Failed to allot house: ${errorMsg}`);
     } finally {
       setIsAssigning(false);
     }
@@ -227,7 +233,13 @@ export const AdminWorkbench: React.FC = () => {
       // Optimistic update via mockStore listener keeps network to 1 API call.
     } catch (err: any) {
       console.error('Failed to unassign house:', err);
-      alert(language === 'ml' ? `അൺ-അലോട്ട് ചെയ്യുന്നതിൽ പിശക് സംഭവിച്ചു: ${err?.message || ''}` : `Failed to unassign house: ${err?.message || ''}`);
+      const isNet = err?.name === 'TypeError' || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
+      const errorMsg = isNet
+        ? (language === 'ml'
+            ? 'നെറ്റ്‌വർക്ക് കണക്ഷൻ തകരാറിലായി. മാറ്റങ്ങൾ ഈ ഉപകരണത്തിൽ സേവ് ചെയ്തിട്ടുണ്ട്.'
+            : 'Network connection issue. Changes saved locally.')
+        : (err?.message || '');
+      alert(language === 'ml' ? `അൺ-അലോട്ട് ചെയ്യുന്നതിൽ പിശക് സംഭവിച്ചു: ${errorMsg}` : `Failed to unassign house: ${errorMsg}`);
     }
   };
 
@@ -238,7 +250,13 @@ export const AdminWorkbench: React.FC = () => {
       // Optimistic update via mockStore listener keeps network to 1 API call.
     } catch (err: any) {
       console.error('Failed to update status:', err);
-      alert(language === 'ml' ? `ഹാജർ നില മാറ്റുന്നതിൽ പിശക് സംഭവിച്ചു: ${err?.message || ''}` : `Failed to update status: ${err?.message || ''}`);
+      const isNet = err?.name === 'TypeError' || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
+      const errorMsg = isNet
+        ? (language === 'ml'
+            ? 'നെറ്റ്‌വർക്ക് കണക്ഷൻ തകരാറിലായി. മാറ്റങ്ങൾ ഈ ഉപകരണത്തിൽ സേവ് ചെയ്തിട്ടുണ്ട്.'
+            : 'Network connection issue. Changes saved locally.')
+        : (err?.message || '');
+      alert(language === 'ml' ? `ഹാജർ നില മാറ്റുന്നതിൽ പിശക് സംഭവിച്ചു: ${errorMsg}` : `Failed to update status: ${errorMsg}`);
     }
   };
 

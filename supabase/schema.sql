@@ -347,13 +347,29 @@ DECLARE
     v_volunteer JSONB := NULL;
     v_announcements JSONB;
     v_helpline JSONB;
+    v_clean_phone TEXT;
 BEGIN
-    -- Verify delegate exists
+    v_clean_phone := regexp_replace(p_token, '[^0-9]', '', 'g');
+
+    -- Verify delegate exists: match by token, ID, or phone number
     SELECT d.*, dist.name_en AS dist_en, dist.name_ml AS dist_ml
     INTO v_delegate
     FROM delegates d
     JOIN districts dist ON d.district_id = dist.id
-    WHERE d.token = p_token;
+    WHERE d.token = p_token
+       OR d.id::text = p_token
+       OR (
+           length(v_clean_phone) >= 7 AND (
+               regexp_replace(d.phone, '[^0-9]', '', 'g') = v_clean_phone
+               OR (
+                   length(regexp_replace(d.phone, '[^0-9]', '', 'g')) >= 10
+                   AND length(v_clean_phone) >= 10
+                   AND right(regexp_replace(d.phone, '[^0-9]', '', 'g'), 10) = right(v_clean_phone, 10)
+               )
+           )
+       )
+    ORDER BY (d.token = p_token) DESC, d.created_at DESC
+    LIMIT 1;
 
     IF NOT FOUND THEN
         RETURN jsonb_build_object('success', false, 'error', 'INVALID_TOKEN');

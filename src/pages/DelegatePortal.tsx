@@ -63,6 +63,9 @@ export const DelegatePortal: React.FC = () => {
       if (result) {
         setData(result);
         browserCache.set(CACHE_KEYS.STAY_PORTAL(delegateToken), result);
+        if (result.delegate?.token && result.delegate.token !== delegateToken) {
+          browserCache.set(CACHE_KEYS.STAY_PORTAL(result.delegate.token), result);
+        }
         setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
 
         if (result.announcements) {
@@ -201,7 +204,7 @@ export const DelegatePortal: React.FC = () => {
                   {t('welcome_prefix')}{delegate.full_name}
                 </h2>
                 <span className="text-xs font-semibold text-slate-500">
-                  {language === 'ml' ? delegate.district_ml : delegate.district_en} • Reg #{token?.toUpperCase().slice(-6)}
+                  {language === 'ml' ? delegate.district_ml : delegate.district_en} • Reg #{(delegate.token || token || '').toUpperCase().slice(-6)}
                 </span>
               </div>
             </div>
@@ -238,7 +241,7 @@ export const DelegatePortal: React.FC = () => {
         <VolunteerCard volunteer={effectiveVolunteer} />
 
         {/* 5. Emergency Helplines & Location Sharing */}
-        <HelplineSupportCard token={token || ''} helplines={helplines} />
+        <HelplineSupportCard token={data?.delegate?.token || token || ''} helplines={helplines} />
 
         {/* Browser Push Notification Permission Banner */}
         {isNotificationSupported() && notifPermission !== 'granted' && (

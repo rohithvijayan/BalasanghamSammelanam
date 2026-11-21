@@ -329,7 +329,13 @@ export const VolunteerDesk: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Failed to update status:', err);
-      alert(language === 'ml' ? `ഹാജർ നില മാറ്റുന്നതിൽ പിശക് സംഭവിച്ചു: ${err?.message || ''}` : `Failed to update status: ${err?.message || ''}`);
+      const isNet = err?.name === 'TypeError' || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
+      const errorMsg = isNet
+        ? (language === 'ml'
+            ? 'നെറ്റ്‌വർക്ക് കണക്ഷൻ തകരാറിലായി. മാറ്റങ്ങൾ ഈ ഉപകരണത്തിൽ സേവ് ചെയ്തിട്ടുണ്ട്.'
+            : 'Network connection issue. Changes saved locally.')
+        : (err?.message || '');
+      alert(language === 'ml' ? `ഹാജർ നില മാറ്റുന്നതിൽ പിശക് സംഭവിച്ചു: ${errorMsg}` : `Failed to update status: ${errorMsg}`);
     }
     setTimeout(() => setSuccessToast(null), 3000);
   };

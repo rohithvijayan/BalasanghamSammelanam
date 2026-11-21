@@ -30,6 +30,35 @@ export const isSafeUrl = (url?: string | null): boolean => {
 };
 
 // =========================================================================
+// Network Resilience: Retry with Exponential Backoff for Transient Failures
+// =========================================================================
+export async function withNetworkRetry<T>(
+  fn: () => Promise<T>,
+  retries = 2,
+  baseDelayMs = 400
+): Promise<T> {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      attempt++;
+      const isNetworkErr =
+        err?.name === 'TypeError' ||
+        err?.message?.includes('Failed to fetch') ||
+        err?.message?.includes('NetworkError') ||
+        err?.message?.includes('aborted') ||
+        (typeof navigator !== 'undefined' && !navigator.onLine);
+
+      if (attempt > retries || !isNetworkErr) {
+        throw err;
+      }
+      await new Promise((res) => setTimeout(res, baseDelayMs * Math.pow(2, attempt - 1)));
+    }
+  }
+}
+
+// =========================================================================
 // Network Egress Optimization: In-Memory TTL Cache & In-Flight Deduplication
 // =========================================================================
 interface CacheEntry<T> {
@@ -899,6 +928,9 @@ export const api = {
         helplines: data.helplines || data.helpline || [],
       };
       browserCache.set(storageKey, result);
+      if (data.delegate?.token && data.delegate.token !== token) {
+        browserCache.set(CACHE_KEYS.STAY_PORTAL(data.delegate.token), result);
+      }
       return result;
     }
 
@@ -1049,21 +1081,46 @@ export const api = {
 
   // Update check-in status (Admin/Staff)
   async updateDelegateStatus(delegateId: string, status: DelegateStatus): Promise<boolean> {
-    if (supabase) {
-      const { error } = await supabase
-        .from('delegates')
-        .update({
-          status,
-          checked_in_at: status === 'checked_in' ? new Date().toISOString() : null,
-        })
-        .eq('id', delegateId);
-      if (error) {
-        console.error('Supabase updateDelegateStatus error:', error);
-        throw new Error(error.message || 'Failed to update delegate status');
-      }
-    }
+    // Optimistic local update so UI reflects status immediately
     mockStore.updateStatus(delegateId, status);
     browserCache.set(CACHE_KEYS.DELEGATES, mockStore.getDelegates());
+
+    if (supabase) {
+      const updatePayload = {
+        status,
+        checked_in_at: status === 'checked_in' ? new Date().toISOString() : null,
+      };
+
+      try {
+        await withNetworkRetry(async () => {
+          const { error } = await supabase
+            .from('delegates')
+            .update(updatePayload)
+            .eq('id', delegateId);
+          if (error) {
+            console.error('Supabase updateDelegateStatus error:', error);
+            throw new Error(error.message || 'Failed to update delegate status');
+          }
+        });
+      } catch (err: any) {
+        console.warn('Network issue during updateDelegateStatus cloud sync:', err);
+        if (typeof window !== 'undefined') {
+          const syncOnOnline = () => {
+            window.removeEventListener('online', syncOnOnline);
+            (async () => {
+              try {
+                await supabase?.from('delegates').update(updatePayload).eq('id', delegateId);
+                console.info('Background sync completed for updateDelegateStatus');
+              } catch (e) {
+                console.error('Background sync retry failed:', e);
+              }
+            })();
+          };
+          window.addEventListener('online', syncOnOnline);
+        }
+        throw err;
+      }
+    }
     return true;
   },
 
@@ -1076,50 +1133,116 @@ export const api = {
   async assignHouse(delegateId: string, houseId: string | null): Promise<boolean> {
     invalidateCache('delegates');
     const targetHouse = houseId ? mockStore.getHouses().find((h) => h.id === houseId) : null;
-    const targetVolId = targetHouse?.volunteer_id || targetHouse?.volunteer?.id || null;
+    let targetVolId = targetHouse?.volunteer_id || targetHouse?.volunteer?.id || null;
 
-    if (supabase) {
-      const updatePayload: Record<string, any> = { house_id: houseId };
-      if (targetVolId) {
-        updatePayload.volunteer_id = targetVolId;
-      }
-      const { error } = await supabase
-        .from('delegates')
-        .update(updatePayload)
-        .eq('id', delegateId);
-      if (error) {
-        console.error('Supabase assignHouse error:', error);
-        throw new Error(error.message || 'Failed to assign house in database');
-      }
-    }
+    // Optimistic local update
     mockStore.assignHouse(delegateId, houseId);
     browserCache.set(CACHE_KEYS.DELEGATES, mockStore.getDelegates());
+
+    if (supabase) {
+      if (houseId && !targetVolId) {
+        try {
+          const { data: hRow } = await supabase.from('houses').select('volunteer_id').eq('id', houseId).single();
+          if (hRow?.volunteer_id) targetVolId = hRow.volunteer_id;
+        } catch (e) {
+          console.warn('Direct house volunteer lookup notice:', e);
+        }
+      }
+
+      const updatePayload: Record<string, any> = {
+        house_id: houseId,
+        volunteer_id: houseId ? (targetVolId || null) : null,
+      };
+
+      try {
+        await withNetworkRetry(async () => {
+          const { error } = await supabase
+            .from('delegates')
+            .update(updatePayload)
+            .eq('id', delegateId);
+          if (error) {
+            console.error('Supabase assignHouse error:', error);
+            throw new Error(error.message || 'Failed to assign house in database');
+          }
+        });
+      } catch (err: any) {
+        console.warn('Network issue during assignHouse cloud sync:', err);
+        if (typeof window !== 'undefined') {
+          const syncOnOnline = () => {
+            window.removeEventListener('online', syncOnOnline);
+            (async () => {
+              try {
+                await supabase?.from('delegates').update(updatePayload).eq('id', delegateId);
+                console.info('Background sync completed for assignHouse');
+              } catch (e) {
+                console.error('Background sync retry failed:', e);
+              }
+            })();
+          };
+          window.addEventListener('online', syncOnOnline);
+        }
+        throw err;
+      }
+    }
     return true;
   },
 
   // Bulk assign delegates (Admin)
-  async bulkAssign(delegateIds: string[], houseId: string): Promise<boolean> {
+  async bulkAssign(delegateIds: string[], houseId: string | null): Promise<boolean> {
     if (!delegateIds || delegateIds.length === 0) return true;
     invalidateCache('delegates');
-    const targetHouse = mockStore.getHouses().find((h) => h.id === houseId);
-    const targetVolId = targetHouse?.volunteer_id || targetHouse?.volunteer?.id || null;
+    const targetHouse = houseId ? mockStore.getHouses().find((h) => h.id === houseId) : null;
+    let targetVolId = targetHouse?.volunteer_id || targetHouse?.volunteer?.id || null;
 
-    if (supabase) {
-      const updatePayload: Record<string, any> = { house_id: houseId };
-      if (targetVolId) {
-        updatePayload.volunteer_id = targetVolId;
-      }
-      const { error } = await supabase
-        .from('delegates')
-        .update(updatePayload)
-        .in('id', delegateIds);
-      if (error) {
-        console.error('Supabase bulkAssign error:', error);
-        throw new Error(error.message || 'Failed to bulk assign in database');
-      }
-    }
+    // Optimistic local update
     mockStore.bulkAssign(delegateIds, houseId);
     browserCache.set(CACHE_KEYS.DELEGATES, mockStore.getDelegates());
+
+    if (supabase) {
+      if (houseId && !targetVolId) {
+        try {
+          const { data: hRow } = await supabase.from('houses').select('volunteer_id').eq('id', houseId).single();
+          if (hRow?.volunteer_id) targetVolId = hRow.volunteer_id;
+        } catch (e) {
+          console.warn('Direct house volunteer lookup notice:', e);
+        }
+      }
+
+      const updatePayload: Record<string, any> = {
+        house_id: houseId,
+        volunteer_id: houseId ? (targetVolId || null) : null,
+      };
+
+      try {
+        await withNetworkRetry(async () => {
+          const { error } = await supabase
+            .from('delegates')
+            .update(updatePayload)
+            .in('id', delegateIds);
+          if (error) {
+            console.error('Supabase bulkAssign error:', error);
+            throw new Error(error.message || 'Failed to bulk assign in database');
+          }
+        });
+      } catch (err: any) {
+        console.warn('Network issue during bulkAssign cloud sync:', err);
+        if (typeof window !== 'undefined') {
+          const syncOnOnline = () => {
+            window.removeEventListener('online', syncOnOnline);
+            (async () => {
+              try {
+                await supabase?.from('delegates').update(updatePayload).in('id', delegateIds);
+                console.info('Background sync completed for bulkAssign');
+              } catch (e) {
+                console.error('Background sync retry failed:', e);
+              }
+            })();
+          };
+          window.addEventListener('online', syncOnOnline);
+        }
+        throw err;
+      }
+    }
     return true;
   },
 
