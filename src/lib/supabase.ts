@@ -11,103 +11,181 @@ export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
+// =========================================================================
+// Network Egress Optimization: In-Memory TTL Cache & In-Flight Deduplication
+// =========================================================================
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const TTL_DELEGATES = 25000;       // 25s cache
+const TTL_HOUSES = 30000;          // 30s cache
+const TTL_ANNOUNCEMENTS = 25000;   // 25s cache
+const TTL_PINGS = 15000;           // 15s cache
+
+let delegatesCache: CacheEntry<Delegate[]> | null = null;
+let housesCache: CacheEntry<House[]> | null = null;
+const announcementsCache = new Map<string, CacheEntry<Announcement[]>>();
+let locationPingsCache: CacheEntry<Record<string, LocationPing>> | null = null;
+let volunteerPingsCache: CacheEntry<Record<string, VolunteerLocationPing>> | null = null;
+
+let inflightDelegates: Promise<Delegate[]> | null = null;
+let inflightHouses: Promise<House[]> | null = null;
+const inflightAnnouncements = new Map<string, Promise<Announcement[]>>();
+let inflightLocationPings: Promise<Record<string, LocationPing>> | null = null;
+let inflightVolunteerPings: Promise<Record<string, VolunteerLocationPing>> | null = null;
+
+export const invalidateCache = (target?: 'delegates' | 'houses' | 'announcements' | 'pings' | 'all') => {
+  if (!target || target === 'all') {
+    delegatesCache = null;
+    housesCache = null;
+    announcementsCache.clear();
+    locationPingsCache = null;
+    volunteerPingsCache = null;
+  } else if (target === 'delegates') {
+    delegatesCache = null;
+  } else if (target === 'houses') {
+    housesCache = null;
+  } else if (target === 'announcements') {
+    announcementsCache.clear();
+  } else if (target === 'pings') {
+    locationPingsCache = null;
+    volunteerPingsCache = null;
+  }
+};
+
 // Unified Data Service: Seamlessly switches between live Supabase and mock/local store
 export const api = {
-  // Fetch all delegates (Supabase live with fallback to mockStore)
-  async getDelegates(): Promise<Delegate[]> {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('delegates')
-          .select(`
-            id,
-            token,
-            full_name,
-            phone,
-            district_id,
-            gender,
-            emergency_name,
-            emergency_phone,
-            notes,
-            house_id,
-            status,
-            checked_in_at,
-            districts (
-              id,
-              name_en,
-              name_ml
-            )
-          `)
-          .order('created_at', { ascending: false });
-
-        if (!error && data && data.length > 0) {
-          const mapped = data.map((row: any) => ({
-            id: row.id,
-            token: row.token,
-            full_name: row.full_name,
-            phone: row.phone || '',
-            district_id: row.district_id,
-            district_en: row.districts?.name_en || 'Kannur',
-            district_ml: row.districts?.name_ml || 'കണ്ണൂർ',
-            gender: row.gender || 'boy',
-            emergency_name: row.emergency_name || '',
-            emergency_phone: row.emergency_phone || '',
-            notes: row.notes || '',
-            house_id: row.house_id,
-            status: row.status,
-            checked_in_at: row.checked_in_at,
-          }));
-          mockStore.setDelegates(mapped);
-          return mapped;
-        }
-      } catch (err) {
-        console.warn('Failed to fetch delegates from Supabase, falling back to mockStore', err);
-      }
+  // Fetch all delegates (Supabase live with fallback to mockStore, with deduplication & caching)
+  async getDelegates(forceRefresh = false): Promise<Delegate[]> {
+    if (!forceRefresh && delegatesCache && Date.now() - delegatesCache.timestamp < TTL_DELEGATES) {
+      return delegatesCache.data;
     }
-    return mockStore.getDelegates();
+
+    if (inflightDelegates) {
+      return inflightDelegates;
+    }
+
+    inflightDelegates = (async () => {
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('delegates')
+            .select(`
+              id,
+              token,
+              full_name,
+              phone,
+              district_id,
+              gender,
+              emergency_name,
+              emergency_phone,
+              notes,
+              house_id,
+              status,
+              checked_in_at,
+              districts (
+                id,
+                name_en,
+                name_ml
+              )
+            `)
+            .order('created_at', { ascending: false });
+
+          if (!error && data && data.length > 0) {
+            const mapped = data.map((row: any) => ({
+              id: row.id,
+              token: row.token,
+              full_name: row.full_name,
+              phone: row.phone || '',
+              district_id: row.district_id,
+              district_en: row.districts?.name_en || 'Kannur',
+              district_ml: row.districts?.name_ml || 'കണ്ണൂർ',
+              gender: row.gender || 'boy',
+              emergency_name: row.emergency_name || '',
+              emergency_phone: row.emergency_phone || '',
+              notes: row.notes || '',
+              house_id: row.house_id,
+              status: row.status,
+              checked_in_at: row.checked_in_at,
+            }));
+            delegatesCache = { data: mapped, timestamp: Date.now() };
+            mockStore.setDelegates(mapped, false);
+            return mapped;
+          }
+        } catch (err) {
+          console.warn('Failed to fetch delegates from Supabase, falling back to mockStore', err);
+        }
+      }
+      const local = mockStore.getDelegates();
+      delegatesCache = { data: local, timestamp: Date.now() };
+      return local;
+    })().finally(() => {
+      inflightDelegates = null;
+    });
+
+    return inflightDelegates;
   },
 
-  // Fetch all accommodation houses (Supabase live with fallback)
-  async getHouses(): Promise<House[]> {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('houses')
-          .select('*')
-          .order('name', { ascending: true });
-
-        if (!error && data && data.length > 0) {
-          const mapped = data.map((row: any) => ({
-            id: row.id,
-            name: row.name,
-            address: row.address,
-            map_url: row.map_url,
-            lat: row.lat,
-            lng: row.lng,
-            host_name: row.host_name,
-            host_phone: row.host_phone,
-            capacity: row.capacity,
-            gender_restriction: row.gender_restriction,
-            notes: row.notes,
-          }));
-
-          // Deduplicate by natural key so duplicate rows in Supabase never balloon the UI
-          const uniqueMap = new Map<string, House>();
-          for (const h of mapped) {
-            const key = getHouseNaturalKey(h);
-            if (!uniqueMap.has(key)) {
-              uniqueMap.set(key, h);
-            }
-          }
-          const uniqueHouses = Array.from(uniqueMap.values());
-          mockStore.setHouses(uniqueHouses);
-          return uniqueHouses;
-        }
-      } catch (err) {
-        console.warn('Failed to fetch houses from Supabase, falling back to mockStore', err);
-      }
+  // Fetch all accommodation houses (Supabase live with fallback, with deduplication & caching)
+  async getHouses(forceRefresh = false): Promise<House[]> {
+    if (!forceRefresh && housesCache && Date.now() - housesCache.timestamp < TTL_HOUSES) {
+      return housesCache.data;
     }
-    return mockStore.getHouses();
+
+    if (inflightHouses) {
+      return inflightHouses;
+    }
+
+    inflightHouses = (async () => {
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('houses')
+            .select('*')
+            .order('name', { ascending: true });
+
+          if (!error && data && data.length > 0) {
+            const mapped = data.map((row: any) => ({
+              id: row.id,
+              name: row.name,
+              address: row.address,
+              map_url: row.map_url,
+              lat: row.lat,
+              lng: row.lng,
+              host_name: row.host_name,
+              host_phone: row.host_phone,
+              capacity: row.capacity,
+              gender_restriction: row.gender_restriction,
+              notes: row.notes,
+            }));
+
+            // Deduplicate by natural key so duplicate rows in Supabase never balloon the UI
+            const uniqueMap = new Map<string, House>();
+            for (const h of mapped) {
+              const key = getHouseNaturalKey(h);
+              if (!uniqueMap.has(key)) {
+                uniqueMap.set(key, h);
+              }
+            }
+            const uniqueHouses = Array.from(uniqueMap.values());
+            housesCache = { data: uniqueHouses, timestamp: Date.now() };
+            mockStore.setHouses(uniqueHouses, false);
+            return uniqueHouses;
+          }
+        } catch (err) {
+          console.warn('Failed to fetch houses from Supabase, falling back to mockStore', err);
+        }
+      }
+      const local = mockStore.getHouses();
+      housesCache = { data: local, timestamp: Date.now() };
+      return local;
+    })().finally(() => {
+      inflightHouses = null;
+    });
+
+    return inflightHouses;
   },
 
   // Bulk import delegates to Supabase
@@ -176,10 +254,12 @@ export const api = {
 
       // Also sync to mockStore
       mockStore.importDelegates(uniqueDelegates);
+      invalidateCache('delegates');
       return { count: insertedCount || uniqueDelegates.length };
     }
 
     mockStore.importDelegates(uniqueDelegates);
+    invalidateCache('delegates');
     return { count: uniqueDelegates.length };
   },
 
@@ -255,14 +335,17 @@ export const api = {
         }
 
         mockStore.importHouses(uniqueHouses);
+        invalidateCache('houses');
         return { count: uniqueHouses.length };
       } catch (err: any) {
         console.warn('Supabase importHouses error, fallback to mockStore', err);
         mockStore.importHouses(uniqueHouses);
+        invalidateCache('houses');
         return { count: uniqueHouses.length, error: err.message };
       }
     }
     mockStore.importHouses(uniqueHouses);
+    invalidateCache('houses');
     return { count: uniqueHouses.length };
   },
   // Fetch delegate stay details using secure token
@@ -274,7 +357,7 @@ export const api = {
         return mockStore.getDelegateByToken(token);
       }
       let resolvedVolunteer = data.volunteer;
-      if (resolvedVolunteer) {
+      if (resolvedVolunteer && !resolvedVolunteer.active_location) {
         const volPings = await api.getActiveVolunteerLocationPings();
         const cleanName = (resolvedVolunteer.name || '').trim().toLowerCase();
         const cleanPhone = (resolvedVolunteer.phone || '').replace(/[^0-9]/g, '');
@@ -297,6 +380,7 @@ export const api = {
 
   // Share temporary volunteer live location (30 mins)
   async shareVolunteerLocation(name: string, phone: string, lat: number, lng: number, accuracy?: number): Promise<{ success: boolean }> {
+    invalidateCache('pings');
     if (supabase) {
       try {
         const { data, error } = await supabase.rpc('share_volunteer_location', {
@@ -320,39 +404,58 @@ export const api = {
 
   // Clear/stop volunteer live location sharing
   async clearVolunteerLocation(name: string, phone?: string): Promise<{ success: boolean }> {
+    invalidateCache('pings');
     mockStore.clearVolunteerLocationPing(name, phone);
     return { success: true };
   },
 
   // Fetch active volunteer location pings (for delegates and admins)
-  async getActiveVolunteerLocationPings(): Promise<Record<string, VolunteerLocationPing>> {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('volunteer_location_pings')
-          .select('id, volunteer_name, volunteer_phone, lat, lng, accuracy, created_at, expires_at')
-          .gt('expires_at', new Date().toISOString())
-          .order('created_at', { ascending: false });
-
-        if (!error && data) {
-          const pings: Record<string, VolunteerLocationPing> = {};
-          data.forEach((p: any) => {
-            const cleanName = (p.volunteer_name || '').trim().toLowerCase();
-            const cleanPhone = (p.volunteer_phone || '').replace(/[^0-9]/g, '');
-            if (cleanName && !pings[cleanName]) pings[cleanName] = p;
-            if (cleanPhone && !pings[cleanPhone]) pings[cleanPhone] = p;
-          });
-          return pings;
-        }
-      } catch (err) {
-        console.warn('Failed to query volunteer_location_pings from Supabase, fallback to store', err);
-      }
+  async getActiveVolunteerLocationPings(forceRefresh = false): Promise<Record<string, VolunteerLocationPing>> {
+    if (!forceRefresh && volunteerPingsCache && Date.now() - volunteerPingsCache.timestamp < TTL_PINGS) {
+      return volunteerPingsCache.data;
     }
-    return mockStore.getActiveVolunteerLocationPings();
+
+    if (inflightVolunteerPings) {
+      return inflightVolunteerPings;
+    }
+
+    inflightVolunteerPings = (async () => {
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('volunteer_location_pings')
+            .select('id, volunteer_name, volunteer_phone, lat, lng, accuracy, created_at, expires_at')
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false });
+
+          if (!error && data) {
+            const pings: Record<string, VolunteerLocationPing> = {};
+            data.forEach((p: any) => {
+              const cleanName = (p.volunteer_name || '').trim().toLowerCase();
+              const cleanPhone = (p.volunteer_phone || '').replace(/[^0-9]/g, '');
+              if (cleanName && !pings[cleanName]) pings[cleanName] = p;
+              if (cleanPhone && !pings[cleanPhone]) pings[cleanPhone] = p;
+            });
+            volunteerPingsCache = { data: pings, timestamp: Date.now() };
+            return pings;
+          }
+        } catch (err) {
+          console.warn('Failed to query volunteer_location_pings from Supabase, fallback to store', err);
+        }
+      }
+      const local = mockStore.getActiveVolunteerLocationPings();
+      volunteerPingsCache = { data: local, timestamp: Date.now() };
+      return local;
+    })().finally(() => {
+      inflightVolunteerPings = null;
+    });
+
+    return inflightVolunteerPings;
   },
 
   // Share temporary location ping (30 mins)
   async shareLocation(token: string, lat: number, lng: number, accuracy?: number): Promise<{ success: boolean }> {
+    invalidateCache('pings');
     if (supabase) {
       const { data, error } = await supabase.rpc('share_location', {
         p_token: token,
@@ -371,33 +474,51 @@ export const api = {
   },
 
   // Fetch active location pings (for admin and volunteers)
-  async getActiveLocationPings(): Promise<Record<string, LocationPing>> {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('location_pings')
-          .select('id, delegate_id, lat, lng, accuracy, created_at, expires_at')
-          .gt('expires_at', new Date().toISOString())
-          .order('created_at', { ascending: false });
-
-        if (!error && data) {
-          const pings: Record<string, LocationPing> = {};
-          data.forEach((p: any) => {
-            if (!pings[p.delegate_id]) {
-              pings[p.delegate_id] = p;
-            }
-          });
-          return pings;
-        }
-      } catch (err) {
-        console.warn('Failed to query location_pings from Supabase, fallback to store', err);
-      }
+  async getActiveLocationPings(forceRefresh = false): Promise<Record<string, LocationPing>> {
+    if (!forceRefresh && locationPingsCache && Date.now() - locationPingsCache.timestamp < TTL_PINGS) {
+      return locationPingsCache.data;
     }
-    return mockStore.getActiveLocationPings();
+
+    if (inflightLocationPings) {
+      return inflightLocationPings;
+    }
+
+    inflightLocationPings = (async () => {
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('location_pings')
+            .select('id, delegate_id, lat, lng, accuracy, created_at, expires_at')
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false });
+
+          if (!error && data) {
+            const pings: Record<string, LocationPing> = {};
+            data.forEach((p: any) => {
+              if (!pings[p.delegate_id]) {
+                pings[p.delegate_id] = p;
+              }
+            });
+            locationPingsCache = { data: pings, timestamp: Date.now() };
+            return pings;
+          }
+        } catch (err) {
+          console.warn('Failed to query location_pings from Supabase, fallback to store', err);
+        }
+      }
+      const local = mockStore.getActiveLocationPings();
+      locationPingsCache = { data: local, timestamp: Date.now() };
+      return local;
+    })().finally(() => {
+      inflightLocationPings = null;
+    });
+
+    return inflightLocationPings;
   },
 
   // Update check-in status (Admin/Staff)
   async updateDelegateStatus(delegateId: string, status: DelegateStatus): Promise<boolean> {
+    invalidateCache('delegates');
     if (supabase) {
       const { error } = await supabase
         .from('delegates')
@@ -414,6 +535,8 @@ export const api = {
 
   // Assign delegate to house (Admin)
   async assignHouse(delegateId: string, houseId: string | null): Promise<boolean> {
+    invalidateCache('delegates');
+    invalidateCache('houses');
     if (supabase) {
       const { error } = await supabase
         .from('delegates')
@@ -427,6 +550,8 @@ export const api = {
 
   // Bulk assign delegates (Admin)
   async bulkAssign(delegateIds: string[], houseId: string): Promise<boolean> {
+    invalidateCache('delegates');
+    invalidateCache('houses');
     if (supabase) {
       const { error } = await supabase
         .from('delegates')
@@ -440,18 +565,21 @@ export const api = {
 
   // Assign volunteer to delegate (Admin)
   async assignVolunteer(delegateId: string, volunteer: Volunteer | null): Promise<boolean> {
+    invalidateCache('delegates');
     mockStore.assignVolunteer(delegateId, volunteer);
     return true;
   },
 
   // Bulk assign volunteer to multiple delegates (Admin)
   async bulkAssignVolunteer(delegateIds: string[], volunteer: Volunteer | null): Promise<boolean> {
+    invalidateCache('delegates');
     mockStore.bulkAssignVolunteer(delegateIds, volunteer);
     return true;
   },
 
   // Edit delegate details (Admin)
   async updateDelegate(delegate: Partial<Delegate> & { id: string }): Promise<boolean> {
+    invalidateCache('delegates');
     mockStore.updateDelegate(delegate);
     if (supabase) {
       try {
@@ -479,6 +607,7 @@ export const api = {
 
   // Edit house details (Admin)
   async updateHouse(house: Partial<House> & { id: string }): Promise<boolean> {
+    invalidateCache('houses');
     mockStore.updateHouse(house);
     if (supabase) {
       try {
@@ -507,6 +636,7 @@ export const api = {
 
   // Add new house (Admin)
   async addHouse(houseData: Omit<House, 'id'> & { id?: string }): Promise<House> {
+    invalidateCache('houses');
     const newHouse: House = {
       ...houseData,
       id: houseData.id || 'h-' + Date.now(),
@@ -541,36 +671,53 @@ export const api = {
     return newHouse;
   },
 
-  // Fetch announcements (Supabase live with fallback to mockStore)
-  async getAnnouncements(targetDistrictId?: number | null): Promise<Announcement[]> {
-    if (supabase) {
-      try {
-        let query = supabase
-          .from('announcements')
-          .select('id, title_en, title_ml, body_en, body_ml, pinned, target_district_id, created_at')
-          .order('pinned', { ascending: false })
-          .order('created_at', { ascending: false });
+  // Fetch announcements (Supabase live with fallback to mockStore, with deduplication & caching)
+  async getAnnouncements(targetDistrictId?: number | null, forceRefresh = false): Promise<Announcement[]> {
+    const cacheKey = targetDistrictId ? `dist-${targetDistrictId}` : 'all';
+    const cached = announcementsCache.get(cacheKey);
+    if (!forceRefresh && cached && Date.now() - cached.timestamp < TTL_ANNOUNCEMENTS) {
+      return cached.data;
+    }
 
-        if (targetDistrictId) {
-          query = query.or(`target_district_id.is.null,target_district_id.eq.${targetDistrictId}`);
-        }
+    if (inflightAnnouncements.has(cacheKey)) {
+      return inflightAnnouncements.get(cacheKey)!;
+    }
 
-        const { data, error } = await query;
-        if (!error && data) {
-          mockStore.setAnnouncements(data);
-          return data;
+    const promise = (async () => {
+      if (supabase) {
+        try {
+          let query = supabase
+            .from('announcements')
+            .select('id, title_en, title_ml, body_en, body_ml, pinned, target_district_id, created_at')
+            .order('pinned', { ascending: false })
+            .order('created_at', { ascending: false });
+
+          if (targetDistrictId) {
+            query = query.or(`target_district_id.is.null,target_district_id.eq.${targetDistrictId}`);
+          }
+
+          const { data, error } = await query;
+          if (!error && data) {
+            announcementsCache.set(cacheKey, { data, timestamp: Date.now() });
+            mockStore.setAnnouncements(data, false);
+            return data;
+          }
+        } catch (err) {
+          console.warn('Failed to fetch announcements from Supabase, fallback to mockStore', err);
         }
-      } catch (err) {
-        console.warn('Failed to fetch announcements from Supabase, fallback to mockStore', err);
       }
-    }
-    const storeAnnouncements = mockStore.getAnnouncements();
-    if (targetDistrictId) {
-      return storeAnnouncements.filter(
-        (a) => !a.target_district_id || a.target_district_id === targetDistrictId
-      );
-    }
-    return storeAnnouncements;
+      const storeAnnouncements = mockStore.getAnnouncements();
+      const filtered = targetDistrictId
+        ? storeAnnouncements.filter((a) => !a.target_district_id || a.target_district_id === targetDistrictId)
+        : storeAnnouncements;
+      announcementsCache.set(cacheKey, { data: filtered, timestamp: Date.now() });
+      return filtered;
+    })().finally(() => {
+      inflightAnnouncements.delete(cacheKey);
+    });
+
+    inflightAnnouncements.set(cacheKey, promise);
+    return promise;
   },
 
   // Create announcement (Admin)
@@ -582,6 +729,7 @@ export const api = {
     pinned?: boolean;
     target_district_id?: number | null;
   }): Promise<Announcement> {
+    invalidateCache('announcements');
     const local = mockStore.addAnnouncement({
       ...annData,
       pinned: Boolean(annData.pinned),
@@ -616,6 +764,7 @@ export const api = {
 
   // Delete announcement (Admin)
   async deleteAnnouncement(id: string): Promise<boolean> {
+    invalidateCache('announcements');
     mockStore.deleteAnnouncement(id);
     if (supabase) {
       try {

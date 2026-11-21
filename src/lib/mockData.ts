@@ -342,14 +342,16 @@ class MockStore {
     }
   }
 
-  private save() {
+  private save(notify = true) {
     localStorage.setItem('sammelanam_delegates', JSON.stringify(this.delegates));
     localStorage.setItem('sammelanam_houses', JSON.stringify(this.houses));
     localStorage.setItem('sammelanam_announcements', JSON.stringify(this.announcements));
     localStorage.setItem('sammelanam_location_pings', JSON.stringify(this.locationPings));
     localStorage.setItem('sammelanam_volunteer_pings', JSON.stringify(this.volunteerLocationPings));
     localStorage.setItem('sammelanam_cache_ts', Date.now().toString());
-    this.listeners.forEach((cb) => cb());
+    if (notify) {
+      this.listeners.forEach((cb) => cb());
+    }
   }
 
   subscribe(listener: () => void) {
@@ -439,9 +441,9 @@ class MockStore {
     this.save();
   }
 
-  setAnnouncements(announcements: Announcement[]) {
+  setAnnouncements(announcements: Announcement[], notify = false) {
     this.announcements = announcements.filter((a) => !MOCK_ANNOUNCEMENT_IDS.has(a.id));
-    this.save();
+    this.save(notify);
   }
 
   clearLocalAnnouncements() {
@@ -576,7 +578,7 @@ class MockStore {
     this.save();
   }
 
-  setDelegates(delegates: Delegate[]) {
+  setDelegates(delegates: Delegate[], notify = false) {
     const tokenMap = new Map<string, Delegate>();
     for (const d of delegates) {
       const key = (d.token || d.id).toLowerCase().trim();
@@ -585,7 +587,7 @@ class MockStore {
       }
     }
     this.delegates = Array.from(tokenMap.values());
-    this.save();
+    this.save(notify);
   }
 
   clearLocalDelegates() {
@@ -631,7 +633,7 @@ class MockStore {
     this.save();
   }
 
-  setHouses(houses: House[]) {
+  setHouses(houses: House[], notify = false) {
     const houseMap = new Map<string, House>();
     const idRemap = new Map<string, string>();
 
@@ -658,7 +660,7 @@ class MockStore {
         return d;
       });
     }
-    this.save();
+    this.save(notify);
   }
 
   clearLocalHouses() {

@@ -74,11 +74,24 @@ export const DelegatePortal: React.FC = () => {
   useEffect(() => {
     if (token) {
       loadStayData(token);
-      // Auto-poll every 15s for live announcement updates & notifications
+      // Auto-poll every 45s ONLY when tab is active and visible (zero egress when backgrounded)
       const interval = setInterval(() => {
-        loadStayData(token, true);
-      }, 15000);
-      return () => clearInterval(interval);
+        if (document.visibilityState === 'visible') {
+          loadStayData(token, true);
+        }
+      }, 45000);
+
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          loadStayData(token, true);
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      return () => {
+        clearInterval(interval);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      };
     }
   }, [token, language]);
 

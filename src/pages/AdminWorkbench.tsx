@@ -51,12 +51,12 @@ export const AdminWorkbench: React.FC = () => {
   const [editingHouse, setEditingHouse] = useState<House | null>(null);
   const [isAddingHouse, setIsAddingHouse] = useState<boolean>(false);
 
-  const loadData = async () => {
+  const loadData = async (forceRefresh = false) => {
     try {
       const [delData, houseData, annData] = await Promise.all([
-        api.getDelegates(),
-        api.getHouses(),
-        api.getAnnouncements(),
+        api.getDelegates(forceRefresh),
+        api.getHouses(forceRefresh),
+        api.getAnnouncements(undefined, forceRefresh),
       ]);
       setDelegates(delData);
       setHouses(houseData);
@@ -87,12 +87,31 @@ export const AdminWorkbench: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 15000); // Auto-sync from cloud every 15s
+
+    // Visibility-aware auto-sync every 60s (zero bandwidth when tab is backgrounded)
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadData(true);
+      }
+    }, 60000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // CRITICAL FIX: Only update React state from local memory. NEVER call network loadData() here to eliminate recursive loops.
     const unsubscribe = mockStore.subscribe(() => {
-      loadData();
+      setDelegates(mockStore.getDelegates());
+      setHouses(mockStore.getHouses());
+      setAnnouncements(mockStore.getAnnouncements());
     });
+
     return () => {
       clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       unsubscribe();
     };
   }, []);

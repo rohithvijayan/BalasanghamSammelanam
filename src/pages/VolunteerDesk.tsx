@@ -51,11 +51,11 @@ export const VolunteerDesk: React.FC = () => {
   });
   const [isSharingVolLocation, setIsSharingVolLocation] = useState(false);
 
-  const refreshPings = async () => {
+  const refreshPings = async (forceRefresh = false) => {
     try {
       const [delPings, volPings] = await Promise.all([
-        api.getActiveLocationPings(),
-        api.getActiveVolunteerLocationPings(),
+        api.getActiveLocationPings(forceRefresh),
+        api.getActiveVolunteerLocationPings(forceRefresh),
       ]);
       setLocationPings(delPings);
       setVolunteerPings(volPings);
@@ -64,12 +64,12 @@ export const VolunteerDesk: React.FC = () => {
     }
   };
 
-  const loadData = async () => {
+  const loadData = async (forceRefresh = false) => {
     try {
       const [delData, houseData, annData] = await Promise.all([
-        api.getDelegates(),
-        api.getHouses(),
-        api.getAnnouncements(),
+        api.getDelegates(forceRefresh),
+        api.getHouses(forceRefresh),
+        api.getAnnouncements(undefined, forceRefresh),
       ]);
       setDelegates(delData);
       setHouses(houseData);
@@ -142,15 +142,39 @@ export const VolunteerDesk: React.FC = () => {
   useEffect(() => {
     loadData();
     refreshPings();
-    const pingsInterval = setInterval(refreshPings, 10000); // Poll every 10s for live GPS updates
-    const dataInterval = setInterval(loadData, 15000); // Auto-sync from cloud every 15s
+
+    // Visibility-aware auto-sync: 30s for GPS pings, 60s for full roster
+    const pingsInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        refreshPings(true);
+      }
+    }, 30000);
+
+    const dataInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadData(true);
+      }
+    }, 60000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadData();
+        refreshPings();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // CRITICAL FIX: Only update React state from local memory. NEVER call network loadData() here.
     const unsubscribe = mockStore.subscribe(() => {
-      loadData();
-      refreshPings();
+      setDelegates(mockStore.getDelegates());
+      setHouses(mockStore.getHouses());
+      setAnnouncements(mockStore.getAnnouncements());
     });
+
     return () => {
       clearInterval(pingsInterval);
       clearInterval(dataInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       unsubscribe();
     };
   }, []);
