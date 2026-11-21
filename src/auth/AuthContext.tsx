@@ -211,9 +211,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    const configuredPin = import.meta.env.VITE_VOLUNTEER_PIN || '1985';
-    const validPins = [configuredPin, '1985', '2026'];
-    if (!validPins.includes(cleanPin)) {
+    const configuredPin = import.meta.env.VITE_VOLUNTEER_PIN
+      ? String(import.meta.env.VITE_VOLUNTEER_PIN).trim()
+      : '';
+
+    if (!configuredPin) {
+      return {
+        success: false,
+        error: 'സമ്മേളന പിൻ ക്രമീകരിച്ചിട്ടില്ല. ദയവായി അഡ്മിനുമായി ബന്ധപ്പെടുക. (Conference PIN is not configured. Please contact admin.)',
+      };
+    }
+
+    if (cleanPin !== configuredPin) {
       return {
         success: false,
         error: 'തെറ്റായ കോൺഫറൻസ് പിൻ (Invalid conference PIN)',

@@ -100,15 +100,17 @@ describe('Auth & Role Permissions Unit Tests', () => {
   });
 
   it('should validate volunteer phone and PIN logic', () => {
-    const validPins = ['1985', '2026'];
+    const configuredPin = '7890';
+    const isPinValid = (pin: string, envPin: string) => Boolean(envPin && pin.trim() === envPin.trim());
     const normalizePhone = (phone: string) => {
       const cleanDigits = phone.replace(/[^0-9]/g, '');
       return cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
     };
 
-    expect(validPins.includes('1985')).toBe(true);
-    expect(validPins.includes('2026')).toBe(true);
-    expect(validPins.includes('0000')).toBe(false);
+    expect(isPinValid('7890', configuredPin)).toBe(true);
+    expect(isPinValid('1985', configuredPin)).toBe(false);
+    expect(isPinValid('2026', configuredPin)).toBe(false);
+    expect(isPinValid('', configuredPin)).toBe(false);
 
     expect(normalizePhone('+91 94471 23456')).toBe('9447123456');
     expect(normalizePhone('09447123456')).toBe('9447123456');
