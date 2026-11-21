@@ -825,6 +825,16 @@ export const VolunteerDesk: React.FC = () => {
                             <span>{language === 'ml' ? 'വളണ്ടിയർ ലൈവ്' : 'Volunteer Live'}</span>
                           </a>
                         )}
+                        {/* Assigned Volunteer Badge in Header */}
+                        {del.volunteer ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1 shadow-2xs">
+                            <span>👤 {del.volunteer.name}</span>
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-400 border border-slate-200">
+                            <span>👤 {language === 'ml' ? 'വളണ്ടിയറില്ല' : 'No vol'}</span>
+                          </span>
+                        )}
                       </div>
                       <span className="text-xs font-mono text-slate-400 mt-0.5">
                         {language === 'ml' ? 'ടോക്കൺ:' : 'Token:'} {del.token}
@@ -885,16 +895,23 @@ export const VolunteerDesk: React.FC = () => {
                         </div>
                       </>
                     )}
-                    {del.volunteer && (
-                      <div className="flex items-center justify-between border-t border-slate-200/50 pt-1 text-[11px]">
-                        <span className="text-slate-500 font-semibold">
-                          {language === 'ml' ? 'വളണ്ടിയർ:' : 'Volunteer In-Charge:'}
+                    {del.volunteer ? (
+                      <div className="flex items-center justify-between border-t border-slate-200/50 pt-1.5 text-[11px] bg-indigo-50/70 -mx-3 -mb-1 px-3 py-1.5 rounded-b-xl border-indigo-100">
+                        <span className="text-indigo-900 font-semibold flex items-center gap-1">
+                          <span>👤</span>
+                          <span>{language === 'ml' ? 'വളണ്ടിയർ:' : 'Volunteer In-Charge:'}</span>
                         </span>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <strong className="text-indigo-900">{del.volunteer.name}</strong>
-                          <a href={`tel:${del.volunteer.phone}`} className="text-primary font-mono font-bold hover:underline">
-                            {del.volunteer.phone}
-                          </a>
+                          <strong className="text-indigo-950 font-bold">{del.volunteer.name}</strong>
+                          {del.volunteer.unit && (
+                            <span className="text-[10px] text-slate-500 font-normal">({del.volunteer.unit})</span>
+                          )}
+                          {del.volunteer.phone && (
+                            <a href={`tel:${del.volunteer.phone}`} className="text-primary font-mono font-bold hover:underline flex items-center gap-0.5">
+                              <Phone className="w-3 h-3" />
+                              <span>{del.volunteer.phone}</span>
+                            </a>
+                          )}
                           {del.volunteer.active_location && (
                             <a
                               href={`https://maps.google.com/?q=${del.volunteer.active_location.lat},${del.volunteer.active_location.lng}`}
@@ -908,6 +925,11 @@ export const VolunteerDesk: React.FC = () => {
                             </a>
                           )}
                         </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between border-t border-slate-200/50 pt-1 text-[11px] text-slate-400 italic">
+                        <span>{language === 'ml' ? 'വളണ്ടിയർ:' : 'Volunteer:'}</span>
+                        <span>{language === 'ml' ? 'ആരെയും നിശ്ചയിച്ചിട്ടില്ല' : 'Not assigned'}</span>
                       </div>
                     )}
                     {del.emergency_phone && (
@@ -1106,13 +1128,22 @@ export const VolunteerDesk: React.FC = () => {
                       {occupants.map((occ) => (
                         <span
                           key={occ.id}
-                          className={`text-xs px-2.5 py-1 rounded-lg border font-medium flex items-center gap-1 ${
+                          className={`text-xs px-2.5 py-1 rounded-lg border font-medium flex items-center gap-1.5 flex-wrap ${
                             occ.status === 'checked_in'
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                               : 'bg-amber-50 text-amber-800 border-amber-200'
                           }`}
                         >
-                          {occ.status === 'checked_in' ? '✓' : '•'} {occ.full_name}
+                          <span>{occ.status === 'checked_in' ? '✓' : '•'} {occ.full_name}</span>
+                          {occ.volunteer ? (
+                            <span className="text-[10px] text-indigo-700 bg-indigo-100/80 px-1.5 py-0.2 rounded font-semibold flex items-center gap-0.5">
+                              👤 {occ.volunteer.name}
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-slate-400 italic">
+                              ({language === 'ml' ? 'വളണ്ടിയറില്ല' : 'No vol'})
+                            </span>
+                          )}
                         </span>
                       ))}
                       {occupants.length === 0 && (

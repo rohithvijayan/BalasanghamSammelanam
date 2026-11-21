@@ -9,6 +9,8 @@ import { StayCard } from '../../src/components/StayCard';
 import { VolunteerCard } from '../../src/components/VolunteerCard';
 import { InteractiveGuideModal } from '../../src/components/InteractiveGuideModal';
 import { ManageAnnouncementsModal } from '../../src/components/ManageAnnouncementsModal';
+import { VolunteerDesk } from '../../src/pages/VolunteerDesk';
+import { isDelegateAssignedToVolunteer } from '../../src/lib/mockData';
 import { I18nProvider } from '../../src/i18n/i18nContext';
 import { AuthProvider } from '../../src/auth/AuthContext';
 import { Delegate, House, HelplineItem, Volunteer } from '../../src/types';
@@ -497,6 +499,64 @@ describe('React Components Unit Tests', () => {
       });
 
       expect(handleDelete).toHaveBeenCalledWith('ann-101');
+    });
+  });
+
+  describe('Volunteer Scope & Delegation', () => {
+    it('isDelegateAssignedToVolunteer matches delegates by id, phone, or name', () => {
+      const delWithId: Delegate = {
+        id: 'd-1',
+        token: 'tok-1',
+        full_name: 'കുട്ടി 1',
+        district_id: 2,
+        status: 'pending',
+        volunteer_id: 'vol-uuid-1',
+        volunteer: { id: 'vol-uuid-1', name: 'അരുൺ', phone: '9447123456' },
+      };
+
+      // Match by volunteer_id
+      expect(isDelegateAssignedToVolunteer(delWithId, { id: 'vol-uuid-1' })).toBe(true);
+      // Match by phone
+      expect(isDelegateAssignedToVolunteer(delWithId, { phone: '+91 94471 23456' })).toBe(true);
+      // Match by name
+      expect(isDelegateAssignedToVolunteer(delWithId, { name: 'അരുൺ' })).toBe(true);
+      // Negative match
+      expect(isDelegateAssignedToVolunteer(delWithId, { id: 'vol-uuid-2', name: 'വേറെ ആൾ', phone: '9895000000' })).toBe(false);
+    });
+
+    it('renders volunteer scope switcher for logged in volunteer and volunteer filter dropdown for admin in <VolunteerDesk />', async () => {
+      // 1. Volunteer view
+      localStorage.setItem(
+        'sammelanam_staff_session',
+        JSON.stringify({
+          id: 'vol-uuid-1',
+          email: 'volunteer@balasangham.in',
+          full_name: 'അരുൺ',
+          phone: '9447123456',
+          role: 'volunteer',
+        })
+      );
+
+      const { unmount } = renderWithProviders(<VolunteerDesk />);
+      expect(screen.getByText(/എന്റെ കുട്ടികൾ/i)).toBeInTheDocument();
+      expect(screen.getByText(/എല്ലാ കുട്ടികളും/i)).toBeInTheDocument();
+      unmount();
+
+      // 2. Admin view
+      localStorage.setItem(
+        'sammelanam_staff_session',
+        JSON.stringify({
+          id: 'admin-1',
+          email: 'admin@balasangham.in',
+          full_name: 'സംസ്ഥാന അഡ്മിൻ',
+          role: 'admin',
+        })
+      );
+
+      renderWithProviders(<VolunteerDesk />);
+      expect(screen.getByLabelText(/വളണ്ടിയർ ഫിൽറ്റർ/i)).toBeInTheDocument();
+      expect(screen.getByText(/എല്ലാ വളണ്ടിയർമാരും/i)).toBeInTheDocument();
+      expect(screen.getByText(/വളണ്ടിയർ ഇല്ലാത്തവർ/i)).toBeInTheDocument();
     });
   });
 });
