@@ -4,7 +4,21 @@ import { mockStore, initialDistricts, getHouseNaturalKey, getVolunteerNaturalKey
 import { Delegate, House, Volunteer } from '../types';
 import { api, isSupabaseConfigured, isSafeUrl } from '../lib/supabase';
 import { useI18n } from '../i18n/i18nContext';
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Download, ArrowRight, CloudUpload, RefreshCw, Trash2, Database, Users } from 'lucide-react';
+import {
+  Upload,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertCircle,
+  Download,
+  ArrowRight,
+  CloudUpload,
+  RefreshCw,
+  Trash2,
+  Database,
+  Users,
+  Home,
+  UserCheck
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const CSVImporter: React.FC = () => {
@@ -18,12 +32,34 @@ export const CSVImporter: React.FC = () => {
   const [isCommitting, setIsCommitting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
-  const [cloudCount, setCloudCount] = useState<number | null>(null);
+  const [cloudCounts, setCloudCounts] = useState<{
+    delegates: number | null;
+    houses: number | null;
+    volunteers: number | null;
+  }>({ delegates: null, houses: null, volunteers: null });
 
   // Reactive store subscription
   const [delegates, setDelegates] = useState<Delegate[]>(() => mockStore.getDelegates());
   const [houses, setHouses] = useState<House[]>(() => mockStore.getHouses());
   const [volunteers, setVolunteers] = useState<Volunteer[]>(() => mockStore.getVolunteers());
+
+  const loadCloudCounts = async () => {
+    if (!isSupabaseConfigured) return;
+    try {
+      const [d, h, v] = await Promise.all([
+        api.getDelegates().catch(() => []),
+        api.getHouses().catch(() => []),
+        api.getVolunteers().catch(() => []),
+      ]);
+      setCloudCounts({
+        delegates: d.length,
+        houses: h.length,
+        volunteers: v.length,
+      });
+    } catch (err) {
+      console.warn('Could not fetch cloud counts', err);
+    }
+  };
 
   useEffect(() => {
     const unsub = mockStore.subscribe(() => {
@@ -32,11 +68,7 @@ export const CSVImporter: React.FC = () => {
       setVolunteers(mockStore.getVolunteers());
     });
 
-    if (isSupabaseConfigured) {
-      api.getDelegates()
-        .then((data) => setCloudCount(data.length))
-        .catch((err) => console.warn('Could not fetch cloud delegate count', err));
-    }
+    loadCloudCounts();
 
     return unsub;
   }, []);
@@ -71,9 +103,48 @@ export const CSVImporter: React.FC = () => {
     return Array.from(map.values());
   }, [volunteers]);
 
-  const hasLocalDelegates = uniqueLocalDelegates.length > 0;
-  const hasLocalHouses = uniqueLocalHouses.length > 0;
-  const hasLocalVolunteers = uniqueLocalVolunteers.length > 0;
+  const currentConfig = useMemo(() => {
+    if (importType === 'delegates') {
+      const isSynced = cloudCounts.delegates !== null && cloudCounts.delegates >= uniqueLocalDelegates.length;
+      return {
+        title: language === 'ml' ? 'പ്രതിനിധികൾ' : 'Delegates',
+        unit_ml: 'പ്രതിനിധികൾ',
+        unit_en: 'delegates',
+        localCount: uniqueLocalDelegates.length,
+        cloudCount: cloudCounts.delegates,
+        isSynced,
+        icon: Users,
+        colorBg: 'bg-amber-100',
+        colorText: 'text-amber-800',
+      };
+    }
+    if (importType === 'houses') {
+      const isSynced = cloudCounts.houses !== null && cloudCounts.houses >= uniqueLocalHouses.length;
+      return {
+        title: language === 'ml' ? 'താമസ വീടുകൾ' : 'Host Houses',
+        unit_ml: 'വീടുകൾ',
+        unit_en: 'houses',
+        localCount: uniqueLocalHouses.length,
+        cloudCount: cloudCounts.houses,
+        isSynced,
+        icon: Home,
+        colorBg: 'bg-sky-100',
+        colorText: 'text-sky-800',
+      };
+    }
+    const isSynced = cloudCounts.volunteers !== null && cloudCounts.volunteers >= uniqueLocalVolunteers.length;
+    return {
+      title: language === 'ml' ? 'വളണ്ടിയർമാർ' : 'Volunteers',
+      unit_ml: 'വളണ്ടിയർമാർ',
+      unit_en: 'volunteers',
+      localCount: uniqueLocalVolunteers.length,
+      cloudCount: cloudCounts.volunteers,
+      isSynced,
+      icon: UserCheck,
+      colorBg: 'bg-emerald-100',
+      colorText: 'text-emerald-800',
+    };
+  }, [importType, cloudCounts, uniqueLocalDelegates.length, uniqueLocalHouses.length, uniqueLocalVolunteers.length, language]);
 
   // SECURITY FIX: Neutralize formula injection in CSV cells (=, +, -, @, \t, \r)
   const sanitizeCell = (val: any): string => {
@@ -296,7 +367,6 @@ export const CSVImporter: React.FC = () => {
     try {
       if (importType === 'delegates') {
         const res = await api.importDelegates(parsedRows as Delegate[]);
-        setCloudCount((prev) => (prev !== null ? prev + res.count : res.count));
         setSuccessMsg(language === 'ml' ? `വിജയകരമായി ${res.count} പ്രതിനിധികളെ Supabase ക്ലൗഡിലേക്ക് സേവ് ചെയ്തു!` : `Successfully saved ${res.count} delegates to Supabase!`);
       } else if (importType === 'houses') {
         const res = await api.importHouses(parsedRows as House[]);
@@ -306,6 +376,7 @@ export const CSVImporter: React.FC = () => {
         setSuccessMsg(language === 'ml' ? `വിജയകരമായി ${res.count} വളണ്ടിയർമാരെ Supabase ക്ലൗഡിലേക്ക് സേവ് ചെയ്തു!` : `Successfully saved ${res.count} volunteers to Supabase!`);
       }
 
+      await loadCloudCounts();
       setParsedRows([]);
       setTimeout(() => {
         navigate(importType === 'volunteers' ? '/volunteer' : '/admin');
@@ -318,23 +389,39 @@ export const CSVImporter: React.FC = () => {
     }
   };
 
-  const handleSyncLocalToSupabase = async () => {
+  // Unified Cloud Sync for all 3 categories (Delegates, Houses, Volunteers)
+  const handleSyncToCloud = async (type: 'delegates' | 'houses' | 'volunteers') => {
     setIsSyncing(true);
     setErrors([]);
     setSuccessMsg(null);
 
     try {
-      const res = await api.importDelegates(uniqueLocalDelegates);
-      
-      // Post-sync: pull fresh data from cloud and replace local cache
-      const cloudData = await api.getDelegates();
-      mockStore.setDelegates(cloudData);
-      setCloudCount(cloudData.length);
+      let count = 0;
+      if (type === 'delegates') {
+        const res = await api.importDelegates(uniqueLocalDelegates);
+        count = res.count;
+        const cloudData = await api.getDelegates(true);
+        mockStore.setDelegates(cloudData, false);
+        setDelegates(cloudData);
+      } else if (type === 'houses') {
+        const res = await api.importHouses(uniqueLocalHouses);
+        count = res.count;
+        const cloudData = await api.getHouses(true);
+        mockStore.setHouses(cloudData, false);
+        setHouses(cloudData);
+      } else {
+        const res = await api.importVolunteers(uniqueLocalVolunteers);
+        count = res.count;
+        const cloudData = await api.getVolunteers(true);
+        mockStore.setVolunteers(cloudData, false);
+        setVolunteers(cloudData);
+      }
 
+      await loadCloudCounts();
       setSuccessMsg(
         language === 'ml'
-          ? `വിജയകരമായി ${res.count} പ്രതിനിധികളെ Supabase ക്ലൗഡ് ഡാറ്റാബേസിലേക്ക് സിങ്ക് ചെയ്തു! ലോക്കൽ കാഷെ ക്ലൗഡുമായി പൊരുത്തപ്പെടുത്തി.`
-          : `Successfully synced ${res.count} delegates to Supabase cloud database! Local cache updated.`
+          ? `വിജയകരമായി ${count} വിവരങ്ങൾ Supabase ക്ലൗഡിലേക്ക് സിങ്ക് ചെയ്തു!`
+          : `Successfully synced ${count} items to Supabase cloud database!`
       );
     } catch (err: any) {
       console.error('Sync failed', err);
@@ -344,115 +431,89 @@ export const CSVImporter: React.FC = () => {
     }
   };
 
-  const handleClearLocalCache = async () => {
+  // Unified Refresh from Cloud for all 3 categories
+  const handleRefreshFromCloud = async (type: 'delegates' | 'houses' | 'volunteers') => {
     setIsClearing(true);
     setErrors([]);
     setSuccessMsg(null);
 
     try {
-      api.invalidateCache('delegates');
-      mockStore.clearLocalDelegates();
-      if (isSupabaseConfigured) {
-        try {
-          const cloudData = await api.getDelegates(true);
-          mockStore.setDelegates(cloudData, false);
-          setCloudCount(cloudData.length);
-          setDelegates(cloudData);
-          setSuccessMsg(
-            language === 'ml'
-              ? `ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു, ക്ലൗഡിൽ നിന്നുള്ള ${cloudData.length} പ്രതിനിധികളെ പുതുക്കി ലോഡ് ചെയ്തു.`
-              : `Local cache cleared and refreshed with ${cloudData.length} delegates from cloud.`
-          );
-          return;
-        } catch {
-          // fall through
-        }
+      let count = 0;
+      if (type === 'delegates') {
+        const data = await api.getDelegates(true);
+        count = data.length;
+        mockStore.setDelegates(data, false);
+        setDelegates(data);
+      } else if (type === 'houses') {
+        const data = await api.getHouses(true);
+        count = data.length;
+        mockStore.setHouses(data, false);
+        setHouses(data);
+      } else {
+        const data = await api.getVolunteers(true);
+        count = data.length;
+        mockStore.setVolunteers(data, false);
+        setVolunteers(data);
       }
-      setDelegates([]);
-      setSuccessMsg(language === 'ml' ? 'ഈ ഡിവൈസിലെ ലോക്കൽ കാഷെ വിജയകരമായി ക്ലിയർ ചെയ്തു.' : 'Local cache on this device cleared successfully.');
+
+      await loadCloudCounts();
+      setSuccessMsg(
+        language === 'ml'
+          ? `ക്ലൗഡിൽ നിന്നുള്ള ${count} വിവരങ്ങൾ വിജയകരമായി പുതുക്കി!`
+          : `Successfully refreshed ${count} items from Supabase cloud!`
+      );
     } catch (err: any) {
-      api.invalidateCache('delegates');
-      mockStore.clearLocalDelegates();
-      setDelegates([]);
-      setSuccessMsg(language === 'ml' ? 'ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു.' : 'Local cache cleared.');
+      console.error('Refresh failed', err);
+      setErrors([language === 'ml' ? ('ഡാറ്റ പുതുക്കാൻ സാധിച്ചില്ല: ' + (err.message || 'Unknown error')) : ('Could not refresh data: ' + (err.message || 'Unknown error'))]);
     } finally {
       setIsClearing(false);
     }
   };
 
-  const handleClearLocalHousesCache = async () => {
+  // Unified Clear Local Cache for all 3 categories
+  const handleClearCache = async (type: 'delegates' | 'houses' | 'volunteers') => {
     setIsClearing(true);
     setErrors([]);
     setSuccessMsg(null);
 
     try {
-      api.invalidateCache('houses');
-      mockStore.clearLocalHouses();
+      api.invalidateCache(type);
+      if (type === 'delegates') {
+        mockStore.clearLocalDelegates();
+        setDelegates([]);
+      } else if (type === 'houses') {
+        mockStore.clearLocalHouses();
+        setHouses([]);
+      } else {
+        mockStore.clearLocalVolunteers();
+        setVolunteers([]);
+      }
+
+      // Re-fetch latest from cloud if available
       if (isSupabaseConfigured) {
         try {
-          const cloudHouses = await api.getHouses(true);
-          mockStore.setHouses(cloudHouses, false);
-          setHouses(cloudHouses);
-          setSuccessMsg(
-            language === 'ml'
-              ? `വീടുകളുടെ ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു, ക്ലൗഡിൽ നിന്നുള്ള ${cloudHouses.length} വീടുകൾ പുതുക്കി ലോഡ് ചെയ്തു.`
-              : `Local house cache cleared and refreshed with ${cloudHouses.length} houses from cloud.`
-          );
-          return;
+          if (type === 'delegates') {
+            const cloudData = await api.getDelegates(true);
+            mockStore.setDelegates(cloudData, false);
+            setDelegates(cloudData);
+          } else if (type === 'houses') {
+            const cloudHouses = await api.getHouses(true);
+            mockStore.setHouses(cloudHouses, false);
+            setHouses(cloudHouses);
+          } else {
+            const cloudVolunteers = await api.getVolunteers(true);
+            mockStore.setVolunteers(cloudVolunteers, false);
+            setVolunteers(cloudVolunteers);
+          }
         } catch {
           // fall through
         }
       }
-      setHouses([]);
-      setSuccessMsg(
-        language === 'ml'
-          ? 'ഈ ഡിവൈസിലെ വീടുകളുടെ ലോക്കൽ കാഷെ വിജയകരമായി ക്ലിയർ ചെയ്തു.'
-          : 'Local house cache on this device cleared successfully.'
-      );
-    } catch (err: any) {
-      api.invalidateCache('houses');
-      mockStore.clearLocalHouses();
-      setHouses([]);
-      setSuccessMsg(language === 'ml' ? 'ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു.' : 'Local cache cleared.');
-    } finally {
-      setIsClearing(false);
-    }
-  };
 
-  const handleClearLocalVolunteersCache = async () => {
-    setIsClearing(true);
-    setErrors([]);
-    setSuccessMsg(null);
-
-    try {
-      api.invalidateCache('volunteers');
-      mockStore.clearLocalVolunteers();
-      if (isSupabaseConfigured) {
-        try {
-          const cloudVolunteers = await api.getVolunteers(true);
-          mockStore.setVolunteers(cloudVolunteers, false);
-          setVolunteers(cloudVolunteers);
-          setSuccessMsg(
-            language === 'ml'
-              ? `വളണ്ടിയർമാരുടെ ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു, ക്ലൗഡിൽ നിന്നുള്ള ${cloudVolunteers.length} വളണ്ടിയർമാരെ പുതുക്കി ലോഡ് ചെയ്തു.`
-              : `Local volunteer cache cleared and refreshed with ${cloudVolunteers.length} volunteers from cloud.`
-          );
-          return;
-        } catch {
-          // fall through
-        }
-      }
-      setVolunteers([]);
-      setSuccessMsg(
-        language === 'ml'
-          ? 'ഈ ഡിവൈസിലെ വളണ്ടിയർമാരുടെ ലോക്കൽ കാഷെ വിജയകരമായി ക്ലിയർ ചെയ്തു.'
-          : 'Local volunteer cache on this device cleared successfully.'
-      );
+      await loadCloudCounts();
+      setSuccessMsg(language === 'ml' ? 'ഈ ഡിവൈസിലെ കാഷെ വിജയകരമായി റീസെറ്റ് ചെയ്തു.' : 'Local cache on this device reset successfully.');
     } catch (err: any) {
-      api.invalidateCache('volunteers');
-      mockStore.clearLocalVolunteers();
-      setVolunteers([]);
-      setSuccessMsg(language === 'ml' ? 'ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്തു.' : 'Local cache cleared.');
+      setSuccessMsg(language === 'ml' ? 'കാഷെ ക്ലിയർ ചെയ്തു.' : 'Local cache cleared.');
     } finally {
       setIsClearing(false);
     }
@@ -477,147 +538,83 @@ export const CSVImporter: React.FC = () => {
         </p>
       </div>
 
-      {/* Sync Local Browser Data to Supabase Cloud */}
-      {importType === 'delegates' && hasLocalDelegates && (
-        <div className="bg-amber-50 border border-amber-200/90 rounded-3xl p-5 md:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-              <CloudUpload className="w-6 h-6 text-amber-700" />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-bold text-amber-900 font-malayalam-bold">
-                  {language === 'ml'
-                    ? `ഈ ഡിവൈസിൽ ${uniqueLocalDelegates.length} പ്രതിനിധികൾ നിലവിലുണ്ട്`
-                    : `${uniqueLocalDelegates.length} delegates currently stored on this device`}
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-300">
-                  {cloudCount !== null && cloudCount >= uniqueLocalDelegates.length
-                    ? (language === 'ml' ? 'ക്ലൗഡിൽ ലഭ്യമാണ്' : 'Synced to Cloud')
-                    : (language === 'ml' ? 'ലോക്കൽ ഡാറ്റ' : 'Local Data')}
-                </span>
-              </div>
-              <p className="text-xs text-amber-700 mt-0.5">
-                {cloudCount !== null && cloudCount >= uniqueLocalDelegates.length
-                  ? (language === 'ml'
-                      ? `Supabase ക്ലൗഡിൽ നിലവിൽ ${cloudCount} പ്രതിനിധികളുണ്ട്. എല്ലാ ഡിവൈസുകളിലും ഒരേ ഡാറ്റ കാണാം.`
-                      : `Currently ${cloudCount} delegates exist in Supabase cloud. Synced across all devices.`)
-                  : (language === 'ml'
-                      ? 'മറ്റു ഡിവൈസുകളിലും ഫോണുകളിലും കാണാൻ ഇവരെ Supabase ക്ലൗഡ് ഡാറ്റാബേസിലേക്ക് ഒറ്റ ക്ലിക്കിൽ സിങ്ക് ചെയ്യാം.'
-                      : 'Sync these delegates to Supabase cloud to make them accessible on all phones and devices.')}
-              </p>
-            </div>
+      {/* Unified Status & Sync Card for all 3 categories (Delegates, Houses, Volunteers) */}
+      <div className="bg-white border border-slate-200/90 rounded-3xl p-5 md:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${currentConfig.colorBg} ${currentConfig.colorText}`}>
+            <currentConfig.icon className="w-6 h-6" />
           </div>
-          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
-            {cloudCount !== null && cloudCount >= uniqueLocalDelegates.length ? (
-              <div className="px-3.5 py-2 rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold flex items-center gap-1.5 shrink-0">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>{language === 'ml' ? 'ക്ലൗഡിൽ സിങ്ക് ചെയ്തിരിക്കുന്നു' : 'Synced with Cloud'}</span>
-              </div>
-            ) : (
-              <button
-                onClick={handleSyncLocalToSupabase}
-                disabled={isSyncing || isClearing}
-                className="touch-target px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer"
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-bold text-slate-900 font-malayalam-bold">
+                {currentConfig.title}: {currentConfig.localCount} {language === 'ml' ? 'ഡിവൈസിലുണ്ട്' : 'on device'}
+              </span>
+              <span
+                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 ${
+                  currentConfig.isSynced
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    : 'bg-amber-100 text-amber-800 border-amber-300'
+                }`}
               >
-                <CloudUpload className={`w-4 h-4 ${isSyncing ? 'animate-bounce' : ''}`} />
-                <span>
-                  {isSyncing
-                    ? (language === 'ml' ? 'ക്ലൗഡിലേക്ക് സിങ്ക് ചെയ്യുന്നു...' : 'Syncing to Cloud...')
-                    : (language === 'ml' ? 'Supabase-ലേക്ക് സിങ്ക് ചെയ്യുക' : 'Sync to Supabase')}
-                </span>
-              </button>
-            )}
-            <button
-              onClick={handleClearLocalCache}
-              disabled={isClearing || isSyncing}
-              title={language === 'ml' ? 'ലോക്കൽ കാഷെ ക്ലിയർ ചെയ്ത് ക്ലൗഡിൽ നിന്നുള്ള വിവരങ്ങൾ പുതുക്കുക' : 'Clear local device cache and refresh from cloud'}
-              className="touch-target px-4 py-2.5 rounded-xl bg-white hover:bg-amber-100/70 text-amber-900 border border-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isClearing ? 'animate-spin' : ''}`} />
-              <span>{language === 'ml' ? 'റീസെറ്റ് / കാഷെ ക്ലിയർ' : 'Reset / Clear Cache'}</span>
-            </button>
+                {currentConfig.isSynced ? (
+                  <>
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    <span>{language === 'ml' ? 'ക്ലൗഡിൽ സിങ്ക് ചെയ്തിരിക്കുന്നു' : 'Synced with Cloud'}</span>
+                  </>
+                ) : (
+                  <span>{language === 'ml' ? 'ലോക്കൽ ഡാറ്റ' : 'Local Only'}</span>
+                )}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {currentConfig.cloudCount !== null
+                ? (language === 'ml'
+                    ? `Supabase ക്ലൗഡ് ഡാറ്റാബേസിൽ നിലവിൽ ${currentConfig.cloudCount} ${currentConfig.unit_ml} ലഭ്യമാണ്.`
+                    : `Currently ${currentConfig.cloudCount} ${currentConfig.unit_en} available in Supabase Cloud.`)
+                : (language === 'ml'
+                    ? 'ക്ലൗഡ് വിവരങ്ങൾ പരിശോധിക്കുന്നു...'
+                    : 'Checking cloud database...')}
+            </p>
           </div>
         </div>
-      )}
 
-      {/* Houses Sync / Clear Banner */}
-      {importType === 'houses' && hasLocalHouses && (
-        <div className="bg-sky-50 border border-sky-200/90 rounded-3xl p-5 md:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
-              <RefreshCw className="w-6 h-6 text-sky-700" />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-bold text-sky-900 font-malayalam-bold">
-                  {language === 'ml'
-                    ? `ഈ ഡിവൈസിൽ ${uniqueLocalHouses.length} വീടുകൾ നിലവിലുണ്ട്`
-                    : `${uniqueLocalHouses.length} host houses currently stored on this device`}
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 text-[10px] font-bold border border-sky-300">
-                  {language === 'ml' ? 'ഡ്യൂപ്ലിക്കേഷൻ ഫ്രീ' : 'Clean & Unique'}
-                </span>
-              </div>
-              <p className="text-xs text-sky-700 mt-0.5">
-                {language === 'ml'
-                  ? 'വീടുകൾ പേരും ഫോൺ നമ്പറും അടിസ്ഥാനമാക്കി ഓട്ടോമാറ്റിക്കായി ഡീഡ്യൂപ്ലിക്കേറ്റ് ചെയ്യപ്പെടുന്നു. പഴയ കാഷെ നീക്കം ചെയ്യാൻ റീസെറ്റ് ക്ലിക്ക് ചെയ്യുക.'
-                  : 'Houses are automatically deduplicated by name and phone. Click Reset if you wish to clear local house cache.'}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+          {!currentConfig.isSynced && currentConfig.localCount > 0 && (
             <button
-              onClick={handleClearLocalHousesCache}
-              disabled={isClearing}
-              title={language === 'ml' ? 'വീടുകളുടെ കാഷെ ക്ലിയർ ചെയ്യുക' : 'Clear local houses cache'}
-              className="touch-target px-4 py-2.5 rounded-xl bg-white hover:bg-sky-100 text-sky-900 border border-sky-300 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95 disabled:opacity-50 shrink-0"
+              onClick={() => handleSyncToCloud(importType)}
+              disabled={isSyncing || isClearing}
+              className="touch-target px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-transform active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isClearing ? 'animate-spin' : ''}`} />
-              <span>{language === 'ml' ? 'റീസെറ്റ് / കാഷെ ക്ലിയർ' : 'Reset / Clear Cache'}</span>
+              <CloudUpload className={`w-3.5 h-3.5 ${isSyncing ? 'animate-bounce' : ''}`} />
+              <span>
+                {isSyncing
+                  ? (language === 'ml' ? 'സിങ്ക് ചെയ്യുന്നു...' : 'Syncing...')
+                  : (language === 'ml' ? 'ക്ലൗഡിലേക്ക് സിങ്ക് ചെയ്യുക' : 'Sync to Cloud')}
+              </span>
             </button>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Volunteers Sync / Clear Banner */}
-      {importType === 'volunteers' && hasLocalVolunteers && (
-        <div className="bg-teal-50 border border-teal-200/90 rounded-3xl p-5 md:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
-              <Users className="w-6 h-6 text-teal-700" />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-bold text-teal-900 font-malayalam-bold">
-                  {language === 'ml'
-                    ? `ഈ ഡിവൈസിൽ ${uniqueLocalVolunteers.length} വളണ്ടിയർമാർ നിലവിലുണ്ട്`
-                    : `${uniqueLocalVolunteers.length} volunteers currently stored on this device`}
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-bold border border-teal-300">
-                  {language === 'ml' ? 'ഡ്യൂപ്ലിക്കേഷൻ ഫ്രീ' : 'Clean & Unique'}
-                </span>
-              </div>
-              <p className="text-xs text-teal-700 mt-0.5">
-                {language === 'ml'
-                  ? 'വളണ്ടിയർമാർ പേരും ഫോൺ നമ്പറും അടിസ്ഥാനമാക്കി ഓട്ടോമാറ്റിക്കായി ഡീഡ്യൂപ്ലിക്കേറ്റ് ചെയ്യപ്പെടുന്നു. പഴയ കാഷെ നീക്കം ചെയ്യാൻ റീസെറ്റ് ക്ലിക്ക് ചെയ്യുക.'
-                  : 'Volunteers are automatically deduplicated by name and phone number. Click Reset to clear local cache.'}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
-            <button
-              onClick={handleClearLocalVolunteersCache}
-              disabled={isClearing}
-              title={language === 'ml' ? 'വളണ്ടിയർമാരുടെ കാഷെ ക്ലിയർ ചെയ്യുക' : 'Clear local volunteers cache'}
-              className="touch-target px-4 py-2.5 rounded-xl bg-white hover:bg-teal-100 text-teal-900 border border-teal-300 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95 disabled:opacity-50 shrink-0"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isClearing ? 'animate-spin' : ''}`} />
-              <span>{language === 'ml' ? 'റീസെറ്റ് / കാഷെ ക്ലിയർ' : 'Reset / Clear Cache'}</span>
-            </button>
-          </div>
+          <button
+            onClick={() => handleRefreshFromCloud(importType)}
+            disabled={isClearing || isSyncing}
+            title={language === 'ml' ? 'ക്ലൗഡിൽ നിന്ന് ഏറ്റവും പുതിയ ഡാറ്റ പുതുക്കുക' : 'Refresh data from Supabase Cloud'}
+            className="touch-target px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 border border-slate-200 shadow-2xs transition-transform active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isClearing ? 'animate-spin' : ''}`} />
+            <span>{language === 'ml' ? 'പുതുക്കുക' : 'Refresh'}</span>
+          </button>
+
+          <button
+            onClick={() => handleClearCache(importType)}
+            disabled={isClearing || isSyncing}
+            title={language === 'ml' ? 'ഈ ഡിവൈസിലെ ലോക്കൽ കാഷെ റീസെറ്റ് ചെയ്യുക' : 'Reset local device cache'}
+            className="touch-target px-3.5 py-2.5 rounded-xl bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+            <span>{language === 'ml' ? 'കാഷെ ക്ലിയർ' : 'Clear Cache'}</span>
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Import Switcher & Template Downloads */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

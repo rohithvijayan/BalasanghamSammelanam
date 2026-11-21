@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { StaffProfile, UserRole } from '../types';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, api } from '../lib/supabase';
+import { mockStore } from '../lib/mockData';
 
 interface AuthContextType {
   user: StaffProfile | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  updateProfile: (updates: { full_name?: string; phone?: string; unit?: string }) => Promise<{ success: boolean; error?: string }>;
   isAuthenticated: boolean;
   isAdmin: boolean;
 }
@@ -123,6 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: data.id,
           email,
           full_name: data.full_name,
+          phone: data.phone || '',
           role: data.role as UserRole,
           district_id: data.district_id,
         };
@@ -203,6 +206,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('sammelanam_staff_session');
   };
 
+  const updateProfile = async (updates: { full_name?: string; phone?: string; unit?: string }): Promise<{ success: boolean; error?: string }> => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+
+    const updatedProfile: StaffProfile = {
+      ...user,
+      full_name: updates.full_name !== undefined ? updates.full_name.trim() : user.full_name,
+      phone: updates.phone !== undefined ? updates.phone.trim() : user.phone,
+      unit: updates.unit !== undefined ? updates.unit.trim() : user.unit,
+    };
+
+    setUser(updatedProfile);
+    localStorage.setItem('sammelanam_staff_session', JSON.stringify(updatedProfile));
+
+    // Also sync to volunteers directory if user is a volunteer
+    try {
+      const volList = mockStore.getVolunteers();
+      const match = volList.find(
+        (v) => (v.id && v.id === user.id) || v.name.toLowerCase() === user.full_name.toLowerCase() || (user.phone && v.phone === user.phone)
+      );
+      if (match && match.id) {
+        await api.updateVolunteer({
+          id: match.id,
+          name: updatedProfile.full_name,
+          phone: updatedProfile.phone || match.phone,
+          unit: updatedProfile.unit || match.unit,
+        });
+      }
+    } catch (e) {
+      console.warn('Volunteer store sync notice', e);
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const payload: Record<string, any> = {};
+        if (updates.full_name !== undefined) payload.full_name = updates.full_name.trim();
+        if (updates.phone !== undefined) payload.phone = updates.phone.trim();
+
+        const { error } = await supabase
+          .from('profiles')
+          .update(payload)
+          .eq('id', user.id);
+
+        if (error) {
+          console.warn('Supabase profile update warning:', error);
+          return { success: false, error: error.message };
+        }
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    }
+
+    return { success: true };
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -210,6 +267,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         login,
         logout,
+        updateProfile,
         isAuthenticated: Boolean(user),
         isAdmin: user?.role === 'admin',
       }}
