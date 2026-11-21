@@ -999,7 +999,6 @@ export const api = {
 
   // Update check-in status (Admin/Staff)
   async updateDelegateStatus(delegateId: string, status: DelegateStatus): Promise<boolean> {
-    invalidateCache('delegates');
     if (supabase) {
       const { error } = await supabase
         .from('delegates')
@@ -1014,6 +1013,7 @@ export const api = {
       }
     }
     mockStore.updateStatus(delegateId, status);
+    browserCache.set(CACHE_KEYS.DELEGATES, mockStore.getDelegates());
     return true;
   },
 
@@ -1024,8 +1024,6 @@ export const api = {
 
   // Assign delegate to house (Admin)
   async assignHouse(delegateId: string, houseId: string | null): Promise<boolean> {
-    invalidateCache('delegates');
-    invalidateCache('houses');
     if (supabase) {
       const { error } = await supabase
         .from('delegates')
@@ -1037,14 +1035,13 @@ export const api = {
       }
     }
     mockStore.assignHouse(delegateId, houseId);
+    browserCache.set(CACHE_KEYS.DELEGATES, mockStore.getDelegates());
     return true;
   },
 
   // Bulk assign delegates (Admin)
   async bulkAssign(delegateIds: string[], houseId: string): Promise<boolean> {
     if (!delegateIds || delegateIds.length === 0) return true;
-    invalidateCache('delegates');
-    invalidateCache('houses');
     if (supabase) {
       const { error } = await supabase
         .from('delegates')
@@ -1056,6 +1053,7 @@ export const api = {
       }
     }
     mockStore.bulkAssign(delegateIds, houseId);
+    browserCache.set(CACHE_KEYS.DELEGATES, mockStore.getDelegates());
     return true;
   },
 

@@ -396,17 +396,26 @@ class MockStore {
 
   getDelegates(): Delegate[] {
     const activeVolPings = this.getActiveVolunteerLocationPings();
+    const volMap = new Map<string, Volunteer>();
+    for (const v of this.volunteers) {
+      if (v.id) volMap.set(v.id, v);
+    }
     return this.delegates.map((d) => {
-      if (d.volunteer) {
-        const keyName = (d.volunteer.name || '').trim().toLowerCase();
-        const keyPhone = (d.volunteer.phone || '').replace(/[^0-9]/g, '');
+      let resolvedVol = d.volunteer;
+      if (!resolvedVol && d.volunteer_id) {
+        resolvedVol = volMap.get(d.volunteer_id) || null;
+      }
+      if (resolvedVol) {
+        const keyName = (resolvedVol.name || '').trim().toLowerCase();
+        const keyPhone = (resolvedVol.phone || '').replace(/[^0-9]/g, '');
         const active_location = activeVolPings[keyName] || (keyPhone ? activeVolPings[keyPhone] : null);
         return {
           ...d,
           volunteer: {
-            ...d.volunteer,
+            ...resolvedVol,
             active_location: active_location || null,
           },
+          volunteer_id: resolvedVol.id || d.volunteer_id || null,
         };
       }
       return d;
@@ -675,13 +684,21 @@ class MockStore {
   }
 
   assignVolunteer(delegateId: string, volunteer: Volunteer | null) {
-    this.delegates = this.delegates.map((d) => (d.id === delegateId ? { ...d, volunteer } : d));
+    this.delegates = this.delegates.map((d) =>
+      d.id === delegateId
+        ? { ...d, volunteer, volunteer_id: volunteer?.id || null }
+        : d
+    );
     this.save();
   }
 
   bulkAssignVolunteer(delegateIds: string[], volunteer: Volunteer | null) {
     const idSet = new Set(delegateIds);
-    this.delegates = this.delegates.map((d) => (idSet.has(d.id) ? { ...d, volunteer } : d));
+    this.delegates = this.delegates.map((d) =>
+      idSet.has(d.id)
+        ? { ...d, volunteer, volunteer_id: volunteer?.id || null }
+        : d
+    );
     this.save();
   }
 
@@ -937,3 +954,33 @@ class MockStore {
 }
 
 export const mockStore = new MockStore();
+
+// Resilient volunteer-to-delegate association matcher (matches by ID, phone, or name)
+export const isDelegateAssignedToVolunteer = (
+  delegate: Delegate,
+  volunteerIdentifier: { id?: string; name?: string; phone?: string }
+): boolean => {
+  if (!delegate) return false;
+  // Match by direct volunteer_id
+  if (volunteerIdentifier.id && delegate.volunteer_id && delegate.volunteer_id === volunteerIdentifier.id) {
+    return true;
+  }
+  if (!delegate.volunteer) return false;
+  // Match by delegate.volunteer.id
+  if (volunteerIdentifier.id && delegate.volunteer.id && delegate.volunteer.id === volunteerIdentifier.id) {
+    return true;
+  }
+  // Match by normalized phone
+  if (volunteerIdentifier.phone && delegate.volunteer.phone) {
+    const p1 = normalizePhone(delegate.volunteer.phone);
+    const p2 = normalizePhone(volunteerIdentifier.phone);
+    if (p1 && p2 && p1 === p2) return true;
+  }
+  // Match by name
+  if (volunteerIdentifier.name && delegate.volunteer.name) {
+    const n1 = delegate.volunteer.name.trim().toLowerCase();
+    const n2 = volunteerIdentifier.name.trim().toLowerCase();
+    if (n1 === n2) return true;
+  }
+  return false;
+};

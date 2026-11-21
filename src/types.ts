@@ -84,6 +84,7 @@ export interface Delegate {
   notes?: string;
   house_id?: string | null;
   house?: House | null;
+  volunteer_id?: string | null;
   volunteer?: Volunteer | null;
   status: DelegateStatus;
   checked_in_at?: string | null;

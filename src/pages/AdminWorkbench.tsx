@@ -211,7 +211,8 @@ export const AdminWorkbench: React.FC = () => {
           : `Successfully allotted ${count} delegates to ${house.name}!`
       );
       setTimeout(() => setWarningMessage(null), 4000);
-      await loadData(true);
+      // NOTE: mockStore.bulkAssign already updated in-memory state & triggered React re-render.
+      // Redundant loadData(true) removed to keep network traffic to exactly 1 API call.
     } catch (err: any) {
       console.error('Failed to assign house:', err);
       alert(language === 'ml' ? `വീട് അലോട്ട് ചെയ്യുന്നതിൽ പിശക് സംഭവിച്ചു: ${err?.message || ''}` : `Failed to allot house: ${err?.message || ''}`);
@@ -223,7 +224,7 @@ export const AdminWorkbench: React.FC = () => {
   const handleUnassign = async (delegateId: string) => {
     try {
       await api.assignHouse(delegateId, null);
-      await loadData(true);
+      // Optimistic update via mockStore listener keeps network to 1 API call.
     } catch (err: any) {
       console.error('Failed to unassign house:', err);
       alert(language === 'ml' ? `അൺ-അലോട്ട് ചെയ്യുന്നതിൽ പിശക് സംഭവിച്ചു: ${err?.message || ''}` : `Failed to unassign house: ${err?.message || ''}`);
@@ -234,7 +235,7 @@ export const AdminWorkbench: React.FC = () => {
     const nextStatus = currentStatus === 'checked_in' ? 'pending' : 'checked_in';
     try {
       await api.updateStatus(delegateId, nextStatus);
-      await loadData(true);
+      // Optimistic update via mockStore listener keeps network to 1 API call.
     } catch (err: any) {
       console.error('Failed to update status:', err);
       alert(language === 'ml' ? `ഹാജർ നില മാറ്റുന്നതിൽ പിശക് സംഭവിച്ചു: ${err?.message || ''}` : `Failed to update status: ${err?.message || ''}`);
@@ -249,7 +250,6 @@ export const AdminWorkbench: React.FC = () => {
         : `Successfully updated ${updated.full_name}!`
     );
     setTimeout(() => setWarningMessage(null), 3000);
-    await loadData();
   };
 
   const handleBulkAssignVolunteer = async (volunteer: Volunteer | null) => {
@@ -263,7 +263,6 @@ export const AdminWorkbench: React.FC = () => {
         : `Assigned ${count} delegates to ${volunteer ? volunteer.name : 'volunteer'}!`
     );
     setTimeout(() => setWarningMessage(null), 3000);
-    await loadData();
   };
 
   const handleSaveHouse = async (houseData: House) => {
@@ -283,7 +282,6 @@ export const AdminWorkbench: React.FC = () => {
       );
     }
     setTimeout(() => setWarningMessage(null), 3000);
-    await loadData();
   };
 
   return (

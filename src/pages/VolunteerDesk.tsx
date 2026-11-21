@@ -235,7 +235,7 @@ export const VolunteerDesk: React.FC = () => {
     const newStatus = delegate.status === 'checked_in' ? 'pending' : 'checked_in';
     try {
       await api.updateStatus(delegate.id, newStatus);
-      await loadData(true);
+      // mockStore listener updates UI immediately; no need for redundant 4-table network fetch
 
       if (newStatus === 'checked_in') {
         setSuccessToast(language === 'ml' ? `${delegate.full_name} - ഹാജർ രേഖപ്പെടുത്തി!` : `${delegate.full_name} - Checked In!`);

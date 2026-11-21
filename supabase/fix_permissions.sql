@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS volunteers (
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS unit TEXT;
 
+-- Drop legacy profiles-only foreign key on delegates to allow assigning volunteers from volunteers table
+ALTER TABLE delegates DROP CONSTRAINT IF EXISTS delegates_volunteer_id_fkey;
+
 ALTER TABLE districts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE houses ENABLE ROW LEVEL SECURITY;
