@@ -119,7 +119,16 @@ CREATE TABLE IF NOT EXISTS volunteer_location_pings (
     expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 minutes')
 );
 
--- 3.8 App Settings Table
+-- 3.8 Volunteers Table (Managed by Admin)
+CREATE TABLE IF NOT EXISTS volunteers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    unit TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 3.9 App Settings Table
 CREATE TABLE IF NOT EXISTS app_settings (
     key TEXT PRIMARY KEY,
     value JSONB NOT NULL
@@ -150,6 +159,18 @@ INSERT INTO app_settings (key, value) VALUES
     {"title_ml": "റെസ്ക്യൂ & വളണ്ടിയർ വിങ്", "title_en": "Volunteer Dispatch", "phone": "9447123456"}
 ]'::jsonb)
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+
+-- Seed default volunteers
+INSERT INTO volunteers (name, phone, unit)
+SELECT d.name, d.phone, d.unit
+FROM (VALUES
+    ('Arun Kumar', '+919400112233', 'Nileshwaram'),
+    ('Suhara Beevi', '+919400223344', 'Cheruvathur'),
+    ('Vishnu Das', '+919400334455', 'Kanhangad'),
+    ('Ananya S', '+919400445566', 'Pilicode'),
+    ('Rahul M', '+919400556677', 'Madikai')
+) AS d(name, phone, unit)
+WHERE NOT EXISTS (SELECT 1 FROM volunteers LIMIT 1);
 
 -- 5. RPC FUNCTIONS
 -- 5.1 Get My Stay Portal Data (Secure token-based lookup)
@@ -361,6 +382,7 @@ GRANT ALL ON TABLE profiles TO authenticated, anon;
 GRANT ALL ON TABLE houses TO authenticated, anon;
 GRANT ALL ON TABLE delegates TO authenticated, anon;
 GRANT ALL ON TABLE announcements TO authenticated, anon;
+GRANT ALL ON TABLE volunteers TO authenticated, anon;
 GRANT ALL ON TABLE location_pings TO authenticated, anon;
 GRANT ALL ON TABLE volunteer_location_pings TO authenticated, anon;
 GRANT ALL ON TABLE app_settings TO authenticated, anon;
@@ -377,12 +399,16 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE houses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE delegates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE volunteers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE location_pings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE volunteer_location_pings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow all for delegates" ON delegates;
 CREATE POLICY "Allow all for delegates" ON delegates FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all for volunteers" ON volunteers;
+CREATE POLICY "Allow all for volunteers" ON volunteers FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Allow all for houses" ON houses;
 CREATE POLICY "Allow all for houses" ON houses FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);

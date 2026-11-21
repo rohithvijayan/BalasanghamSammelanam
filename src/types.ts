@@ -43,10 +43,29 @@ export interface VolunteerLocationPing {
 }
 
 export interface Volunteer {
+  id?: string;
   name: string;
   phone: string;
   unit?: string;
   active_location?: VolunteerLocationPing | null;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface PaginationParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  districtId?: number | string;
+  gender?: 'all' | 'boy' | 'girl';
+  status?: string;
+  unassignedOnly?: boolean;
 }
 
 export interface Delegate {

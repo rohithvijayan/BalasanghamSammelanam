@@ -421,4 +421,57 @@ describe('mockStore - State Conference Data Store', () => {
     mockStore.deleteAnnouncement(created.id);
     expect(mockStore.getAnnouncements().length).toBe(0);
   });
+
+  it('allows admins to add, list, and delete volunteers and syncs with dropdowns', () => {
+    // 1. Initial list has default volunteers
+    const initialVolunteers = mockStore.getVolunteers();
+    expect(initialVolunteers.length).toBeGreaterThan(0);
+
+    // 2. Add new volunteer
+    const newVol = mockStore.addVolunteer({
+      name: 'സഖാവ് വിപിൻ (Comrade Vipin)',
+      phone: '+919447998877',
+      unit: 'നീലേശ്വരം ഈസ്റ്റ്',
+    });
+    expect(newVol.id).toBeDefined();
+    expect(newVol.name).toBe('സഖാവ് വിപിൻ (Comrade Vipin)');
+
+    const updatedList = mockStore.getVolunteers();
+    expect(updatedList.some((v) => v.name === 'സഖാവ് വിപിൻ (Comrade Vipin)')).toBe(true);
+
+    // 3. Delete the volunteer
+    mockStore.deleteVolunteer(newVol.id!);
+    const afterDelete = mockStore.getVolunteers();
+    expect(afterDelete.some((v) => v.name === 'സഖാവ് വിപിൻ (Comrade Vipin)')).toBe(false);
+  });
+
+  it('supports paginated delegate queries to reduce data volume', () => {
+    // Create 30 test delegates
+    const delegates: Delegate[] = Array.from({ length: 30 }, (_, i) => ({
+      id: `del-page-${i + 1}`,
+      token: `tok-page-${i + 1}`,
+      full_name: `പ്രതിനിധി ${i + 1}`,
+      district_id: (i % 3) + 1,
+      gender: i % 2 === 0 ? 'boy' : 'girl',
+      status: 'pending',
+    }));
+    mockStore.importDelegates(delegates);
+
+    // Page 1 with pageSize 10
+    const page1 = mockStore.getPaginatedDelegates({ page: 1, pageSize: 10 });
+    expect(page1.data.length).toBe(10);
+    expect(page1.totalCount).toBe(30);
+    expect(page1.totalPages).toBe(3);
+    expect(page1.page).toBe(1);
+
+    // Page 3 with pageSize 10
+    const page3 = mockStore.getPaginatedDelegates({ page: 3, pageSize: 10 });
+    expect(page3.data.length).toBe(10);
+    expect(page3.page).toBe(3);
+
+    // Filtering by gender
+    const boysPage = mockStore.getPaginatedDelegates({ gender: 'boy', pageSize: 10 });
+    expect(boysPage.totalCount).toBe(15);
+    expect(boysPage.data.every((d) => d.gender === 'boy')).toBe(true);
+  });
 });

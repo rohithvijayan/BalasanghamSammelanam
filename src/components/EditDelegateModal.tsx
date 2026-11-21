@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Delegate, Volunteer } from '../types';
-import { initialDistricts, defaultVolunteers } from '../lib/mockData';
+import { initialDistricts, mockStore } from '../lib/mockData';
 import { useI18n } from '../i18n/i18nContext';
 import { X, Check, User, Phone, MapPin, Shield, UserCheck } from 'lucide-react';
 
@@ -9,6 +9,7 @@ interface EditDelegateModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (updated: Delegate) => Promise<void> | void;
+  volunteers?: Volunteer[];
 }
 
 export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
@@ -16,6 +17,7 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
   isOpen,
   onClose,
   onSave,
+  volunteers,
 }) => {
   const { language } = useI18n();
 
@@ -30,6 +32,8 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
   const [volunteerPhone, setVolunteerPhone] = useState('');
   const [volunteerUnit, setVolunteerUnit] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  const availableVolunteers = volunteers && volunteers.length > 0 ? volunteers : mockStore.getVolunteers();
 
   useEffect(() => {
     if (delegate) {
@@ -62,7 +66,7 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
       setVolunteerUnit('');
       return;
     }
-    const found = defaultVolunteers.find((v) => v.name === val);
+    const found = availableVolunteers.find((v) => v.name === val);
     if (found) {
       setVolunteerName(found.name);
       setVolunteerPhone(found.phone);
@@ -255,14 +259,14 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
                 {language === 'ml' ? 'വളണ്ടിയറെ തിരഞ്ഞെടുക്കുക' : 'Choose Registered Volunteer'}
               </label>
               <select
-                value={defaultVolunteers.some((v) => v.name === volunteerName) ? volunteerName : ''}
+                value={availableVolunteers.some((v) => v.name === volunteerName) ? volunteerName : ''}
                 onChange={handleSelectDefaultVolunteer}
                 className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="">{language === 'ml' ? '-- വളണ്ടിയർ ഇല്ല / സ്വയം ടൈപ്പ് ചെയ്യുക --' : '-- No Volunteer / Custom Volunteer --'}</option>
-                {defaultVolunteers.map((vol) => (
-                  <option key={vol.name} value={vol.name}>
-                    {vol.name} ({vol.phone}) - {vol.unit}
+                {availableVolunteers.map((vol) => (
+                  <option key={vol.id || vol.name} value={vol.name}>
+                    {vol.name} ({vol.phone}) - {vol.unit || 'General'}
                   </option>
                 ))}
               </select>

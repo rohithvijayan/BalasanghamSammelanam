@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { mockStore, getHouseNaturalKey } from './mockData';
-import { StayPortalData, DelegateStatus, LocationPing, Delegate, House, Volunteer, VolunteerLocationPing, Announcement } from '../types';
+import { StayPortalData, DelegateStatus, LocationPing, Delegate, House, Volunteer, VolunteerLocationPing, Announcement, PaginationParams, PaginatedResult } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -21,25 +21,29 @@ interface CacheEntry<T> {
 
 const TTL_DELEGATES = 25000;       // 25s cache
 const TTL_HOUSES = 30000;          // 30s cache
+const TTL_VOLUNTEERS = 30000;      // 30s cache
 const TTL_ANNOUNCEMENTS = 25000;   // 25s cache
 const TTL_PINGS = 15000;           // 15s cache
 
 let delegatesCache: CacheEntry<Delegate[]> | null = null;
 let housesCache: CacheEntry<House[]> | null = null;
+let volunteersCache: CacheEntry<Volunteer[]> | null = null;
 const announcementsCache = new Map<string, CacheEntry<Announcement[]>>();
 let locationPingsCache: CacheEntry<Record<string, LocationPing>> | null = null;
 let volunteerPingsCache: CacheEntry<Record<string, VolunteerLocationPing>> | null = null;
 
 let inflightDelegates: Promise<Delegate[]> | null = null;
 let inflightHouses: Promise<House[]> | null = null;
+let inflightVolunteers: Promise<Volunteer[]> | null = null;
 const inflightAnnouncements = new Map<string, Promise<Announcement[]>>();
 let inflightLocationPings: Promise<Record<string, LocationPing>> | null = null;
 let inflightVolunteerPings: Promise<Record<string, VolunteerLocationPing>> | null = null;
 
-export const invalidateCache = (target?: 'delegates' | 'houses' | 'announcements' | 'pings' | 'all') => {
+export const invalidateCache = (target?: 'delegates' | 'houses' | 'volunteers' | 'announcements' | 'pings' | 'all') => {
   if (!target || target === 'all') {
     delegatesCache = null;
     housesCache = null;
+    volunteersCache = null;
     announcementsCache.clear();
     locationPingsCache = null;
     volunteerPingsCache = null;
@@ -47,6 +51,8 @@ export const invalidateCache = (target?: 'delegates' | 'houses' | 'announcements
     delegatesCache = null;
   } else if (target === 'houses') {
     housesCache = null;
+  } else if (target === 'volunteers') {
+    volunteersCache = null;
   } else if (target === 'announcements') {
     announcementsCache.clear();
   } else if (target === 'pings') {
@@ -186,6 +192,252 @@ export const api = {
     });
 
     return inflightHouses;
+  },
+
+  // Fetch volunteers (Supabase live with fallback, with deduplication & caching)
+  async getVolunteers(forceRefresh = false): Promise<Volunteer[]> {
+    if (!forceRefresh && volunteersCache && Date.now() - volunteersCache.timestamp < TTL_VOLUNTEERS) {
+      return volunteersCache.data;
+    }
+
+    if (inflightVolunteers) {
+      return inflightVolunteers;
+    }
+
+    inflightVolunteers = (async () => {
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('volunteers')
+            .select('*')
+            .order('name', { ascending: true });
+
+          if (!error && data && data.length > 0) {
+            const mapped: Volunteer[] = data.map((row: any) => ({
+              id: row.id,
+              name: row.name,
+              phone: row.phone,
+              unit: row.unit || '',
+            }));
+            volunteersCache = { data: mapped, timestamp: Date.now() };
+            mockStore.setVolunteers(mapped, false);
+            return mapped;
+          }
+        } catch (err) {
+          console.warn('Failed to fetch volunteers from Supabase, falling back to mockStore', err);
+        }
+      }
+      const local = mockStore.getVolunteers();
+      volunteersCache = { data: local, timestamp: Date.now() };
+      return local;
+    })().finally(() => {
+      inflightVolunteers = null;
+    });
+
+    return inflightVolunteers;
+  },
+
+  // Create volunteer (Admin)
+  async createVolunteer(vol: Omit<Volunteer, 'id'>): Promise<Volunteer> {
+    invalidateCache('volunteers');
+    const local = mockStore.addVolunteer(vol);
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('volunteers')
+          .insert({
+            name: vol.name.trim(),
+            phone: vol.phone.trim(),
+            unit: (vol.unit || '').trim(),
+          })
+          .select()
+          .single();
+
+        if (!error && data) {
+          mockStore.deleteVolunteer(local.id || local.name);
+          return mockStore.addVolunteer(data);
+        } else if (error) {
+          console.warn('Supabase createVolunteer error:', error);
+        }
+      } catch (err) {
+        console.warn('Failed to insert volunteer into Supabase', err);
+      }
+    }
+    return local;
+  },
+
+  // Delete volunteer (Admin)
+  async deleteVolunteer(id: string, name?: string): Promise<boolean> {
+    invalidateCache('volunteers');
+    mockStore.deleteVolunteer(id || name || '');
+    if (supabase) {
+      try {
+        let query = supabase.from('volunteers').delete();
+        if (id) {
+          query = query.eq('id', id);
+        } else if (name) {
+          query = query.eq('name', name);
+        }
+        const { error } = await query;
+        if (error) {
+          console.warn('Supabase deleteVolunteer error:', error);
+        }
+      } catch (err) {
+        console.warn('Failed to delete volunteer from Supabase', err);
+      }
+    }
+    return true;
+  },
+
+  // Get paginated delegates (reduces payload size and DB egress)
+  async getDelegatesPaginated(params: PaginationParams = {}, forceRefresh = false): Promise<PaginatedResult<Delegate>> {
+    const {
+      page = 1,
+      pageSize = 25,
+      search = '',
+      districtId = 'all',
+      gender = 'all',
+      status = 'all',
+      unassignedOnly = false,
+    } = params;
+
+    if (supabase) {
+      try {
+        let query = supabase
+          .from('delegates')
+          .select(`
+            id,
+            token,
+            full_name,
+            phone,
+            district_id,
+            gender,
+            emergency_name,
+            emergency_phone,
+            notes,
+            house_id,
+            status,
+            checked_in_at,
+            districts (
+              id,
+              name_en,
+              name_ml
+            )
+          `, { count: 'exact' });
+
+        if (unassignedOnly) {
+          query = query.is('house_id', null);
+        }
+        if (districtId !== 'all') {
+          query = query.eq('district_id', districtId);
+        }
+        if (gender !== 'all') {
+          query = query.eq('gender', gender);
+        }
+        if (status !== 'all') {
+          query = query.eq('status', status);
+        }
+        if (search && search.trim()) {
+          const s = search.trim();
+          query = query.or(`full_name.ilike.%${s}%,token.ilike.%${s}%,phone.ilike.%${s}%`);
+        }
+
+        const safePage = Math.max(1, page);
+        const from = (safePage - 1) * pageSize;
+        const to = from + pageSize - 1;
+
+        query = query.range(from, to).order('created_at', { ascending: false });
+
+        const { data, count, error } = await query;
+
+        if (!error && data) {
+          const mapped: Delegate[] = data.map((row: any) => ({
+            id: row.id,
+            token: row.token,
+            full_name: row.full_name,
+            phone: row.phone || '',
+            district_id: row.district_id,
+            district_en: row.districts?.name_en || 'Kannur',
+            district_ml: row.districts?.name_ml || 'കണ്ണൂർ',
+            gender: row.gender || 'boy',
+            emergency_name: row.emergency_name || '',
+            emergency_phone: row.emergency_phone || '',
+            notes: row.notes || '',
+            house_id: row.house_id,
+            status: row.status,
+            checked_in_at: row.checked_in_at,
+          }));
+
+          const totalCount = count !== null ? count : mapped.length;
+          const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+          return {
+            data: mapped,
+            totalCount,
+            page: safePage,
+            pageSize,
+            totalPages,
+          };
+        }
+      } catch (err) {
+        console.warn('Failed to fetch paginated delegates from Supabase, falling back to mockStore', err);
+      }
+    }
+
+    return mockStore.getPaginatedDelegates(params);
+  },
+
+  // Get paginated houses (reduces payload size and DB egress)
+  async getHousesPaginated(page = 1, pageSize = 20, search = '', forceRefresh = false): Promise<PaginatedResult<House>> {
+    if (supabase) {
+      try {
+        let query = supabase.from('houses').select('*', { count: 'exact' });
+
+        if (search && search.trim()) {
+          const s = search.trim();
+          query = query.or(`name.ilike.%${s}%,address.ilike.%${s}%,host_name.ilike.%${s}%`);
+        }
+
+        const safePage = Math.max(1, page);
+        const from = (safePage - 1) * pageSize;
+        const to = from + pageSize - 1;
+
+        query = query.range(from, to).order('name', { ascending: true });
+
+        const { data, count, error } = await query;
+
+        if (!error && data) {
+          const mapped: House[] = data.map((row: any) => ({
+            id: row.id,
+            name: row.name,
+            address: row.address,
+            map_url: row.map_url,
+            lat: row.lat,
+            lng: row.lng,
+            host_name: row.host_name,
+            host_phone: row.host_phone,
+            capacity: row.capacity,
+            gender_restriction: row.gender_restriction,
+            notes: row.notes,
+          }));
+
+          const totalCount = count !== null ? count : mapped.length;
+          const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+          return {
+            data: mapped,
+            totalCount,
+            page: safePage,
+            pageSize,
+            totalPages,
+          };
+        }
+      } catch (err) {
+        console.warn('Failed to fetch paginated houses from Supabase, falling back to mockStore', err);
+      }
+    }
+
+    return mockStore.getPaginatedHouses(page, pageSize, search);
   },
 
   // Bulk import delegates to Supabase

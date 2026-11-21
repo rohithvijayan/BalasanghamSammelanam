@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { mockStore, initialDistricts, defaultVolunteers } from '../lib/mockData';
+import { mockStore, initialDistricts } from '../lib/mockData';
 import { Delegate, House, Volunteer, Announcement } from '../types';
 import { api } from '../lib/supabase';
 import { useI18n } from '../i18n/i18nContext';
@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { EditDelegateModal } from '../components/EditDelegateModal';
 import { EditHouseModal } from '../components/EditHouseModal';
 import { ManageAnnouncementsModal } from '../components/ManageAnnouncementsModal';
+import { ManageVolunteersModal } from '../components/ManageVolunteersModal';
 import {
   Users,
   Home,
@@ -22,7 +23,9 @@ import {
   AlertTriangle,
   Edit2,
   Plus,
-  Bell
+  Bell,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 export const AdminWorkbench: React.FC = () => {
@@ -34,8 +37,10 @@ export const AdminWorkbench: React.FC = () => {
 
   const [delegates, setDelegates] = useState<Delegate[]>(() => mockStore.getDelegates());
   const [houses, setHouses] = useState<House[]>(() => mockStore.getHouses());
+  const [volunteers, setVolunteers] = useState<Volunteer[]>(() => mockStore.getVolunteers());
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => mockStore.getAnnouncements());
   const [isAnnouncementsModalOpen, setIsAnnouncementsModalOpen] = useState<boolean>(false);
+  const [isVolunteersModalOpen, setIsVolunteersModalOpen] = useState<boolean>(false);
   const [selectedDistrict, setSelectedDistrict] = useState<string>(() => {
     if (user?.role === 'district' && user.district_id) {
       return user.district_id.toString();
@@ -47,20 +52,25 @@ export const AdminWorkbench: React.FC = () => {
   const [selectedDelegateIds, setSelectedDelegateIds] = useState<string[]>([]);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
 
+  const [unassignedPage, setUnassignedPage] = useState<number>(1);
+  const unassignedPageSize = 25;
+
   const [editingDelegate, setEditingDelegate] = useState<Delegate | null>(null);
   const [editingHouse, setEditingHouse] = useState<House | null>(null);
   const [isAddingHouse, setIsAddingHouse] = useState<boolean>(false);
 
   const loadData = async (forceRefresh = false) => {
     try {
-      const [delData, houseData, annData] = await Promise.all([
+      const [delData, houseData, annData, volData] = await Promise.all([
         api.getDelegates(forceRefresh),
         api.getHouses(forceRefresh),
         api.getAnnouncements(undefined, forceRefresh),
+        api.getVolunteers(forceRefresh),
       ]);
       setDelegates(delData);
       setHouses(houseData);
       setAnnouncements(annData);
+      setVolunteers(volData);
     } catch (e) {
       console.warn('Failed to load data in workbench', e);
     }
@@ -130,6 +140,17 @@ export const AdminWorkbench: React.FC = () => {
       (d.phone && d.phone.includes(searchQuery));
     return isUnassigned && matchesDistrict && matchesGender && matchesSearch;
   });
+
+  const totalUnassignedPages = Math.max(1, Math.ceil(unassignedDelegates.length / unassignedPageSize));
+  const safeUnassignedPage = Math.min(Math.max(1, unassignedPage), totalUnassignedPages);
+  const pagedUnassignedDelegates = unassignedDelegates.slice(
+    (safeUnassignedPage - 1) * unassignedPageSize,
+    safeUnassignedPage * unassignedPageSize
+  );
+
+  useEffect(() => {
+    setUnassignedPage(1);
+  }, [searchQuery, genderFilter, selectedDistrict]);
 
   // Calculate metrics (scoped to district if district coordinator)
   const scopedDelegates = delegates.filter(
@@ -254,12 +275,26 @@ export const AdminWorkbench: React.FC = () => {
           </span>
         </div>
 
-        {/* Action Controls: Announcements Button & District Filter */}
+        {/* Action Controls: Volunteers Button, Announcements Button & District Filter */}
         <div className="flex items-center gap-2.5 flex-wrap">
           <button
             type="button"
+            onClick={() => setIsVolunteersModalOpen(true)}
+            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
+            title={language === 'ml' ? 'വളണ്ടിയർമാരെ ചേർക്കുക / കൈകാര്യം ചെയ്യുക' : 'Manage Volunteers'}
+          >
+            <Users className="w-4 h-4" />
+            <span>
+              {language === 'ml'
+                ? `വളണ്ടിയർമാർ (${volunteers.length})`
+                : `Volunteers (${volunteers.length})`}
+            </span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setIsAnnouncementsModalOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-transform active:scale-95"
+            className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
             title={language === 'ml' ? 'സമ്മേളന അറിയിപ്പുകൾ നൽകുക / കൈകാര്യം ചെയ്യുക' : 'Manage Conference Announcements'}
           >
             <Bell className="w-4 h-4" />
@@ -355,16 +390,16 @@ export const AdminWorkbench: React.FC = () => {
                   onChange={(e) => {
                     const val = e.target.value;
                     if (!val) return;
-                    const found = defaultVolunteers.find((v) => v.name === val);
+                    const found = volunteers.find((v) => v.name === val);
                     handleBulkAssignVolunteer(found || null);
                     e.target.value = '';
                   }}
                   className="px-2 py-0.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-900 text-[11px] font-bold focus:outline-none cursor-pointer"
                 >
                   <option value="">{language === 'ml' ? '+ വളണ്ടിയറെ നൽകുക' : '+ Assign Volunteer'}</option>
-                  {defaultVolunteers.map((vol) => (
-                    <option key={vol.name} value={vol.name}>
-                      {vol.name}
+                  {volunteers.map((vol) => (
+                    <option key={vol.id || vol.name} value={vol.name}>
+                      {vol.name} {vol.unit ? `(${vol.unit})` : ''}
                     </option>
                   ))}
                 </select>
@@ -419,7 +454,7 @@ export const AdminWorkbench: React.FC = () => {
                 {language === 'ml' ? 'എല്ലാ പ്രതിനിധികൾക്കും താമസസ്ഥലം അനുവദിച്ചു!' : 'All delegates have been accommodated!'}
               </div>
             ) : (
-              unassignedDelegates.map((del) => {
+              pagedUnassignedDelegates.map((del) => {
                 const isSelected = selectedDelegateIds.includes(del.id);
                 return (
                   <div
@@ -493,6 +528,37 @@ export const AdminWorkbench: React.FC = () => {
               })
             )}
           </div>
+
+          {/* Pagination controls for unassigned delegates */}
+          {unassignedDelegates.length > unassignedPageSize && (
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+              <span className="text-slate-500 font-medium">
+                {language === 'ml'
+                  ? `പേജ് ${safeUnassignedPage} / ${totalUnassignedPages} (${unassignedDelegates.length} പേർ)`
+                  : `Page ${safeUnassignedPage} of ${totalUnassignedPages} (${unassignedDelegates.length} items)`}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={safeUnassignedPage <= 1}
+                  onClick={() => setUnassignedPage((p) => Math.max(1, p - 1))}
+                  className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 shadow-2xs"
+                >
+                  <ChevronLeft className="w-3 h-3" />
+                  <span>{language === 'ml' ? 'മുമ്പത്തെ' : 'Prev'}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={safeUnassignedPage >= totalUnassignedPages}
+                  onClick={() => setUnassignedPage((p) => Math.min(totalUnassignedPages, p + 1))}
+                  className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 shadow-2xs"
+                >
+                  <span>{language === 'ml' ? 'അടുത്തത്' : 'Next'}</span>
+                  <ChevronRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Pane: Houses & Capacity (lg:col-span-7) */}
@@ -671,6 +737,7 @@ export const AdminWorkbench: React.FC = () => {
         isOpen={!!editingDelegate}
         onClose={() => setEditingDelegate(null)}
         onSave={handleSaveDelegate}
+        volunteers={volunteers}
       />
 
       {/* Edit / Add House Modal */}
@@ -692,6 +759,21 @@ export const AdminWorkbench: React.FC = () => {
         onCreateAnnouncement={handleCreateAnnouncement}
         onDeleteAnnouncement={handleDeleteAnnouncement}
         defaultDistrictId={user?.district_id || null}
+      />
+
+      {/* Manage Volunteers Modal */}
+      <ManageVolunteersModal
+        isOpen={isVolunteersModalOpen}
+        onClose={() => setIsVolunteersModalOpen(false)}
+        volunteers={volunteers}
+        onCreateVolunteer={async (vol) => {
+          await api.createVolunteer(vol);
+          await loadData(true);
+        }}
+        onDeleteVolunteer={async (id) => {
+          await api.deleteVolunteer(id);
+          await loadData(true);
+        }}
       />
     </div>
   );

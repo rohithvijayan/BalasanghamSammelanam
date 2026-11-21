@@ -1,4 +1,4 @@
-import { District, House, Delegate, Announcement, HelplineItem, StayPortalData, LocationPing, Volunteer, VolunteerLocationPing } from '../types';
+import { District, House, Delegate, Announcement, HelplineItem, StayPortalData, LocationPing, Volunteer, VolunteerLocationPing, PaginationParams, PaginatedResult } from '../types';
 
 export const initialDistricts: District[] = [
   { id: 1, name_en: 'Kasaragod', name_ml: 'കാസർഗോഡ്' },
@@ -270,6 +270,7 @@ export const getHouseNaturalKey = (h: House | { name?: string; host_phone?: stri
 class MockStore {
   private delegates: Delegate[];
   private houses: House[];
+  private volunteers: Volunteer[] = [];
   private announcements: Announcement[];
   private locationPings: Record<string, LocationPing> = {};
   private volunteerLocationPings: Record<string, VolunteerLocationPing> = {};
@@ -323,6 +324,17 @@ class MockStore {
       this.houses = [];
     }
 
+    const savedVolunteers = localStorage.getItem('sammelanam_volunteers');
+    if (savedVolunteers && !isExpired) {
+      try {
+        this.volunteers = JSON.parse(savedVolunteers);
+      } catch {
+        this.volunteers = [...defaultVolunteers];
+      }
+    } else {
+      this.volunteers = [...defaultVolunteers];
+    }
+
     const savedPings = localStorage.getItem('sammelanam_location_pings');
     this.locationPings = savedPings ? JSON.parse(savedPings) : {};
 
@@ -345,6 +357,7 @@ class MockStore {
   private save(notify = true) {
     localStorage.setItem('sammelanam_delegates', JSON.stringify(this.delegates));
     localStorage.setItem('sammelanam_houses', JSON.stringify(this.houses));
+    localStorage.setItem('sammelanam_volunteers', JSON.stringify(this.volunteers));
     localStorage.setItem('sammelanam_announcements', JSON.stringify(this.announcements));
     localStorage.setItem('sammelanam_location_pings', JSON.stringify(this.locationPings));
     localStorage.setItem('sammelanam_volunteer_pings', JSON.stringify(this.volunteerLocationPings));
@@ -416,6 +429,43 @@ class MockStore {
     return this.houses;
   }
 
+  getVolunteers(): Volunteer[] {
+    return this.volunteers;
+  }
+
+  addVolunteer(vol: Omit<Volunteer, 'id'> & { id?: string }): Volunteer {
+    const fullVol: Volunteer = {
+      ...vol,
+      id: vol.id || 'vol-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+      name: vol.name.trim(),
+      phone: vol.phone.trim(),
+      unit: (vol.unit || '').trim(),
+    };
+    const idx = this.volunteers.findIndex(
+      (v) => (v.id && v.id === fullVol.id) || v.name.toLowerCase() === fullVol.name.toLowerCase()
+    );
+    if (idx >= 0) {
+      this.volunteers[idx] = fullVol;
+    } else {
+      this.volunteers = [fullVol, ...this.volunteers];
+    }
+    this.save(true);
+    return fullVol;
+  }
+
+  deleteVolunteer(idOrName: string) {
+    const clean = idOrName.toLowerCase().trim();
+    this.volunteers = this.volunteers.filter(
+      (v) => (v.id ? v.id.toLowerCase() !== clean : true) && v.name.toLowerCase() !== clean
+    );
+    this.save(true);
+  }
+
+  setVolunteers(volunteers: Volunteer[], notify = false) {
+    this.volunteers = volunteers;
+    this.save(notify);
+  }
+
   getAnnouncements(): Announcement[] {
     return this.announcements;
   }
@@ -450,6 +500,71 @@ class MockStore {
     this.announcements = [];
     localStorage.removeItem('sammelanam_announcements');
     this.save();
+  }
+
+  getPaginatedDelegates(params: PaginationParams = {}): PaginatedResult<Delegate> {
+    const {
+      page = 1,
+      pageSize = 25,
+      search = '',
+      districtId = 'all',
+      gender = 'all',
+      status = 'all',
+      unassignedOnly = false,
+    } = params;
+
+    const all = this.getDelegates();
+    const cleanSearch = search.toLowerCase().trim();
+
+    const filtered = all.filter((d) => {
+      if (unassignedOnly && d.house_id) return false;
+      if (districtId !== 'all' && d.district_id.toString() !== districtId.toString()) return false;
+      if (gender !== 'all' && d.gender !== gender) return false;
+      if (status !== 'all' && d.status !== status) return false;
+      if (cleanSearch) {
+        const matchesName = d.full_name.toLowerCase().includes(cleanSearch);
+        const matchesToken = d.token.toLowerCase().includes(cleanSearch);
+        const matchesPhone = d.phone && d.phone.includes(cleanSearch);
+        if (!matchesName && !matchesToken && !matchesPhone) return false;
+      }
+      return true;
+    });
+
+    const totalCount = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    const safePage = Math.min(Math.max(1, page), totalPages);
+    const start = (safePage - 1) * pageSize;
+    const paginatedData = filtered.slice(start, start + pageSize);
+
+    return {
+      data: paginatedData,
+      totalCount,
+      page: safePage,
+      pageSize,
+      totalPages,
+    };
+  }
+
+  getPaginatedHouses(page = 1, pageSize = 20, search = ''): PaginatedResult<House> {
+    const all = this.getHouses();
+    const clean = search.toLowerCase().trim();
+    const filtered = clean
+      ? all.filter((h) => h.name.toLowerCase().includes(clean) || h.address.toLowerCase().includes(clean))
+      : all;
+
+    const totalCount = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    const safePage = Math.min(Math.max(1, page), totalPages);
+    const start = (safePage - 1) * pageSize;
+    const paginatedData = filtered.slice(start, start + pageSize);
+
+    return {
+      data: paginatedData,
+      totalCount,
+      page: safePage,
+      pageSize,
+      totalPages,
+    };
   }
 
   getDelegateByToken(token: string): StayPortalData | null {

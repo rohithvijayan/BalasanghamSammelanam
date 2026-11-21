@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { mockStore, initialDistricts, defaultVolunteers } from '../lib/mockData';
-import { Delegate, House, LocationPing, VolunteerLocationPing, Announcement } from '../types';
+import { mockStore, initialDistricts } from '../lib/mockData';
+import { Delegate, House, LocationPing, VolunteerLocationPing, Announcement, Volunteer } from '../types';
 import { api } from '../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/i18nContext';
@@ -23,7 +23,9 @@ import {
   Shield,
   Filter,
   Edit2,
-  Radio
+  Radio,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 export const VolunteerDesk: React.FC = () => {
@@ -32,6 +34,7 @@ export const VolunteerDesk: React.FC = () => {
 
   const [delegates, setDelegates] = useState<Delegate[]>(() => mockStore.getDelegates());
   const [houses, setHouses] = useState<House[]>(() => mockStore.getHouses());
+  const [volunteers, setVolunteers] = useState<Volunteer[]>(() => mockStore.getVolunteers());
   const [activeTab, setActiveTab] = useState<'attendance' | 'houses'>('attendance');
   const [searchQuery, setSearchQuery] = useState('');
   const [editingDelegate, setEditingDelegate] = useState<Delegate | null>(null);
@@ -44,12 +47,17 @@ export const VolunteerDesk: React.FC = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => mockStore.getAnnouncements());
   const [knownAnnouncementIds, setKnownAnnouncementIds] = useState<Set<string>>(() => new Set());
   const [selectedVolName, setSelectedVolName] = useState<string>(() => {
-    return user?.full_name || defaultVolunteers[0]?.name || 'അർജുൻ കെ.';
+    const list = mockStore.getVolunteers();
+    return user?.full_name || list[0]?.name || 'അർജുൻ കെ.';
   });
   const [selectedVolPhone, setSelectedVolPhone] = useState<string>(() => {
-    return defaultVolunteers[0]?.phone || '+91 94471 23456';
+    const list = mockStore.getVolunteers();
+    return list[0]?.phone || '+91 94471 23456';
   });
   const [isSharingVolLocation, setIsSharingVolLocation] = useState(false);
+
+  const [delegatePage, setDelegatePage] = useState<number>(1);
+  const delegatePageSize = 25;
 
   const refreshPings = async (forceRefresh = false) => {
     try {
@@ -66,14 +74,16 @@ export const VolunteerDesk: React.FC = () => {
 
   const loadData = async (forceRefresh = false) => {
     try {
-      const [delData, houseData, annData] = await Promise.all([
+      const [delData, houseData, annData, volData] = await Promise.all([
         api.getDelegates(forceRefresh),
         api.getHouses(forceRefresh),
         api.getAnnouncements(undefined, forceRefresh),
+        api.getVolunteers(forceRefresh),
       ]);
       setDelegates(delData);
       setHouses(houseData);
       setAnnouncements(annData);
+      setVolunteers(volData);
       if (annData && annData.length > 0) {
         setKnownAnnouncementIds((prev) =>
           checkAndNotifyNewAnnouncements(annData, prev, language as 'ml' | 'en')
@@ -199,6 +209,17 @@ export const VolunteerDesk: React.FC = () => {
 
     return matchesSearch && matchesStatus && matchesDistrict;
   });
+
+  const totalDelegatePages = Math.max(1, Math.ceil(filteredDelegates.length / delegatePageSize));
+  const safeDelegatePage = Math.min(Math.max(1, delegatePage), totalDelegatePages);
+  const pagedDelegates = filteredDelegates.slice(
+    (safeDelegatePage - 1) * delegatePageSize,
+    safeDelegatePage * delegatePageSize
+  );
+
+  useEffect(() => {
+    setDelegatePage(1);
+  }, [searchQuery, statusFilter, districtFilter]);
 
   // Metrics
   const totalCount = delegates.length;
@@ -346,18 +367,18 @@ export const VolunteerDesk: React.FC = () => {
                 <select
                   value={selectedVolName}
                   onChange={(e) => {
-                    const found = defaultVolunteers.find((v) => v.name === e.target.value);
+                    const found = volunteers.find((v) => v.name === e.target.value);
                     setSelectedVolName(e.target.value);
                     if (found) setSelectedVolPhone(found.phone);
                   }}
                   className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary shadow-2xs"
                 >
-                  {defaultVolunteers.map((vol) => (
-                    <option key={vol.name} value={vol.name}>
+                  {volunteers.map((vol) => (
+                    <option key={vol.id || vol.name} value={vol.name}>
                       👤 {vol.name} ({vol.unit || vol.phone})
                     </option>
                   ))}
-                  {user?.full_name && !defaultVolunteers.some((v) => v.name === user.full_name) && (
+                  {user?.full_name && !volunteers.some((v) => v.name === user.full_name) && (
                     <option value={user.full_name}>👤 {user.full_name}</option>
                   )}
                 </select>
@@ -597,7 +618,7 @@ export const VolunteerDesk: React.FC = () => {
 
           {/* Delegate Cards List */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {filteredDelegates.map((del) => {
+            {pagedDelegates.map((del) => {
               const assignedHouse = houses.find((h) => h.id === del.house_id);
               const isCheckedIn = del.status === 'checked_in';
               const ping = locationPings[del.id] || (del.token ? locationPings[del.token.toLowerCase()] : undefined);
@@ -813,6 +834,37 @@ export const VolunteerDesk: React.FC = () => {
             })}
           </div>
 
+          {/* Pagination controls for delegates list */}
+          {filteredDelegates.length > delegatePageSize && (
+            <div className="flex items-center justify-between p-3 bg-white rounded-2xl border border-slate-200/80 shadow-2xs text-xs">
+              <span className="text-slate-600 font-medium">
+                {language === 'ml'
+                  ? `പേജ് ${safeDelegatePage} / ${totalDelegatePages} (${filteredDelegates.length} പ്രതിനിധികൾ)`
+                  : `Page ${safeDelegatePage} of ${totalDelegatePages} (${filteredDelegates.length} delegates)`}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={safeDelegatePage <= 1}
+                  onClick={() => setDelegatePage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 shadow-2xs transition-all"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span>{language === 'ml' ? 'മുമ്പത്തെ' : 'Prev'}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={safeDelegatePage >= totalDelegatePages}
+                  onClick={() => setDelegatePage((p) => Math.min(totalDelegatePages, p + 1))}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 shadow-2xs transition-all"
+                >
+                  <span>{language === 'ml' ? 'അടുത്തത്' : 'Next'}</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {filteredDelegates.length === 0 && (
             <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center flex flex-col items-center gap-2">
               <Users className="w-10 h-10 text-slate-300" />
@@ -938,6 +990,7 @@ export const VolunteerDesk: React.FC = () => {
         isOpen={!!editingDelegate}
         onClose={() => setEditingDelegate(null)}
         onSave={handleSaveDelegate}
+        volunteers={volunteers}
       />
 
       <EditHouseModal
