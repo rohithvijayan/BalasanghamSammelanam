@@ -42,7 +42,6 @@ export const VolunteerDesk: React.FC = () => {
   const [editingHouse, setEditingHouse] = useState<House | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'checked_in' | 'with_location'>('all');
   const [districtFilter, setDistrictFilter] = useState<string>('all');
-  const [volunteerScope, setVolunteerScope] = useState<'my' | 'all'>('my');
   const [adminVolunteerFilter, setAdminVolunteerFilter] = useState<string>('all');
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [locationPings, setLocationPings] = useState<Record<string, LocationPing>>({});
@@ -225,13 +224,12 @@ export const VolunteerDesk: React.FC = () => {
 
     let matchesVolunteerScope = true;
     if (isVolunteerRole) {
-      if (volunteerScope === 'my') {
-        matchesVolunteerScope = isDelegateAssignedToVolunteer(d, {
-          id: user?.id,
-          name: user?.full_name,
-          phone: user?.phone,
-        });
-      }
+      // STRICT PRIVACY: Authenticated volunteers can ONLY see delegates directly assigned to their care
+      matchesVolunteerScope = isDelegateAssignedToVolunteer(d, {
+        id: user?.id,
+        name: user?.full_name,
+        phone: user?.phone,
+      });
     } else {
       if (adminVolunteerFilter === 'unassigned') {
         matchesVolunteerScope = !d.volunteer_id && !d.volunteer;
@@ -260,10 +258,10 @@ export const VolunteerDesk: React.FC = () => {
 
   useEffect(() => {
     setDelegatePage(1);
-  }, [searchQuery, statusFilter, districtFilter, volunteerScope, adminVolunteerFilter]);
+  }, [searchQuery, statusFilter, districtFilter, adminVolunteerFilter]);
 
   // Metrics (Scope-sensitive for Volunteer view)
-  const scopedBaseDelegates = isVolunteerRole && volunteerScope === 'my'
+  const scopedBaseDelegates = isVolunteerRole
     ? delegates.filter((d) =>
         isDelegateAssignedToVolunteer(d, {
           id: user?.id,
@@ -272,6 +270,11 @@ export const VolunteerDesk: React.FC = () => {
         })
       )
     : delegates;
+  const scopedHouses = isVolunteerRole
+    ? houses.filter((h) =>
+        scopedBaseDelegates.some((d) => d.house_id === h.id || d.house?.id === h.id)
+      )
+    : houses;
   const totalCount = scopedBaseDelegates.length;
   const checkedInCount = scopedBaseDelegates.filter((d) => d.status === 'checked_in').length;
   const pendingCount = totalCount - checkedInCount;
@@ -535,7 +538,7 @@ export const VolunteerDesk: React.FC = () => {
           <span className="text-xs font-semibold text-slate-400">
             {language === 'ml' ? 'ആതിഥേയ വീടുകൾ' : 'Host Houses'}
           </span>
-          <span className="text-2xl font-black text-primary mt-1">{houses.length}</span>
+          <span className="text-2xl font-black text-primary mt-1">{scopedHouses.length}</span>
           <span className="text-[11px] text-slate-500">
             {language === 'ml' ? 'താമസ കേന്ദ്രങ്ങൾ' : 'Accommodations'}
           </span>
@@ -571,8 +574,8 @@ export const VolunteerDesk: React.FC = () => {
           <Home className="w-4 h-4" />
           <span>
             {language === 'ml'
-              ? `ആതിഥേയ വീടുകൾ (${houses.length})`
-              : `Host Houses (${houses.length})`}
+              ? `ആതിഥേയ വീടുകൾ (${scopedHouses.length})`
+              : `Host Houses (${scopedHouses.length})`}
           </span>
         </button>
       </div>
@@ -612,7 +615,7 @@ export const VolunteerDesk: React.FC = () => {
             </div>
           )}
 
-          {/* Logged in Volunteer Scope Banner & Switcher */}
+          {/* Logged in Volunteer Scope Banner (Strict Isolation) */}
           {isVolunteerRole && (
             <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-indigo-50/90 to-blue-50/90 border border-indigo-200/80 p-3.5 rounded-2xl flex-wrap shadow-2xs">
               <div className="flex items-center gap-2.5 min-w-0">
@@ -625,62 +628,34 @@ export const VolunteerDesk: React.FC = () => {
                   </span>
                   <span className="text-[11px] text-indigo-700">
                     {language === 'ml'
-                      ? `നിങ്ങൾക്ക് ${myDelegatesCount} കുട്ടികളെ ചുമതലപ്പെടുത്തിയിട്ടുണ്ട്`
-                      : `${myDelegatesCount} delegates assigned to you`}
+                      ? `നിങ്ങൾക്ക് ${myDelegatesCount} കുട്ടികളെ ചുമതലപ്പെടുത്തിയിട്ടുണ്ട് (വ്യക്തിഗത ഡെസ്ക്)`
+                      : `${myDelegatesCount} delegates assigned to your direct care`}
                   </span>
                 </div>
               </div>
-              <div className="inline-flex rounded-xl bg-white p-1 border border-indigo-200 shadow-2xs shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setVolunteerScope('my')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    volunteerScope === 'my'
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'text-slate-700 hover:text-slate-900'
-                  }`}
-                >
-                  <span>👤 {language === 'ml' ? 'എന്റെ കുട്ടികൾ' : 'My Delegates'}</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${volunteerScope === 'my' ? 'bg-white/20 text-white font-bold' : 'bg-slate-100 text-slate-700'}`}>
-                    {myDelegatesCount}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVolunteerScope('all')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    volunteerScope === 'all'
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'text-slate-700 hover:text-slate-900'
-                  }`}
-                >
-                  <span>👥 {language === 'ml' ? 'എല്ലാ കുട്ടികളും' : 'All Delegates'}</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${volunteerScope === 'all' ? 'bg-white/20 text-white font-bold' : 'bg-slate-100 text-slate-700'}`}>
-                    {delegates.length}
-                  </span>
-                </button>
+              <div className="inline-flex rounded-xl bg-white/90 px-3 py-1.5 border border-indigo-200 text-xs font-bold text-indigo-900 shadow-2xs items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>{language === 'ml' ? 'നിങ്ങളുടെ കുട്ടികൾ മാത്രം' : 'Assigned Delegates Only'}</span>
               </div>
             </div>
           )}
 
-          {/* Alert when volunteer has 0 assigned delegates */}
-          {isVolunteerRole && volunteerScope === 'my' && myDelegatesCount === 0 && (
-            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 text-xs text-amber-900 font-medium">
-                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>
+          {/* Notice when volunteer has 0 assigned delegates */}
+          {isVolunteerRole && myDelegatesCount === 0 && (
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+              <div className="flex flex-col text-xs text-amber-900">
+                <span className="font-bold">
                   {language === 'ml'
-                    ? 'നിങ്ങൾക്ക് ഇതുവരെ പ്രത്യേക പ്രതിനിധികളെ ചുമതലപ്പെടുത്തിയിട്ടില്ല. സമ്മേളനത്തിലെ മുഴുവൻ പ്രതിനിധികളെയും കാണാൻ താഴെ ക്ലിക്ക് ചെയ്യുക.'
-                    : 'No delegates have been specifically assigned to your profile yet. Click below to view all conference delegates.'}
+                    ? 'നിങ്ങൾക്ക് ഇതുവരെ പ്രതിനിധികളെ ചുമതലപ്പെടുത്തിയിട്ടില്ല'
+                    : 'No delegates assigned yet'}
+                </span>
+                <span className="text-amber-800 text-[11px] mt-0.5">
+                  {language === 'ml'
+                    ? 'കുട്ടികളെ ചുമതലപ്പെടുത്തുന്നതിനായി ജില്ലാ കോർഡിനേറ്ററുമായോ സംസ്ഥാന അഡ്മിൻ ഡെസ്കുമായോ ബന്ധപ്പെടുക.'
+                    : 'Please contact your district coordinator or the state conference admin desk to assign arriving delegates to your care.'}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setVolunteerScope('all')}
-                className="px-3.5 py-1.5 rounded-xl bg-amber-600 text-white text-xs font-bold shadow-xs hover:bg-amber-700 transition-colors shrink-0 cursor-pointer"
-              >
-                {language === 'ml' ? 'എല്ലാ കുട്ടികളെയും കാണുക' : 'View All Delegates'}
-              </button>
             </div>
           )}
 
@@ -1061,10 +1036,27 @@ export const VolunteerDesk: React.FC = () => {
 
       {/* TAB 2: Host Houses Directory */}
       {activeTab === 'houses' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {houses.map((house) => {
-            const occupants = delegates.filter((d) => d.house_id === house.id);
-            const arrivedOccupants = occupants.filter((d) => d.status === 'checked_in');
+        scopedHouses.length === 0 ? (
+          <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center flex flex-col items-center gap-2">
+            <Home className="w-10 h-10 text-slate-300" />
+            <span className="text-sm font-bold text-slate-700">
+              {language === 'ml' ? 'ആതിഥേയ വീടുകൾ ലഭ്യമല്ല' : 'No Host Houses Found'}
+            </span>
+            <span className="text-xs text-slate-400">
+              {language === 'ml'
+                ? isVolunteerRole
+                  ? 'നിങ്ങളുടെ ചുമതലയിലുള്ള കുട്ടികൾക്ക് ഇതുവരെ ആതിഥേയ വീടുകൾ നിശ്ചയിച്ചിട്ടില്ല.'
+                  : 'രേഖപ്പെടുത്തിയ വീടുകൾ കണ്ടെത്താനായില്ല.'
+                : isVolunteerRole
+                  ? 'No host accommodations assigned to your delegates yet.'
+                  : 'No accommodations found.'}
+            </span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {scopedHouses.map((house) => {
+              const occupants = scopedBaseDelegates.filter((d) => d.house_id === house.id);
+              const arrivedOccupants = occupants.filter((d) => d.status === 'checked_in');
 
             return (
               <div
@@ -1171,6 +1163,7 @@ export const VolunteerDesk: React.FC = () => {
             );
           })}
         </div>
+        )
       )}
 
       {/* Edit Modals */}

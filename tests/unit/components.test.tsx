@@ -538,8 +538,8 @@ describe('React Components Unit Tests', () => {
       );
 
       const { unmount } = renderWithProviders(<VolunteerDesk />);
-      expect(screen.getByText(/എന്റെ കുട്ടികൾ/i)).toBeInTheDocument();
-      expect(screen.getByText(/എല്ലാ കുട്ടികളും/i)).toBeInTheDocument();
+      expect(screen.getByText(/നിങ്ങളുടെ കുട്ടികൾ മാത്രം|Assigned Delegates Only/i)).toBeInTheDocument();
+      expect(screen.queryByText(/എല്ലാ കുട്ടികളും/i)).not.toBeInTheDocument();
       unmount();
 
       // 2. Admin view

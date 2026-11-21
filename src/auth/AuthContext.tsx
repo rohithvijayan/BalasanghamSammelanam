@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { StaffProfile, UserRole } from '../types';
 import { supabase, isSupabaseConfigured, api } from '../lib/supabase';
 import { mockStore } from '../lib/mockData';
@@ -65,6 +65,12 @@ const DEMO_ACCOUNTS: Record<string, { pass: string; profile: StaffProfile }> = {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<StaffProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const inFlightProfileRef = useRef<Map<string, Promise<void>>>(new Map());
+  const userRef = useRef<StaffProfile | null>(null);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   useEffect(() => {
     // 1. Check local session
@@ -112,55 +118,76 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const fetchSupabaseProfile = async (userId: string, email: string) => {
+  const fetchSupabaseProfile = async (userId: string, email: string): Promise<void> => {
     if (!supabase) return;
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
 
-      if (data) {
-        const profile: StaffProfile = {
-          id: data.id,
-          email,
-          full_name: data.full_name,
-          phone: data.phone || '',
-          role: data.role as UserRole,
-          district_id: data.district_id,
-        };
-        setUser(profile);
-        localStorage.setItem('sammelanam_staff_session', JSON.stringify(profile));
-      } else {
-        // SECURITY FIX: New staff default to 'volunteer' role, NEVER 'admin'
-        const fallbackProfile: StaffProfile = {
-          id: userId,
-          email,
-          full_name: email.split('@')[0] || 'സ്റ്റാഫ് (Staff)',
-          role: 'volunteer',
-        };
-        setUser(fallbackProfile);
-        localStorage.setItem('sammelanam_staff_session', JSON.stringify(fallbackProfile));
-
-        // Attempt background profile upsert with safe default volunteer role
-        supabase
-          .from('profiles')
-          .upsert({
-            id: userId,
-            full_name: fallbackProfile.full_name,
-            phone: '',
-            role: 'volunteer',
-          })
-          .then(({ error: upsertErr }) => {
-            if (upsertErr) console.warn('Background profile upsert notice:', upsertErr.message);
-          });
-      }
-    } catch (err) {
-      console.warn('Profile fetch error', err);
-    } finally {
+    // Redundancy elimination: If profile is already loaded for this user, skip network call
+    if (userRef.current && userRef.current.id === userId && userRef.current.role) {
       setLoading(false);
+      return;
     }
+
+    // In-flight deduplication: Join pending request if getSession and onAuthStateChange fire concurrently
+    const inFlight = inFlightProfileRef.current.get(userId);
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const fetchPromise = (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (data) {
+          const profile: StaffProfile = {
+            id: data.id,
+            email,
+            full_name: data.full_name,
+            phone: data.phone || '',
+            role: data.role as UserRole,
+            district_id: data.district_id,
+          };
+          setUser(profile);
+          userRef.current = profile;
+          localStorage.setItem('sammelanam_staff_session', JSON.stringify(profile));
+        } else {
+          // SECURITY FIX: New staff default to 'volunteer' role, NEVER 'admin'
+          const fallbackProfile: StaffProfile = {
+            id: userId,
+            email,
+            full_name: email.split('@')[0] || 'സ്റ്റാഫ് (Staff)',
+            role: 'volunteer',
+          };
+          setUser(fallbackProfile);
+          userRef.current = fallbackProfile;
+          localStorage.setItem('sammelanam_staff_session', JSON.stringify(fallbackProfile));
+
+          // Attempt background profile upsert with safe default volunteer role
+          supabase
+            .from('profiles')
+            .upsert({
+              id: userId,
+              full_name: fallbackProfile.full_name,
+              phone: '',
+              role: 'volunteer',
+            })
+            .then(({ error: upsertErr }) => {
+              if (upsertErr) console.warn('Background profile upsert notice:', upsertErr.message);
+            });
+        }
+      } catch (err) {
+        console.warn('Profile fetch error', err);
+      } finally {
+        setLoading(false);
+        inFlightProfileRef.current.delete(userId);
+      }
+    })();
+
+    inFlightProfileRef.current.set(userId, fetchPromise);
+    return fetchPromise;
   };
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
