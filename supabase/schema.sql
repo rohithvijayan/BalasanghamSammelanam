@@ -542,3 +542,22 @@ CREATE OR REPLACE TRIGGER trg_delegate_house_volunteer_sync
 BEFORE INSERT OR UPDATE OF house_id ON public.delegates
 FOR EACH ROW
 EXECUTE FUNCTION trg_sync_delegate_house_volunteer();
+
+-- 6.6 Auto-sync Delegates when House Volunteer In-Charge is Updated (Atomic Cascade)
+CREATE OR REPLACE FUNCTION trg_sync_house_volunteer_to_delegates()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (TG_OP = 'UPDATE' AND NEW.volunteer_id IS DISTINCT FROM OLD.volunteer_id) THEN
+        UPDATE public.delegates
+        SET volunteer_id = NEW.volunteer_id
+        WHERE house_id = NEW.id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_house_volunteer_to_delegates_sync ON public.houses;
+CREATE TRIGGER trg_house_volunteer_to_delegates_sync
+AFTER UPDATE OF volunteer_id ON public.houses
+FOR EACH ROW
+EXECUTE FUNCTION trg_sync_house_volunteer_to_delegates();

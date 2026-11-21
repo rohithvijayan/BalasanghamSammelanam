@@ -1254,21 +1254,27 @@ export const api = {
 
     if (supabase) {
       try {
-        const { error: houseErr } = await supabase
-          .from('houses')
-          .update({ volunteer_id: volunteer?.id || null })
-          .eq('id', houseId);
-        if (houseErr) {
-          console.warn('Supabase assignHouseVolunteer house update notice:', houseErr.message);
-        }
+        await withNetworkRetry(async () => {
+          // Atomic update on house: database trigger trg_house_volunteer_to_delegates_sync
+          // automatically and atomically cascades volunteer_id to all delegates in this house
+          const { error: houseErr } = await supabase
+            .from('houses')
+            .update({ volunteer_id: volunteer?.id || null })
+            .eq('id', houseId);
+          if (houseErr) {
+            console.warn('Supabase assignHouseVolunteer house update notice:', houseErr.message);
+            throw new Error(houseErr.message || 'Failed to update house volunteer');
+          }
 
-        const { error: delErr } = await supabase
-          .from('delegates')
-          .update({ volunteer_id: volunteer?.id || null })
-          .eq('house_id', houseId);
-        if (delErr) {
-          console.warn('Supabase assignHouseVolunteer delegates update notice:', delErr.message);
-        }
+          // Defensive sync for delegates in case trigger is disabled
+          const { error: delErr } = await supabase
+            .from('delegates')
+            .update({ volunteer_id: volunteer?.id || null })
+            .eq('house_id', houseId);
+          if (delErr) {
+            console.warn('Supabase assignHouseVolunteer delegates update notice:', delErr.message);
+          }
+        });
       } catch (err: any) {
         console.warn('Failed to update house volunteer in Supabase', err);
         throw err;
@@ -1283,19 +1289,21 @@ export const api = {
     mockStore.assignVolunteer(delegateId, volunteer);
     if (supabase) {
       try {
-        const { error } = await supabase
-          .from('delegates')
-          .update({ volunteer_id: volunteer?.id || null })
-          .eq('id', delegateId);
-        if (error) {
-          console.warn('Supabase assignVolunteer notice:', error.message);
-          if (error.code === '23503' || error.message?.includes('violates foreign key constraint') || error.message?.includes('delegates_volunteer_id_fkey')) {
-            throw new Error(
-              'Database Foreign Key Constraint (23503): delegates_volunteer_id_fkey in Supabase still references profiles table. Please run the SQL migration in supabase/migrations/20261121_fix_volunteer_foreign_key.sql in your Supabase SQL Editor.'
-            );
+        await withNetworkRetry(async () => {
+          const { error } = await supabase
+            .from('delegates')
+            .update({ volunteer_id: volunteer?.id || null })
+            .eq('id', delegateId);
+          if (error) {
+            console.warn('Supabase assignVolunteer notice:', error.message);
+            if (error.code === '23503' || error.message?.includes('violates foreign key constraint') || error.message?.includes('delegates_volunteer_id_fkey')) {
+              throw new Error(
+                'Database Foreign Key Constraint (23503): delegates_volunteer_id_fkey in Supabase still references profiles table. Please run the SQL migration in supabase/migrations/20261121_fix_volunteer_foreign_key.sql in your Supabase SQL Editor.'
+              );
+            }
+            throw new Error(error.message || 'Failed to assign volunteer');
           }
-          throw new Error(error.message || 'Failed to assign volunteer');
-        }
+        });
       } catch (err: any) {
         console.warn('Failed to update volunteer_id in Supabase', err);
         throw err;
@@ -1311,19 +1319,21 @@ export const api = {
     mockStore.bulkAssignVolunteer(delegateIds, volunteer);
     if (supabase) {
       try {
-        const { error } = await supabase
-          .from('delegates')
-          .update({ volunteer_id: volunteer?.id || null })
-          .in('id', delegateIds);
-        if (error) {
-          console.warn('Supabase bulkAssignVolunteer notice:', error.message);
-          if (error.code === '23503' || error.message?.includes('violates foreign key constraint') || error.message?.includes('delegates_volunteer_id_fkey')) {
-            throw new Error(
-              'Database Foreign Key Constraint (23503): delegates_volunteer_id_fkey in Supabase still references profiles table. Please run the SQL migration in supabase/migrations/20261121_fix_volunteer_foreign_key.sql in your Supabase SQL Editor.'
-            );
+        await withNetworkRetry(async () => {
+          const { error } = await supabase
+            .from('delegates')
+            .update({ volunteer_id: volunteer?.id || null })
+            .in('id', delegateIds);
+          if (error) {
+            console.warn('Supabase bulkAssignVolunteer notice:', error.message);
+            if (error.code === '23503' || error.message?.includes('violates foreign key constraint') || error.message?.includes('delegates_volunteer_id_fkey')) {
+              throw new Error(
+                'Database Foreign Key Constraint (23503): delegates_volunteer_id_fkey in Supabase still references profiles table. Please run the SQL migration in supabase/migrations/20261121_fix_volunteer_foreign_key.sql in your Supabase SQL Editor.'
+              );
+            }
+            throw new Error(error.message || 'Failed to bulk assign volunteer');
           }
-          throw new Error(error.message || 'Failed to bulk assign volunteer');
-        }
+        });
       } catch (err: any) {
         console.warn('Failed to update volunteer_id in Supabase', err);
         throw err;
@@ -1335,35 +1345,37 @@ export const api = {
   // Edit delegate details (Admin)
   async updateDelegate(delegate: Partial<Delegate> & { id: string }): Promise<boolean> {
     invalidateCache('delegates');
+    mockStore.updateDelegate(delegate);
     if (supabase) {
       try {
-        const { error } = await supabase
-          .from('delegates')
-          .update({
-            full_name: delegate.full_name,
-            phone: delegate.phone,
-            district_id: delegate.district_id,
-            gender: delegate.gender,
-            emergency_name: delegate.emergency_name,
-            emergency_phone: delegate.emergency_phone,
-            notes: delegate.notes,
-            ...(delegate.volunteer_id !== undefined
-              ? { volunteer_id: delegate.volunteer_id }
-              : delegate.volunteer !== undefined
-              ? { volunteer_id: delegate.volunteer?.id || null }
-              : {}),
-          })
-          .eq('id', delegate.id);
-        if (error) {
-          console.error('Supabase updateDelegate error:', error);
-          throw new Error(error.message || 'Failed to update delegate');
-        }
+        await withNetworkRetry(async () => {
+          const { error } = await supabase
+            .from('delegates')
+            .update({
+              full_name: delegate.full_name,
+              phone: delegate.phone,
+              district_id: delegate.district_id,
+              gender: delegate.gender,
+              emergency_name: delegate.emergency_name,
+              emergency_phone: delegate.emergency_phone,
+              notes: delegate.notes,
+              ...(delegate.volunteer_id !== undefined
+                ? { volunteer_id: delegate.volunteer_id }
+                : delegate.volunteer !== undefined
+                ? { volunteer_id: delegate.volunteer?.id || null }
+                : {}),
+            })
+            .eq('id', delegate.id);
+          if (error) {
+            console.error('Supabase updateDelegate error:', error);
+            throw new Error(error.message || 'Failed to update delegate');
+          }
+        });
       } catch (e: any) {
         console.error('Failed to update delegate in Supabase', e);
         throw e;
       }
     }
-    mockStore.updateDelegate(delegate);
     return true;
   },
 
@@ -1382,41 +1394,43 @@ export const api = {
         ? cleanHouse.volunteer?.id || null
         : undefined;
 
+    mockStore.updateHouse(cleanHouse);
     if (supabase) {
       try {
-        const { error } = await supabase
-          .from('houses')
-          .update({
-            name: cleanHouse.name,
-            address: cleanHouse.address,
-            ...(safeMapUrl !== undefined ? { map_url: safeMapUrl } : {}),
-            host_name: cleanHouse.host_name,
-            host_phone: cleanHouse.host_phone,
-            capacity: cleanHouse.capacity,
-            gender_restriction: cleanHouse.gender_restriction,
-            notes: cleanHouse.notes,
-            ...(targetVolId !== undefined ? { volunteer_id: targetVolId } : {}),
-          })
-          .eq('id', cleanHouse.id);
-        if (error) {
-          console.error('Supabase updateHouse error:', error);
-          throw new Error(error.message || 'Failed to update house');
-        }
+        await withNetworkRetry(async () => {
+          const { error } = await supabase
+            .from('houses')
+            .update({
+              name: cleanHouse.name,
+              address: cleanHouse.address,
+              ...(safeMapUrl !== undefined ? { map_url: safeMapUrl } : {}),
+              host_name: cleanHouse.host_name,
+              host_phone: cleanHouse.host_phone,
+              capacity: cleanHouse.capacity,
+              gender_restriction: cleanHouse.gender_restriction,
+              notes: cleanHouse.notes,
+              ...(targetVolId !== undefined ? { volunteer_id: targetVolId } : {}),
+            })
+            .eq('id', cleanHouse.id);
+          if (error) {
+            console.error('Supabase updateHouse error:', error);
+            throw new Error(error.message || 'Failed to update house');
+          }
 
-        if (targetVolId !== undefined) {
-          // Auto-update occupants of this house to inherit the house volunteer
-          invalidateCache('delegates');
-          await supabase
-            .from('delegates')
-            .update({ volunteer_id: targetVolId })
-            .eq('house_id', cleanHouse.id);
-        }
+          if (targetVolId !== undefined) {
+            // Auto-update occupants of this house to inherit the house volunteer
+            invalidateCache('delegates');
+            await supabase
+              .from('delegates')
+              .update({ volunteer_id: targetVolId })
+              .eq('house_id', cleanHouse.id);
+          }
+        });
       } catch (e: any) {
         console.error('Failed to update house in Supabase', e);
         throw e;
       }
     }
-    mockStore.updateHouse(cleanHouse);
     return true;
   },
 
