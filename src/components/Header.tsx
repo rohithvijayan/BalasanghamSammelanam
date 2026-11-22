@@ -2,11 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useI18n } from '../i18n/i18nContext';
 import { useAuth } from '../auth/AuthContext';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Upload, Home, LogOut, Shield, LogIn, UserCheck, Menu, X, HelpCircle, User, Smartphone } from 'lucide-react';
+import { Users, Upload, Home, LogOut, Shield, LogIn, UserCheck, Menu, X, HelpCircle, User, Smartphone, Bell, CheckCircle2 } from 'lucide-react';
 import { InteractiveGuideModal } from './InteractiveGuideModal';
 import { UserProfileModal } from './UserProfileModal';
 import { InstallAppGuideModal } from './InstallAppGuideModal';
 import { usePWAInstall } from '../hooks/usePWAInstall';
+import {
+  isNotificationSupported,
+  getNotificationPermission,
+  requestNotificationPermission,
+  sendBrowserNotification,
+} from '../lib/notifications';
 
 export const Header: React.FC = () => {
   const { language, setLanguage, t } = useI18n();
@@ -16,6 +22,36 @@ export const Header: React.FC = () => {
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const { canInstall, isIOS, triggerInstall, showGuideModal, setShowGuideModal } = usePWAInstall();
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | 'unsupported'>('default');
+
+  useEffect(() => {
+    if (isNotificationSupported()) {
+      setNotifPermission(getNotificationPermission());
+    }
+  }, []);
+
+  const handleToggleNotification = async () => {
+    if (notifPermission === 'granted') {
+      sendBrowserNotification(
+        language === 'ml' ? 'ബാലസംഘം സംസ്ഥാന സമ്മേളനം' : 'Balasangham State Conference',
+        {
+          body: language === 'ml' ? '🔔 ഫോൺ നോട്ടിഫിക്കേഷനുകൾ സജീവമാണ്.' : '🔔 Push notifications are active.',
+        }
+      );
+      return;
+    }
+
+    const res = await requestNotificationPermission();
+    setNotifPermission(res);
+    if (res === 'granted') {
+      sendBrowserNotification(
+        language === 'ml' ? 'ബാലസംഘം സംസ്ഥാന സമ്മേളനം' : 'Balasangham State Conference',
+        {
+          body: language === 'ml' ? '🔔 നോട്ടിഫിക്കേഷൻ വിജയകരമായി ഓൺ ചെയ്തു.' : '🔔 Notifications enabled successfully.',
+        }
+      );
+    }
+  };
 
   // Close mobile drawer on route navigation
   useEffect(() => {
@@ -157,6 +193,30 @@ export const Header: React.FC = () => {
             <HelpCircle className="w-4 h-4 text-amber-700 shrink-0" />
             <span className="hidden sm:inline">{language === 'ml' ? 'ഗൈഡ്' : 'Guide'}</span>
           </button>
+
+          {/* Quick Push Notification Bell Indicator & Toggle */}
+          {isNotificationSupported() && (
+            <button
+              type="button"
+              onClick={handleToggleNotification}
+              title={
+                notifPermission === 'granted'
+                  ? (language === 'ml' ? 'നോട്ടിഫിക്കേഷൻ സജീവമാണ് (ഓൺ ആണ്)' : 'Notifications are Active')
+                  : (language === 'ml' ? 'നോട്ടിഫിക്കേഷൻ ഓൺ ചെയ്യുക' : 'Enable Notifications')
+              }
+              aria-label="Toggle notifications"
+              className={`relative p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95 shrink-0 ${
+                notifPermission === 'granted'
+                  ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-800'
+                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
+              }`}
+            >
+              <Bell className="w-4 h-4" />
+              {notifPermission === 'granted' ? (
+                <span className="w-2 h-2 rounded-full bg-emerald-500 absolute -top-0.5 -right-0.5 border border-white" />
+              ) : null}
+            </button>
+          )}
 
           {/* Bilingual Language Switcher Pill */}
           <div className="inline-flex rounded-full bg-slate-100 p-0.5 border border-slate-200 shadow-inner shrink-0">
@@ -365,6 +425,53 @@ export const Header: React.FC = () => {
                   {language === 'ml' ? 'ഇൻസ്റ്റാൾ' : 'Install'}
                 </span>
               </button>
+            )}
+
+            {/* Notification Toggle Row in Mobile Drawer */}
+            {isNotificationSupported() && (
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <Bell className="w-4 h-4 text-slate-700 shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="font-extrabold text-slate-900">
+                      {language === 'ml' ? 'ഫോൺ അറിയിപ്പുകൾ (Alerts)' : 'Phone Alerts'}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-normal">
+                      {notifPermission === 'granted'
+                        ? (language === 'ml' ? 'നോട്ടിഫിക്കേഷൻ ഓൺ ആണ്' : 'Notifications active')
+                        : (language === 'ml' ? 'തത്സമയ അറിയിപ്പുകൾ ലഭിക്കാൻ' : 'Receive instant updates')}
+                    </span>
+                  </div>
+                </div>
+
+                {notifPermission === 'granted' ? (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    {language === 'ml' ? 'ഓൺ' : 'On'}
+                  </span>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      const res = await requestNotificationPermission();
+                      setNotifPermission(res);
+                      if (res === 'granted') {
+                        sendBrowserNotification(
+                          language === 'ml' ? 'ബാലസംഘം സംസ്ഥാന സമ്മേളനം' : 'Balasangham State Conference',
+                          {
+                            body:
+                              language === 'ml'
+                                ? '🔔 നോട്ടിഫിക്കേഷനുകൾ വിജയകരമായി ഓൺ ചെയ്തു.'
+                                : '🔔 Notifications enabled successfully.',
+                          }
+                        );
+                      }
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-primary hover:bg-primary-600 text-white text-[10px] font-extrabold shadow-2xs transition-transform active:scale-95"
+                  >
+                    {language === 'ml' ? 'ഓൺ ചെയ്യുക' : 'Enable'}
+                  </button>
+                )}
+              </div>
             )}
 
             {/* Interactive How to Use Guide Button in Mobile Drawer */}

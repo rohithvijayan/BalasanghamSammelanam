@@ -181,10 +181,9 @@ export const VolunteerDesk: React.FC = () => {
     }, 45000);
 
     const dataInterval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        loadData(false);
-      }
-    }, 90000);
+      // Runs in background tabs as well so volunteers receive notifications while tab is kept open in Chrome
+      loadData(false);
+    }, 60000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
