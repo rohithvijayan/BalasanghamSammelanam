@@ -80,20 +80,71 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         parsedSession = JSON.parse(saved);
         setUser(parsedSession);
+        userRef.current = parsedSession;
       } catch (e) {
         console.warn('Failed to parse saved session', e);
         localStorage.removeItem('sammelanam_staff_session');
       }
     }
 
-    // 2. Check Supabase session if configured
+    // If local session is a Volunteer (authenticated via Phone + PIN), they do not have a Supabase Auth email/password session.
+    // Preserve their session and complete loading immediately so they are not redirected away on page reload.
+    if (parsedSession && parsedSession.role === 'volunteer') {
+      setLoading(false);
+
+      // Background verification: ensure volunteer still exists in DB
+      if (isSupabaseConfigured && supabase && parsedSession.phone) {
+        const cleanDigits = parsedSession.phone.replace(/[^0-9]/g, '');
+        const cleanPhone = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
+        (async () => {
+          try {
+            const { data, error } = await supabase
+              .from('volunteers')
+              .select('id, name, phone, unit');
+            if (!error && data && data.length > 0) {
+              const match = data.find((v: any) => {
+                const vDigits = (v.phone || '').replace(/[^0-9]/g, '');
+                const vNormalized = vDigits.length >= 10 ? vDigits.slice(-10) : vDigits;
+                return vNormalized === cleanPhone;
+              });
+              if (!match) {
+                console.warn('Volunteer record no longer exists, clearing session');
+                setUser(null);
+                userRef.current = null;
+                localStorage.removeItem('sammelanam_staff_session');
+              } else if (match.name !== parsedSession!.full_name || match.unit !== parsedSession!.unit) {
+                const updated: StaffProfile = {
+                  ...parsedSession!,
+                  full_name: match.name,
+                  unit: match.unit || '',
+                };
+                setUser(updated);
+                userRef.current = updated;
+                localStorage.setItem('sammelanam_staff_session', JSON.stringify(updated));
+              }
+            }
+          } catch (err) {
+            console.warn('Volunteer background check error:', err);
+          }
+        })();
+      }
+    }
+
+    // 2. Check Supabase session if configured (for admin / district users)
     if (isSupabaseConfigured && supabase) {
       supabase.auth.getSession().then(({ data }) => {
         if (data.session?.user) {
           fetchSupabaseProfile(data.session.user.id, data.session.user.email || '');
         } else {
-          // If Supabase has no active session, invalidate client-side unauthenticated session
+          // If Supabase has no active session:
+          // Do NOT clear if current session is an authenticated volunteer
+          if (userRef.current?.role === 'volunteer') {
+            setLoading(false);
+            return;
+          }
+          // Invalidate unauthenticated admin session
           setUser(null);
+          userRef.current = null;
           localStorage.removeItem('sammelanam_staff_session');
           setLoading(false);
         }
@@ -101,12 +152,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
       });
 
-      const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
         if (session?.user) {
           fetchSupabaseProfile(session.user.id, session.user.email || '');
-        } else {
-          setUser(null);
-          localStorage.removeItem('sammelanam_staff_session');
+        } else if (event === 'SIGNED_OUT') {
+          // Only invalidate on explicit SIGNED_OUT if the user is NOT a volunteer
+          if (userRef.current?.role !== 'volunteer') {
+            setUser(null);
+            userRef.current = null;
+            localStorage.removeItem('sammelanam_staff_session');
+          }
         }
       });
 
@@ -319,9 +374,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     if (isSupabaseConfigured && supabase) {
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        console.warn('Sign out warning:', e);
+      }
     }
     setUser(null);
+    userRef.current = null;
     localStorage.removeItem('sammelanam_staff_session');
   };
 

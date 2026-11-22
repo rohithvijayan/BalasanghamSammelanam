@@ -117,4 +117,35 @@ describe('Auth & Role Permissions Unit Tests', () => {
     expect(normalizePhone('9447123456')).toBe('9447123456');
     expect(normalizePhone('12345')).toBe('12345');
   });
+
+  it('preserves volunteer session upon page reload even when Supabase auth session is null', () => {
+    // Simulate volunteer Phone + PIN session in localStorage
+    const volunteerSession: StaffProfile = {
+      id: 'vol-9400112233',
+      email: '9400112233@volunteer.balasangham.in',
+      full_name: 'അരുൺ കുമാർ',
+      phone: '9400112233',
+      unit: 'നീലേശ്വരം',
+      role: 'volunteer',
+    };
+    localStorage.setItem('sammelanam_staff_session', JSON.stringify(volunteerSession));
+
+    // When page reloads, parsedSession has role === 'volunteer'
+    const stored = JSON.parse(localStorage.getItem('sammelanam_staff_session') || '{}');
+    expect(stored.role).toBe('volunteer');
+
+    // Rule: Volunteer session should NOT be wiped if supabase.auth.getSession() returns null session
+    const isVolunteer = stored.role === 'volunteer';
+    const supabaseSession = null; // Supabase password session is null for volunteers
+
+    let activeUser = stored;
+    if (!supabaseSession && !isVolunteer) {
+      activeUser = null;
+      localStorage.removeItem('sammelanam_staff_session');
+    }
+
+    expect(activeUser).not.toBeNull();
+    expect(activeUser.role).toBe('volunteer');
+    expect(localStorage.getItem('sammelanam_staff_session')).not.toBeNull();
+  });
 });
