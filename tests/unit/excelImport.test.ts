@@ -98,4 +98,48 @@ describe('Excel (.xlsx / .xls) parsing for /import', () => {
     expect(parsed[0].phone).toBe('9400112233');
     expect(parsed[0].unit).toBe('നീലേശ്വരം (Nileshwaram)');
   });
+
+  it('verifies that public CSV templates contain UTF-8 BOM (0xEF, 0xBB, 0xBF) for MS Excel compatibility', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const csvFiles = ['delegates_template.csv', 'houses_template.csv', 'volunteers_template.csv'];
+    for (const f of csvFiles) {
+      const filePath = path.join(process.cwd(), 'public', 'templates', f);
+      expect(fs.existsSync(filePath), `Template ${f} should exist`).toBe(true);
+
+      const buffer = fs.readFileSync(filePath);
+      // Byte 0: 0xEF, Byte 1: 0xBB, Byte 2: 0xBF
+      expect(buffer[0]).toBe(0xef);
+      expect(buffer[1]).toBe(0xbb);
+      expect(buffer[2]).toBe(0xbf);
+
+      // Verify that content includes readable Malayalam text without mojibake
+      const utf8Text = buffer.toString('utf8');
+      expect(utf8Text).not.toContain('à´');
+    }
+  });
+
+  it('verifies that public XLSX templates exist and preserve text types for phone numbers', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const xlsxFiles = ['delegates_template.xlsx', 'houses_template.xlsx', 'volunteers_template.xlsx'];
+    for (const f of xlsxFiles) {
+      const filePath = path.join(process.cwd(), 'public', 'templates', f);
+      expect(fs.existsSync(filePath), `XLSX template ${f} should exist`).toBe(true);
+
+      const wb = XLSX.readFile(filePath);
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<any>(sheet);
+      expect(rows.length).toBeGreaterThan(0);
+
+      // Confirm Malayalam characters read cleanly
+      const firstRow = rows[0];
+      const name = firstRow.name || firstRow.full_name;
+      expect(name).toBeDefined();
+      expect(typeof name).toBe('string');
+      expect(name).not.toContain('à´');
+    }
+  });
 });

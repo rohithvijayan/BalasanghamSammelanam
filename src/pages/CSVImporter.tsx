@@ -150,8 +150,34 @@ export const CSVImporter: React.FC = () => {
   const sanitizeCell = (val: any): string => {
     if (val === null || val === undefined) return '';
     const str = String(val).trim();
+    // Allow legitimate international phone numbers starting with +
+    if (/^\+[0-9]/.test(str)) {
+      return str;
+    }
     if (/^[=+@\-\t\r]/.test(str)) {
       return `'${str}`;
+    }
+    return str;
+  };
+
+  // Normalizes phone numbers: recovers from scientific notation (e.g. 9.45E+09 from Excel),
+  // removes trailing .0 from float imports, and strips accidental leading quotes.
+  const cleanPhoneNumber = (val: any): string => {
+    if (val === null || val === undefined) return '';
+    let str = String(val).trim();
+    if (str.startsWith("'")) {
+      str = str.slice(1).trim();
+    }
+    // Handle scientific notation from Excel (e.g. 9.447123456e+9 or 9.45e+9)
+    if (/^[0-9]+(\.[0-9]+)?e\+[0-9]+$/i.test(str)) {
+      const num = Number(str);
+      if (!isNaN(num)) {
+        str = num.toLocaleString('fullwide', { useGrouping: false });
+      }
+    }
+    // Strip floating point .0 if imported as number (e.g. 9447123456.0)
+    if (/^[0-9]+\.0+$/.test(str)) {
+      str = str.split('.')[0];
     }
     return str;
   };
@@ -184,11 +210,11 @@ export const CSVImporter: React.FC = () => {
         }
 
         const fullName = normalized['full_name'] || normalized['name'] || normalized['പേര്'] || '';
-        const phone = String(normalized['phone'] || normalized['mobile'] || normalized['ഫോൺ'] || '').trim();
+        const phone = cleanPhoneNumber(normalized['phone'] || normalized['mobile'] || normalized['ഫോൺ'] || '');
         const district = String(normalized['district'] || normalized['ജില്ല'] || '').trim();
         const gender = String(normalized['gender'] || normalized['ലിംഗം'] || 'boy').toLowerCase();
         const emergencyName = normalized['emergency_name'] || normalized['guardian'] || normalized['രക്ഷാകർത്താവ്'] || '';
-        const emergencyPhone = String(normalized['emergency_phone'] || normalized['guardian_phone'] || '').trim();
+        const emergencyPhone = cleanPhoneNumber(normalized['emergency_phone'] || normalized['guardian_phone'] || normalized['അടിയന്തര_ഫോൺ'] || '');
         const notes = normalized['notes'] || '';
 
         if (!fullName) {
@@ -240,7 +266,7 @@ export const CSVImporter: React.FC = () => {
         const rawMapUrl = normalized['map_url'] || normalized['maps'] || '';
         const mapUrl = isSafeUrl(rawMapUrl) ? rawMapUrl : '';
         const hostName = normalized['host_name'] || normalized['host'] || normalized['ആതിഥേയൻ'] || 'Host';
-        const hostPhone = String(normalized['host_phone'] || normalized['phone'] || normalized['ഫോൺ'] || '').trim();
+        const hostPhone = cleanPhoneNumber(normalized['host_phone'] || normalized['phone'] || normalized['ഫോൺ'] || '');
         const capacity = parseInt(normalized['capacity'] || normalized['കപ്പാസിറ്റി'], 10) || 4;
         const genderRestriction = (normalized['gender_restriction'] || normalized['gender'] || 'any').toLowerCase();
         const notes = normalized['notes'] || '';
@@ -276,7 +302,7 @@ export const CSVImporter: React.FC = () => {
         }
 
         const name = normalized['name'] || normalized['volunteer_name'] || normalized['full_name'] || normalized['പേര്'] || normalized['വളണ്ടിയർ'] || '';
-        const phone = String(normalized['phone'] || normalized['mobile'] || normalized['contact'] || normalized['ഫോൺ'] || normalized['മൊബൈൽ'] || '').trim();
+        const phone = cleanPhoneNumber(normalized['phone'] || normalized['mobile'] || normalized['contact'] || normalized['ഫോൺ'] || normalized['മൊബൈൽ'] || '');
         const unit = normalized['unit'] || normalized['area'] || normalized['മേഖല'] || normalized['യൂണിറ്റ്'] || normalized['സെന്റർ'] || '';
 
         if (!name) {
@@ -628,7 +654,7 @@ export const CSVImporter: React.FC = () => {
               importType === 'delegates' ? 'bg-white text-primary shadow-xs' : 'text-slate-600'
             }`}
           >
-            {language === 'ml' ? 'പ്രതിനിധികൾ (Delegates CSV)' : 'Delegates (CSV)'}
+            {language === 'ml' ? 'പ്രതിനിധികൾ (Delegates)' : 'Delegates'}
           </button>
           <button
             onClick={() => {
@@ -639,7 +665,7 @@ export const CSVImporter: React.FC = () => {
               importType === 'houses' ? 'bg-white text-primary shadow-xs' : 'text-slate-600'
             }`}
           >
-            {language === 'ml' ? 'വീടുകൾ (Houses CSV)' : 'Host Houses (CSV)'}
+            {language === 'ml' ? 'വീടുകൾ (Host Houses)' : 'Host Houses'}
           </button>
           <button
             onClick={() => {
@@ -650,25 +676,65 @@ export const CSVImporter: React.FC = () => {
               importType === 'volunteers' ? 'bg-white text-primary shadow-xs' : 'text-slate-600'
             }`}
           >
-            {language === 'ml' ? 'വളണ്ടിയർമാർ (Volunteers CSV)' : 'Volunteers (CSV)'}
+            {language === 'ml' ? 'വളണ്ടിയർമാർ (Volunteers)' : 'Volunteers'}
           </button>
         </div>
 
-        {/* Download Template Link */}
-        <a
-          href={
-            importType === 'delegates'
-              ? '/templates/delegates_template.csv'
-              : importType === 'houses'
-              ? '/templates/houses_template.csv'
-              : '/templates/volunteers_template.csv'
-          }
-          download
-          className="px-4 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors self-start sm:self-auto"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span>{language === 'ml' ? 'മാതൃകാ CSV ഡൗൺലോഡ് (Download Template)' : 'Download Sample CSV Template'}</span>
-        </a>
+        {/* Dual Template Download Options (Excel .xlsx & CSV with BOM) */}
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <a
+            href={
+              importType === 'delegates'
+                ? '/templates/delegates_template.xlsx'
+                : importType === 'houses'
+                ? '/templates/houses_template.xlsx'
+                : '/templates/volunteers_template.xlsx'
+            }
+            download
+            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+            title={
+              language === 'ml'
+                ? 'MS Excel-ൽ മലയാളം അക്ഷരങ്ങളും ഫോൺ നമ്പറുകളും കൃത്യമായി കാണാൻ ശുപാർശ ചെയ്യുന്നത്'
+                : 'Recommended for Microsoft Excel with full Malayalam Unicode and text formatting'
+            }
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-100" />
+            <span>{language === 'ml' ? 'Excel മാതൃക (.xlsx) - ശുപാർശ ചെയ്യുന്നത്' : 'Excel Template (.xlsx) - Recommended'}</span>
+          </a>
+
+          <a
+            href={
+              importType === 'delegates'
+                ? '/templates/delegates_template.csv'
+                : importType === 'houses'
+                ? '/templates/houses_template.csv'
+                : '/templates/volunteers_template.csv'
+            }
+            download
+            className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
+            title={language === 'ml' ? 'UTF-8 എൻകോഡിംഗ് ഉള്ള CSV ഫയൽ' : 'UTF-8 encoded CSV file'}
+          >
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <span>{language === 'ml' ? 'CSV മാതൃക (.csv)' : 'CSV Template (.csv)'}</span>
+          </a>
+        </div>
+      </div>
+
+      {/* Helpful Tip for MS Excel Users */}
+      <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-3.5 flex items-start gap-3 text-xs text-amber-950">
+        <span className="text-lg leading-none shrink-0 mt-0.5">💡</span>
+        <div className="space-y-0.5">
+          <p className="font-bold text-amber-900">
+            {language === 'ml'
+              ? 'MS Excel ഉപയോഗിക്കുന്നവർക്കുള്ള പ്രധാന അറിയിപ്പ്:'
+              : 'Important note for Microsoft Excel users:'}
+          </p>
+          <p className="text-amber-800/90 leading-relaxed">
+            {language === 'ml'
+              ? 'Excel-ൽ ഫയൽ തുറക്കുമ്പോൾ മലയാളം അക്ഷരങ്ങൾ തെറ്റാതെ കാണാനും ഫോൺ നമ്പറുകൾ സയന്റിഫിക് നൊട്ടേഷനായി (9.45E+09) മാറാതിരിക്കാനും മുകളിലുള്ള പച്ച നിറത്തിലുള്ള "Excel മാതൃക (.xlsx)" ഡൗൺലോഡ് ചെയ്ത് ഉപയോഗിക്കുക.'
+              : 'To ensure Malayalam text displays correctly and phone numbers do not turn into scientific notation (like 9.45E+09) in Microsoft Excel, please download and use the green "Excel Template (.xlsx)" button above.'}
+          </p>
+        </div>
       </div>
 
       {/* File Upload Zone */}
