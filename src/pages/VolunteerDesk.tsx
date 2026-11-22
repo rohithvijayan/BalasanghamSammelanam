@@ -955,19 +955,6 @@ export const VolunteerDesk: React.FC = () => {
                         <span>{language === 'ml' ? 'ആരെയും നിശ്ചയിച്ചിട്ടില്ല' : 'Not assigned'}</span>
                       </div>
                     )}
-                    {del.emergency_phone && (
-                      <div className="flex items-center justify-between border-t border-slate-200/50 pt-1 text-[11px]">
-                        <span className="text-slate-500">
-                          {language === 'ml' ? `രക്ഷാകർത്താവ് (${del.emergency_name}):` : `Guardian (${del.emergency_name}):`}
-                        </span>
-                        <a
-                          href={`tel:${del.emergency_phone}`}
-                          className="font-mono font-bold text-slate-700 hover:text-primary"
-                        >
-                          {del.emergency_phone}
-                        </a>
-                      </div>
-                    )}
                   </div>
 
                   {/* Live GPS Tracking Box */}

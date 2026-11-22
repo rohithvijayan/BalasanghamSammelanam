@@ -13,28 +13,19 @@ const delegates = [
     full_name: 'അർജുൻ കെ.',
     phone: '9847011223',
     district: 'Kannur',
-    gender: 'boy',
-    emergency_name: 'സുരേഷ് കെ.',
-    emergency_phone: '9446021990',
-    notes: 'യൂണിറ്റ് സെക്രട്ടറി'
+    gender: 'boy'
   },
   {
     full_name: 'ഫാത്തിമ ഷെറിൻ',
     phone: '9400281109',
     district: 'Malappuram',
-    gender: 'girl',
-    emergency_name: 'അബ്ദുൽ റഹ്മാൻ',
-    emergency_phone: '9846144556',
-    notes: 'കലോത്സവം ഒന്നാം സമ്മാനം'
+    gender: 'girl'
   },
   {
     full_name: 'ആദർശ് എം.',
     phone: '9847111029',
     district: 'Palakkad',
-    gender: 'boy',
-    emergency_name: 'മോഹനൻ എം.',
-    emergency_phone: '9446021991',
-    notes: ''
+    gender: 'boy'
   }
 ];
 
@@ -133,7 +124,7 @@ function saveCsvWithBom(csvContent, filename) {
 }
 
 console.log('Generating Excel (.xlsx) templates...');
-createXlsx(delegates, 'delegates_template.xlsx', [24, 18, 16, 12, 24, 18, 30], ['phone', 'emergency_phone']);
+createXlsx(delegates, 'delegates_template.xlsx', [24, 18, 16, 12], ['phone']);
 createXlsx(houses, 'houses_template.xlsx', [36, 44, 42, 22, 18, 12, 18, 30], ['host_phone']);
 createXlsx(volunteers, 'volunteers_template.xlsx', [24, 18, 28], ['phone']);
 

@@ -246,13 +246,11 @@ describe('mockStore - State Conference Data Store', () => {
       ...testDel,
       full_name: 'Updated Name',
       phone: '9998887776',
-      notes: 'Vegetarian food required',
     });
 
     const updated = mockStore.getDelegates().find((d) => d.id === 'del-edit-1');
     expect(updated?.full_name).toBe('Updated Name');
     expect(updated?.phone).toBe('9998887776');
-    expect(updated?.notes).toBe('Vegetarian food required');
   });
 
   it('should update house details and persist', () => {

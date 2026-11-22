@@ -81,9 +81,6 @@ export interface Delegate {
   district_en?: string;
   district_ml?: string;
   gender?: 'boy' | 'girl' | 'other';
-  emergency_name?: string;
-  emergency_phone?: string;
-  notes?: string;
   house_id?: string | null;
   house?: House | null;
   volunteer_id?: string | null;

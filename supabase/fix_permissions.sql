@@ -458,8 +458,7 @@ BEGIN
     END IF;
 
     INSERT INTO delegates (
-        token, full_name, phone, district_id, gender,
-        emergency_name, emergency_phone, notes, status
+        token, full_name, phone, district_id, gender, status
     )
     SELECT 
         COALESCE(NULLIF(elem->>'token', ''), 'del_' || encode(gen_random_bytes(12), 'hex')),
@@ -467,19 +466,13 @@ BEGIN
         NULLIF(elem->>'phone', ''),
         COALESCE((elem->>'district_id')::INTEGER, 2),
         COALESCE(NULLIF(elem->>'gender', ''), 'boy'),
-        NULLIF(elem->>'emergency_name', ''),
-        NULLIF(elem->>'emergency_phone', ''),
-        NULLIF(elem->>'notes', ''),
         COALESCE((elem->>'status')::delegate_status, 'pending')
     FROM jsonb_array_elements(p_delegates) AS elem
     ON CONFLICT (token) DO UPDATE SET
         full_name = EXCLUDED.full_name,
         phone = EXCLUDED.phone,
         district_id = EXCLUDED.district_id,
-        gender = EXCLUDED.gender,
-        emergency_name = EXCLUDED.emergency_name,
-        emergency_phone = EXCLUDED.emergency_phone,
-        notes = EXCLUDED.notes;
+        gender = EXCLUDED.gender;
 
     GET DIAGNOSTICS v_count = ROW_COUNT;
     RETURN jsonb_build_object('success', true, 'count', v_count);

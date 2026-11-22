@@ -4,6 +4,7 @@ import { I18nProvider } from './i18n/i18nContext';
 import { AuthProvider } from './auth/AuthContext';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { Header } from './components/Header';
+import { InstallAppBanner } from './components/InstallAppBanner';
 
 // Route-level code splitting (cuts initial JS download by >70% for mobile delegates)
 const LandingPage = lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));
@@ -63,6 +64,7 @@ export const App: React.FC = () => {
                 </Routes>
               </Suspense>
             </main>
+            <InstallAppBanner />
           </div>
         </BrowserRouter>
       </AuthProvider>

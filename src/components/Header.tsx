@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useI18n } from '../i18n/i18nContext';
 import { useAuth } from '../auth/AuthContext';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Upload, Home, LogOut, Shield, LogIn, UserCheck, Menu, X, HelpCircle, User } from 'lucide-react';
+import { Users, Upload, Home, LogOut, Shield, LogIn, UserCheck, Menu, X, HelpCircle, User, Smartphone } from 'lucide-react';
 import { InteractiveGuideModal } from './InteractiveGuideModal';
 import { UserProfileModal } from './UserProfileModal';
+import { InstallAppGuideModal } from './InstallAppGuideModal';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 export const Header: React.FC = () => {
   const { language, setLanguage, t } = useI18n();
@@ -13,6 +15,7 @@ export const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const { canInstall, isIOS, triggerInstall, showGuideModal, setShowGuideModal } = usePWAInstall();
 
   // Close mobile drawer on route navigation
   useEffect(() => {
@@ -337,6 +340,33 @@ export const Header: React.FC = () => {
               </Link>
             )}
 
+            {/* Install App Option in Mobile Drawer */}
+            {canInstall && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  triggerInstall();
+                }}
+                className="p-3 rounded-xl bg-primary/5 hover:bg-primary/10 border border-primary/20 text-slate-800 text-xs font-bold flex items-center justify-between gap-2.5 transition-colors text-left shadow-2xs"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Smartphone className="w-4 h-4 text-primary shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="font-extrabold text-slate-900 leading-tight">
+                      {language === 'ml' ? 'ആപ്പ് ഫോണിൽ ഇൻസ്റ്റാൾ ചെയ്യുക' : 'Install App on Phone'}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-normal leading-tight mt-0.5">
+                      {language === 'ml' ? 'ഹോം സ്ക്രീനിൽ വെക്കാം • 1-ടാപ്പിൽ തുറക്കാം' : 'Add to home screen for 1-tap access'}
+                    </span>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-lg bg-primary text-white text-[10px] font-extrabold shrink-0 shadow-2xs">
+                  {language === 'ml' ? 'ഇൻസ്റ്റാൾ' : 'Install'}
+                </span>
+              </button>
+            )}
+
             {/* Interactive How to Use Guide Button in Mobile Drawer */}
             <button
               type="button"
@@ -370,6 +400,13 @@ export const Header: React.FC = () => {
 
       {/* Staff & Volunteer Profile Modal */}
       <UserProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
+
+      {/* PWA Install Guide Modal */}
+      <InstallAppGuideModal
+        isOpen={showGuideModal}
+        onClose={() => setShowGuideModal(false)}
+        isIOS={isIOS}
+      />
     </header>
   );
 };

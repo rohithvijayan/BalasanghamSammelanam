@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Delegate, Volunteer } from '../types';
 import { initialDistricts, mockStore } from '../lib/mockData';
 import { useI18n } from '../i18n/i18nContext';
-import { X, Check, User, Phone, MapPin, Shield, UserCheck } from 'lucide-react';
+import { X, Check, User, Phone, MapPin, UserCheck } from 'lucide-react';
 
 interface EditDelegateModalProps {
   delegate: Delegate | null;
@@ -25,9 +25,6 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
   const [phone, setPhone] = useState('');
   const [districtId, setDistrictId] = useState(2);
   const [gender, setGender] = useState<'boy' | 'girl'>('boy');
-  const [emergencyName, setEmergencyName] = useState('');
-  const [emergencyPhone, setEmergencyPhone] = useState('');
-  const [notes, setNotes] = useState('');
   const [volunteerName, setVolunteerName] = useState('');
   const [volunteerPhone, setVolunteerPhone] = useState('');
   const [volunteerUnit, setVolunteerUnit] = useState('');
@@ -41,9 +38,6 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
       setPhone(delegate.phone || '');
       setDistrictId(delegate.district_id || 2);
       setGender(delegate.gender === 'girl' ? 'girl' : 'boy');
-      setEmergencyName(delegate.emergency_name || '');
-      setEmergencyPhone(delegate.emergency_phone || '');
-      setNotes(delegate.notes || '');
       if (delegate.volunteer) {
         setVolunteerName(delegate.volunteer.name || '');
         setVolunteerPhone(delegate.volunteer.phone || '');
@@ -83,7 +77,6 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
 
     // SECURITY FIX: Sanitize phone numbers and limit length
     const cleanPhone = phone.trim().replace(/[^0-9+]/g, '').slice(0, 15);
-    const cleanEmergencyPhone = emergencyPhone.trim().replace(/[^0-9+]/g, '').slice(0, 15);
     const cleanVolPhone = volunteerPhone.trim().replace(/[^0-9+]/g, '').slice(0, 15);
 
     const matchedVol = availableVolunteers.find(
@@ -100,9 +93,6 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
       district_en: dist ? dist.name_en : delegate.district_en,
       district_ml: dist ? dist.name_ml : delegate.district_ml,
       gender,
-      emergency_name: emergencyName.trim().slice(0, 100),
-      emergency_phone: cleanEmergencyPhone,
-      notes: notes.trim().slice(0, 500),
       volunteer_id: volunteerName.trim() ? resolvedVolId : null,
       volunteer: volunteerName.trim()
         ? {
@@ -225,40 +215,6 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
             </select>
           </div>
 
-          {/* Guardian Emergency Contact */}
-          <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex flex-col gap-3">
-            <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-amber-700" />
-              {language === 'ml' ? 'രക്ഷാകർത്താവിന്റെ വിവരങ്ങൾ' : 'Guardian Emergency Details'}
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-semibold text-slate-600">
-                  {language === 'ml' ? 'രക്ഷാകർത്താവിന്റെ പേര്' : 'Guardian Name'}
-                </label>
-                <input
-                  type="text"
-                  value={emergencyName}
-                  onChange={(e) => setEmergencyName(e.target.value)}
-                  placeholder="e.g. Suresh K."
-                  className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-semibold text-slate-600">
-                  {language === 'ml' ? 'ഫോൺ നമ്പർ' : 'Guardian Phone'}
-                </label>
-                <input
-                  type="tel"
-                  value={emergencyPhone}
-                  onChange={(e) => setEmergencyPhone(e.target.value)}
-                  placeholder="+91 94460 00000"
-                  className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-            </div>
-          </div>
-
           {/* Assigned Volunteer In-Charge */}
           <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 flex flex-col gap-3">
             <span className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
@@ -311,20 +267,6 @@ export const EditDelegateModal: React.FC<EditDelegateModalProps> = ({
                 />
               </div>
             </div>
-          </div>
-
-          {/* Special Notes / Unit */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-700">
-              {language === 'ml' ? 'യൂണിറ്റ് / പ്രത്യേക കുറിപ്പുകൾ' : 'Unit / Notes'}
-            </label>
-            <input
-              type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Nileshwaram West Unit, Vegetarian"
-              className="px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
-            />
           </div>
 
           {/* Action Buttons */}

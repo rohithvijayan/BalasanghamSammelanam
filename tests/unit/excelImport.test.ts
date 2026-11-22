@@ -9,18 +9,12 @@ describe('Excel (.xlsx / .xls) parsing for /import', () => {
         phone: '9876543210',
         district: 'Kannur',
         gender: 'girl',
-        emergency_name: 'കൃഷ്ണൻ',
-        emergency_phone: '9876543211',
-        notes: 'VIP delegate',
       },
       {
         full_name: 'രാഹുൽ ആർ. (Rahul R.)',
         phone: '9847123456',
         district: 'Kozhikode',
         gender: 'boy',
-        emergency_name: 'രമേശൻ',
-        emergency_phone: '9847123457',
-        notes: '',
       },
     ];
 

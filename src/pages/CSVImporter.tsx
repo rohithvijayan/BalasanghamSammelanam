@@ -213,9 +213,6 @@ export const CSVImporter: React.FC = () => {
         const phone = cleanPhoneNumber(normalized['phone'] || normalized['mobile'] || normalized['ഫോൺ'] || '');
         const district = String(normalized['district'] || normalized['ജില്ല'] || '').trim();
         const gender = String(normalized['gender'] || normalized['ലിംഗം'] || 'boy').toLowerCase();
-        const emergencyName = normalized['emergency_name'] || normalized['guardian'] || normalized['രക്ഷാകർത്താവ്'] || '';
-        const emergencyPhone = cleanPhoneNumber(normalized['emergency_phone'] || normalized['guardian_phone'] || normalized['അടിയന്തര_ഫോൺ'] || '');
-        const notes = normalized['notes'] || '';
 
         if (!fullName) {
           validationErrors.push(`Row ${idx + 1}: Name is required`);
@@ -237,9 +234,6 @@ export const CSVImporter: React.FC = () => {
           district_en: dist ? dist.name_en : 'Kannur',
           district_ml: dist ? dist.name_ml : 'കണ്ണൂർ',
           gender: (gender.includes('g') || gender.includes('പെൺ') ? 'girl' : 'boy') as 'boy' | 'girl' | 'other',
-          emergency_name: emergencyName,
-          emergency_phone: emergencyPhone,
-          notes: notes,
           status: 'pending' as const,
         };
       });

@@ -107,7 +107,7 @@ The initial setup begins at `/import`, where the Admin populates the system with
 
 1. **Delegates Module:**
    - **Supported File Types:** Microsoft Excel (`.xlsx`, `.xls`) and UTF-8 CSV (`.csv`).
-   - **Fields Ingested:** `full_name`, `phone`, `district`, `gender`, `emergency_name`, `emergency_phone`, `notes`.
+   - **Fields Ingested:** `full_name`, `phone`, `district`, `gender`.
    - **Automatic Token Generation (FR-IMP-2):** Generates URL-safe random tokens (*e.g., `kannur-arjun-412`*) during upload.
 2. **Host Houses Module:**
    - **Fields Ingested:** `name`, `address`, `map_url`, `host_name`, `host_phone`, `capacity`, `gender_restriction`, `notes`.
