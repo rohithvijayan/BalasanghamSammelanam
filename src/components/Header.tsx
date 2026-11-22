@@ -23,6 +23,7 @@ export const Header: React.FC = () => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const { canInstall, isIOS, triggerInstall, showGuideModal, setShowGuideModal } = usePWAInstall();
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | 'unsupported'>('default');
+  const [testAlertNotice, setTestAlertNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (isNotificationSupported()) {
@@ -30,26 +31,47 @@ export const Header: React.FC = () => {
     }
   }, []);
 
+  const sendTestAlert = async () => {
+    const success = await sendBrowserNotification(
+      language === 'ml' ? 'ബാലസംഘം സംസ്ഥാന സമ്മേളനം' : 'Balasangham State Conference',
+      {
+        body:
+          language === 'ml'
+            ? '🔔 നിങ്ങളുടെ ഫോണിൽ നോട്ടിഫിക്കേഷൻ സജീവമാണ്! പ്രധാന അറിയിപ്പുകൾ വരുമ്പോൾ ഇത്തരത്തിൽ അലർട്ട് ലഭിക്കും.'
+            : '🔔 Notifications are working! You will receive live conference alerts here.',
+        tag: 'test-alert',
+      }
+    );
+
+    if (success) {
+      setTestAlertNotice(
+        language === 'ml'
+          ? '✓ ഫോണിലേക്ക് ടെസ്റ്റ് അലർട്ട് അയച്ചിട്ടുണ്ട്.'
+          : '✓ Test alert sent to your phone.'
+      );
+    } else {
+      setTestAlertNotice(
+        language === 'ml'
+          ? '⚠️ ഫോൺ സ്ക്രീനിൽ നോട്ടിഫിക്കേഷൻ കണ്ടില്ലെങ്കിൽ ഫോൺ Settings > Apps > Chrome > Notifications ഓൺ ആണെന്ന് ഉറപ്പാക്കുക.'
+          : '⚠️ If not visible, check phone Settings > Apps > Chrome > Notifications is allowed.'
+      );
+    }
+
+    setTimeout(() => {
+      setTestAlertNotice(null);
+    }, 6000);
+  };
+
   const handleToggleNotification = async () => {
     if (notifPermission === 'granted') {
-      sendBrowserNotification(
-        language === 'ml' ? 'ബാലസംഘം സംസ്ഥാന സമ്മേളനം' : 'Balasangham State Conference',
-        {
-          body: language === 'ml' ? '🔔 ഫോൺ നോട്ടിഫിക്കേഷനുകൾ സജീവമാണ്.' : '🔔 Push notifications are active.',
-        }
-      );
+      await sendTestAlert();
       return;
     }
 
     const res = await requestNotificationPermission();
     setNotifPermission(res);
     if (res === 'granted') {
-      sendBrowserNotification(
-        language === 'ml' ? 'ബാലസംഘം സംസ്ഥാന സമ്മേളനം' : 'Balasangham State Conference',
-        {
-          body: language === 'ml' ? '🔔 നോട്ടിഫിക്കേഷൻ വിജയകരമായി ഓൺ ചെയ്തു.' : '🔔 Notifications enabled successfully.',
-        }
-      );
+      await sendTestAlert();
     }
   };
 
@@ -429,47 +451,51 @@ export const Header: React.FC = () => {
 
             {/* Notification Toggle Row in Mobile Drawer */}
             {isNotificationSupported() && (
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800">
-                <div className="flex items-center gap-2.5">
-                  <Bell className="w-4 h-4 text-slate-700 shrink-0" />
-                  <div className="flex flex-col">
-                    <span className="font-extrabold text-slate-900">
-                      {language === 'ml' ? 'ഫോൺ അറിയിപ്പുകൾ (Alerts)' : 'Phone Alerts'}
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-normal">
-                      {notifPermission === 'granted'
-                        ? (language === 'ml' ? 'നോട്ടിഫിക്കേഷൻ ഓൺ ആണ്' : 'Notifications active')
-                        : (language === 'ml' ? 'തത്സമയ അറിയിപ്പുകൾ ലഭിക്കാൻ' : 'Receive instant updates')}
-                    </span>
+              <div className="flex flex-col p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <Bell className="w-4 h-4 text-slate-700 shrink-0" />
+                    <div className="flex flex-col">
+                      <span className="font-extrabold text-slate-900">
+                        {language === 'ml' ? 'ഫോൺ അറിയിപ്പുകൾ (Alerts)' : 'Phone Alerts'}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-normal">
+                        {notifPermission === 'granted'
+                          ? (language === 'ml' ? 'നോട്ടിഫിക്കേഷൻ ഓൺ ആണ്' : 'Notifications active')
+                          : (language === 'ml' ? 'തത്സമയ അറിയിപ്പുകൾ ലഭിക്കാൻ' : 'Receive instant updates')}
+                      </span>
+                    </div>
                   </div>
+
+                  {notifPermission === 'granted' ? (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        {language === 'ml' ? 'ഓൺ' : 'On'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={sendTestAlert}
+                        className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-extrabold shadow-2xs transition-transform active:scale-95"
+                      >
+                        {language === 'ml' ? 'ടെസ്റ്റ്' : 'Test'}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleToggleNotification}
+                      className="px-2.5 py-1 rounded-lg bg-primary hover:bg-primary-600 text-white text-[10px] font-extrabold shadow-2xs transition-transform active:scale-95"
+                    >
+                      {language === 'ml' ? 'ഓൺ ചെയ്യുക' : 'Enable'}
+                    </button>
+                  )}
                 </div>
 
-                {notifPermission === 'granted' ? (
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                    {language === 'ml' ? 'ഓൺ' : 'On'}
-                  </span>
-                ) : (
-                  <button
-                    onClick={async () => {
-                      const res = await requestNotificationPermission();
-                      setNotifPermission(res);
-                      if (res === 'granted') {
-                        sendBrowserNotification(
-                          language === 'ml' ? 'ബാലസംഘം സംസ്ഥാന സമ്മേളനം' : 'Balasangham State Conference',
-                          {
-                            body:
-                              language === 'ml'
-                                ? '🔔 നോട്ടിഫിക്കേഷനുകൾ വിജയകരമായി ഓൺ ചെയ്തു.'
-                                : '🔔 Notifications enabled successfully.',
-                          }
-                        );
-                      }
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-primary hover:bg-primary-600 text-white text-[10px] font-extrabold shadow-2xs transition-transform active:scale-95"
-                  >
-                    {language === 'ml' ? 'ഓൺ ചെയ്യുക' : 'Enable'}
-                  </button>
+                {testAlertNotice && (
+                  <div className="text-[10px] p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 leading-snug animate-in fade-in">
+                    {testAlertNotice}
+                  </div>
                 )}
               </div>
             )}

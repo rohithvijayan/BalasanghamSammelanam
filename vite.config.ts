@@ -30,6 +30,7 @@ export default defineConfig({
         ]
       },
       workbox: {
+        importScripts: ['/sw-notifications.js'],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,ttf}'],
         runtimeCaching: [
           {

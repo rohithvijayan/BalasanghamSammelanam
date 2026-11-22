@@ -8,7 +8,7 @@ import {
   checkAndNotifyNewAnnouncements,
 } from '../lib/notifications';
 
-const SYNC_INTERVAL_MS = 35000; // 35 seconds periodic poll
+const SYNC_INTERVAL_MS = 20000; // 20 seconds periodic background fallback poll
 
 export const GlobalNotificationSync: React.FC = () => {
   const { language } = useI18n();

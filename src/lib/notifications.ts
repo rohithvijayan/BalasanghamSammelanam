@@ -49,7 +49,45 @@ export const playNotificationChime = () => {
 };
 
 /**
- * Display a native browser notification
+ * Obtain an active ServiceWorker registration with auto-registration fallback.
+ * Critical for Chrome on Android where new Notification() throws an Illegal Constructor error.
+ */
+export const getActiveServiceWorkerRegistration = async (): Promise<ServiceWorkerRegistration | null> => {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    return null;
+  }
+
+  try {
+    // 1. Check existing registration
+    let reg = await navigator.serviceWorker.getRegistration();
+
+    // 2. If not registered yet, initiate registration
+    if (!reg) {
+      reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    }
+
+    // 3. Wait for readiness if not yet active (with 2.5s safety timeout)
+    if (reg && !reg.active) {
+      const readyReg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<ServiceWorkerRegistration | null>((resolve) =>
+          setTimeout(() => resolve(reg || null), 2500)
+        ),
+      ]);
+      return readyReg || reg;
+    }
+
+    return reg;
+  } catch (err) {
+    console.warn('Failed to obtain ServiceWorker registration', err);
+    return null;
+  }
+};
+
+/**
+ * Display a native browser notification.
+ * Uses ServiceWorkerRegistration.showNotification() for Android Chrome & mobile PWAs,
+ * with graceful fallback to desktop Notification constructor.
  */
 export const sendBrowserNotification = async (
   title: string,
@@ -59,32 +97,48 @@ export const sendBrowserNotification = async (
     return false;
   }
 
-  const notificationOptions: NotificationOptions = {
-    icon: '/pwa-192x192.png',
-    badge: '/favicon.png',
+  // Ensure absolute icon URLs so Service Workers on custom domains / subpaths resolve correctly
+  const origin = typeof window !== 'undefined' && window.location ? window.location.origin : '';
+  const notificationOptions: NotificationOptions & { vibrate?: number[] } = {
+    icon: origin ? `${origin}/pwa-192x192.png` : '/pwa-192x192.png',
+    badge: origin ? `${origin}/favicon.png` : '/favicon.png',
     silent: false,
+    vibrate: [250, 100, 250],
     ...options,
   };
 
-  try {
-    // Try via active ServiceWorker registration if available
-    if ('serviceWorker' in navigator) {
-      const registration = await navigator.serviceWorker.getRegistration();
-      if (registration && registration.showNotification) {
+  // Play polite audible chime
+  playNotificationChime();
+
+  // Primary path for Mobile Android Chrome & iOS PWA: ServiceWorkerRegistration.showNotification
+  if ('serviceWorker' in navigator) {
+    try {
+      const registration = await getActiveServiceWorkerRegistration();
+      if (registration && typeof registration.showNotification === 'function') {
         await registration.showNotification(title, notificationOptions);
-        playNotificationChime();
         return true;
       }
+    } catch (swErr) {
+      console.warn('ServiceWorker showNotification failed, trying desktop fallback', swErr);
     }
-
-    // Direct Notification fallback
-    new Notification(title, notificationOptions);
-    playNotificationChime();
-    return true;
-  } catch (err) {
-    console.warn('Failed to display browser notification', err);
-    return false;
   }
+
+  // Secondary path: Desktop browsers (Chrome, Edge, Firefox, Safari desktop)
+  try {
+    if (typeof Notification === 'function') {
+      const notif = new Notification(title, notificationOptions);
+      setTimeout(() => {
+        try {
+          notif.close();
+        } catch {}
+      }, 7000);
+      return true;
+    }
+  } catch (err) {
+    console.warn('Notification constructor failed (expected on Android Chrome):', err);
+  }
+
+  return false;
 };
 
 /**
