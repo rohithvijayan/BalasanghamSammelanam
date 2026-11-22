@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import { InstallAppGuideModal } from '../../src/components/InstallAppGuideModal';
+import { InstalledNotificationPrompt } from '../../src/components/InstalledNotificationPrompt';
 import { I18nProvider } from '../../src/i18n/i18nContext';
 
 describe('PWA Mobile Install Component Tests', () => {
@@ -44,5 +45,43 @@ describe('PWA Mobile Install Component Tests', () => {
     const gotItBtn = screen.getByText(/മനസ്സിലായി/i);
     fireEvent.click(gotItBtn);
     expect(handleClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders InstalledNotificationPrompt in standalone mode when permission is default', async () => {
+    // Mock standalone mode
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: query.includes('standalone'),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    // Mock Notification API
+    vi.stubGlobal('Notification', {
+      permission: 'default',
+      requestPermission: vi.fn().mockResolvedValue('granted'),
+    });
+
+    vi.useFakeTimers();
+
+    render(
+      <I18nProvider>
+        <InstalledNotificationPrompt />
+      </I18nProvider>
+    );
+
+    // Fast-forward 1.5s timer within act
+    act(() => {
+      vi.advanceTimersByTime(1600);
+    });
+
+    expect(screen.getByText(/സമ്മേളന അറിയിപ്പുകൾ ലഭിക്കാൻ/i)).toBeDefined();
+    expect(screen.getByText(/നോട്ടിഫിക്കേഷൻ ഓൺ ചെയ്യുക/i)).toBeDefined();
+
+    vi.useRealTimers();
   });
 });
