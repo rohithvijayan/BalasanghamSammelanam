@@ -99,7 +99,7 @@ export const Header: React.FC = () => {
           {!isAuthenticated ? (
             <Link
               to="/login"
-              className="touch-target px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95"
+              className="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 shrink-0"
             >
               <LogIn className="w-3.5 h-3.5 text-primary-300" />
               <span>
@@ -115,11 +115,11 @@ export const Header: React.FC = () => {
                   type="button"
                   onClick={() => setIsProfileModalOpen(true)}
                   title={`${user.full_name || user.email} (${user.role}) - ${language === 'ml' ? 'പ്രൊഫൈൽ മാറ്റാൻ ക്ലിക്ക് ചെയ്യുക' : 'Click to edit profile'}`}
-                  className="flex items-center gap-1.5 px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-xl bg-slate-100/90 hover:bg-slate-200/90 border border-slate-200 shadow-2xs max-w-[75px] min-[380px]:max-w-[105px] min-[420px]:max-w-[140px] sm:max-w-[220px] text-left transition-colors cursor-pointer group"
+                  className="flex items-center gap-1.5 px-2 py-1 sm:px-3 sm:py-1 rounded-xl bg-slate-100/90 hover:bg-slate-200/90 border border-slate-200 shadow-2xs max-w-[75px] min-[380px]:max-w-[100px] min-[420px]:max-w-[130px] sm:max-w-[220px] text-left transition-colors cursor-pointer group shrink-0"
                 >
                   <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                   <div className="flex flex-col text-left min-w-0">
-                    <span className="text-[11px] sm:text-xs font-bold text-slate-900 leading-tight truncate block group-hover:text-primary transition-colors">
+                    <span className="text-[10px] sm:text-xs font-bold text-slate-900 leading-tight truncate block group-hover:text-primary transition-colors">
                       {user.email}
                     </span>
                     <span className="text-[9px] sm:text-[10px] text-primary font-bold leading-none mt-0.5 truncate hidden sm:block">
@@ -149,9 +149,9 @@ export const Header: React.FC = () => {
             onClick={() => setIsGuideOpen(true)}
             title={language === 'ml' ? 'ഉപയോഗ ഗൈഡ് കാണുക (How to Use)' : 'How to Use Guide'}
             aria-label="How to Use Guide"
-            className="touch-target px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-[11px] sm:text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-transform active:scale-95 shrink-0"
+            className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95 shrink-0"
           >
-            <HelpCircle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+            <HelpCircle className="w-4 h-4 text-amber-700 shrink-0" />
             <span className="hidden sm:inline">{language === 'ml' ? 'ഗൈഡ്' : 'Guide'}</span>
           </button>
 
@@ -161,7 +161,7 @@ export const Header: React.FC = () => {
               onClick={() => setLanguage('ml')}
               aria-label="മലയാളം"
               title="മലയാളം"
-              className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold transition-all ${
+              className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold transition-all ${
                 language === 'ml'
                   ? 'bg-primary text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -174,7 +174,7 @@ export const Header: React.FC = () => {
               onClick={() => setLanguage('en')}
               aria-label="English"
               title="English"
-              className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold transition-all ${
+              className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold transition-all ${
                 language === 'en'
                   ? 'bg-primary text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'

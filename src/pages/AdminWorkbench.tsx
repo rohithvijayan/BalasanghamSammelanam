@@ -395,12 +395,12 @@ export const AdminWorkbench: React.FC = () => {
           </button>
 
           {/* District Filter: Lock for district coordinators, dropdown for state admins */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <label className="text-xs font-bold text-slate-600 shrink-0">
               {t('all_districts')}:
             </label>
             {isDistrictCoordinator ? (
-              <div className="px-4 py-2 rounded-xl bg-primary-50 text-primary-800 text-xs font-bold border border-primary-200 flex items-center gap-2">
+              <div className="px-4 py-2 rounded-xl bg-primary-50 text-primary-800 text-xs font-bold border border-primary-200 flex items-center gap-2 flex-1 sm:flex-initial">
                 <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
                 <span>{user?.district_name || (language === 'ml' ? 'ജില്ല' : 'District')} ({language === 'ml' ? 'ലോക്ക് ചെയ്തത്' : 'Locked'})</span>
               </div>
@@ -408,7 +408,7 @@ export const AdminWorkbench: React.FC = () => {
               <select
                 value={selectedDistrict}
                 onChange={(e) => setSelectedDistrict(e.target.value)}
-                className="px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
+                className="px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary shadow-xs flex-1 sm:flex-initial"
               >
                 <option value="all">{language === 'ml' ? 'എല്ലാ ജില്ലകളും (All Districts)' : 'All Districts'}</option>
                 {initialDistricts.map((dist) => (
@@ -483,7 +483,7 @@ export const AdminWorkbench: React.FC = () => {
                     handleBulkAssignVolunteer(found || null);
                     e.target.value = '';
                   }}
-                  className="px-2 py-0.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-900 text-[11px] font-bold focus:outline-none cursor-pointer"
+                  className="px-2 py-0.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-900 text-[11px] font-bold focus:outline-none cursor-pointer max-w-[150px] truncate"
                 >
                   <option value="">{language === 'ml' ? '+ വളണ്ടിയറെ നൽകുക' : '+ Assign Volunteer'}</option>
                   {volunteers.map((vol) => (
@@ -566,7 +566,7 @@ export const AdminWorkbench: React.FC = () => {
                         <span className="text-xs font-bold text-slate-900 truncate font-malayalam-bold">
                           {del.full_name}
                         </span>
-                        <span className="text-[11px] text-slate-500 truncate flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] text-slate-500 flex items-center gap-1.5 flex-wrap">
                           <span>{language === 'ml' ? del.district_ml : del.district_en} • {del.phone || (language === 'ml' ? 'ഫോൺ ഇല്ല' : 'No phone')}</span>
                           {del.volunteer ? (
                             <span className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded font-medium flex items-center gap-1">
@@ -695,18 +695,18 @@ export const AdminWorkbench: React.FC = () => {
                   className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/50 flex flex-col gap-3.5"
                 >
                   {/* House Title & Meta */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm md:text-base font-bold text-slate-900 font-malayalam-bold truncate">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5 sm:gap-3">
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <h3 className="text-sm md:text-base font-bold text-slate-900 font-malayalam-bold break-words">
                           {house.name}
                         </h3>
                         {house.gender_restriction && house.gender_restriction !== 'any' && (
                           <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase shrink-0 ${
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase shrink-0 whitespace-nowrap ${
                               house.gender_restriction === 'girls'
-                                ? 'bg-pink-100 text-pink-700'
-                                : 'bg-sky-100 text-sky-700'
+                                ? 'bg-pink-100 text-pink-700 border border-pink-200'
+                                : 'bg-sky-100 text-sky-700 border border-sky-200'
                             }`}
                           >
                             {house.gender_restriction === 'girls'
@@ -715,13 +715,14 @@ export const AdminWorkbench: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-slate-500 truncate mt-0.5">
-                        {house.address} • {language === 'ml' ? 'ആതിഥേയൻ:' : 'Host:'} {house.host_name} ({house.host_phone})
+                      <span className="text-xs text-slate-500 mt-0.5 break-words">
+                        {house.address ? `${house.address} • ` : ''}
+                        {language === 'ml' ? 'ആതിഥേയൻ:' : 'Host:'} {house.host_name} {house.host_phone ? `(${house.host_phone})` : ''}
                       </span>
                     </div>
 
                     {/* Actions: Edit House Details & Assign Button */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end pt-1 sm:pt-0">
                       <button
                         type="button"
                         onClick={() => {
@@ -729,7 +730,7 @@ export const AdminWorkbench: React.FC = () => {
                           setIsAddingHouse(true);
                         }}
                         title={language === 'ml' ? 'വീടിന്റെ വിവരങ്ങൾ തിരുത്തുക' : 'Edit House Details'}
-                        className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-primary transition-colors flex items-center gap-1 text-xs font-semibold"
+                        className="p-2 sm:px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-primary transition-colors flex items-center gap-1 text-xs font-semibold shrink-0"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">{language === 'ml' ? 'തിരുത്തുക' : 'Edit'}</span>
@@ -737,7 +738,7 @@ export const AdminWorkbench: React.FC = () => {
                       <button
                         onClick={() => handleAssignToHouse(house)}
                         disabled={selectedDelegateIds.length === 0 || isAssigning}
-                        className="touch-target px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold shrink-0 shadow-xs transition-transform active:scale-95 flex items-center gap-1.5"
+                        className="px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold shadow-xs transition-transform active:scale-95 flex items-center justify-center gap-1.5 flex-1 sm:flex-initial shrink-0"
                       >
                         {isAssigning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
                         <span>{t('assign_here')}</span>
@@ -779,7 +780,7 @@ export const AdminWorkbench: React.FC = () => {
                     <select
                       value={house.volunteer_id || house.volunteer?.id || ''}
                       onChange={(e) => handleAssignHouseVolunteer(house.id, e.target.value)}
-                      className="bg-white border border-emerald-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 max-w-full sm:max-w-[220px] truncate shadow-2xs"
+                      className="bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full sm:w-auto sm:max-w-[240px] truncate shadow-2xs cursor-pointer"
                     >
                       <option value="">{language === 'ml' ? '-- ആരുമില്ല (Unassigned) --' : '-- No Volunteer Assigned --'}</option>
                       {volunteers.map((v) => (
@@ -800,12 +801,12 @@ export const AdminWorkbench: React.FC = () => {
                         {currentOccupants.map((occ) => (
                           <div
                             key={occ.id}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 shadow-2xs"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 shadow-2xs max-w-full"
                           >
                             <button
                               onClick={() => handleToggleCheckin(occ.id, occ.status)}
                               title="Toggle check-in status"
-                              className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                              className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
                                 occ.status === 'checked_in'
                                   ? 'bg-emerald-500 border-emerald-600 text-white'
                                   : 'bg-white border-slate-300'
@@ -813,16 +814,16 @@ export const AdminWorkbench: React.FC = () => {
                             >
                               {occ.status === 'checked_in' && '✓'}
                             </button>
-                            <span className="font-bold font-malayalam-bold">{occ.full_name}</span>
-                            <span className="text-[10px] text-slate-400">
+                            <span className="font-bold font-malayalam-bold truncate max-w-[130px] sm:max-w-none">{occ.full_name}</span>
+                            <span className="text-[10px] text-slate-400 shrink-0">
                               ({language === 'ml' ? (occ.district_ml || occ.district_en) : (occ.district_en || occ.district_ml)})
                             </span>
                             {occ.volunteer ? (
-                              <span className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-1 py-0.2 rounded font-medium">
+                              <span className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-1 py-0.2 rounded font-medium shrink-0">
                                 👤 {occ.volunteer.name}
                               </span>
                             ) : (
-                              <span className="text-[9px] text-slate-400 italic">
+                              <span className="text-[9px] text-slate-400 italic shrink-0">
                                 ({language === 'ml' ? 'വളണ്ടിയറില്ല' : 'No vol'})
                               </span>
                             )}
