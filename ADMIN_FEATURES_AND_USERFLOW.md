@@ -110,7 +110,7 @@ The initial setup begins at `/import`, where the Admin populates the system with
    - **Fields Ingested:** `full_name`, `phone`, `district`, `gender`.
    - **Automatic Token Generation (FR-IMP-2):** Generates URL-safe random tokens (*e.g., `kannur-arjun-412`*) during upload.
 2. **Host Houses Module:**
-   - **Fields Ingested:** `name`, `address`, `map_url`, `host_name`, `host_phone`, `capacity`, `gender_restriction`, `notes`.
+   - **Fields Ingested:** `name`, `address`, `host_name`, `host_phone`, `capacity`, `gender_restriction`.
    - **Smart Natural Key Deduplication:** Normalizes entries by `name + address + host_phone` to ensure re-uploading spreadsheets never creates duplicate host residences.
 3. **Volunteers Roster Module:**
    - **Fields Ingested:** `name`, `phone`, `unit`, `role`.

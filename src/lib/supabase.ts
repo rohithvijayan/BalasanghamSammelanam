@@ -245,7 +245,7 @@ export const api = {
         try {
           const { data, error } = await supabase
             .from('houses')
-            .select('id, name, address, map_url, lat, lng, host_name, host_phone, capacity, gender_restriction, notes, volunteer_id')
+            .select('id, name, address, host_name, host_phone, capacity, gender_restriction, volunteer_id')
             .order('name', { ascending: true });
 
           if (!error && data) {
@@ -260,14 +260,10 @@ export const api = {
                 id: row.id,
                 name: row.name,
                 address: row.address,
-                map_url: row.map_url,
-                lat: row.lat,
-                lng: row.lng,
                 host_name: row.host_name,
                 host_phone: row.host_phone,
                 capacity: row.capacity,
                 gender_restriction: row.gender_restriction,
-                notes: row.notes,
                 volunteer_id: row.volunteer_id || null,
                 volunteer: vol,
               };
@@ -553,7 +549,7 @@ export const api = {
   async getHousesPaginated(page = 1, pageSize = 20, search = '', forceRefresh = false): Promise<PaginatedResult<House>> {
     if (supabase) {
       try {
-        let query = supabase.from('houses').select('id, name, address, map_url, lat, lng, host_name, host_phone, capacity, gender_restriction, notes, volunteer_id', { count: 'exact' });
+        let query = supabase.from('houses').select('id, name, address, host_name, host_phone, capacity, gender_restriction, volunteer_id', { count: 'exact' });
 
         if (search && search.trim()) {
           const s = search.trim();
@@ -580,14 +576,10 @@ export const api = {
               id: row.id,
               name: row.name,
               address: row.address,
-              map_url: row.map_url,
-              lat: row.lat,
-              lng: row.lng,
               host_name: row.host_name,
               host_phone: row.host_phone,
               capacity: row.capacity,
               gender_restriction: row.gender_restriction,
-              notes: row.notes,
               volunteer_id: row.volunteer_id || null,
               volunteer: vol,
             };
@@ -699,14 +691,10 @@ export const api = {
         const rpcPayload = uniqueHouses.map((h) => ({
           name: h.name,
           address: h.address,
-          map_url: h.map_url || null,
-          lat: h.lat || null,
-          lng: h.lng || null,
           host_name: h.host_name,
           host_phone: h.host_phone,
           capacity: h.capacity || 4,
           gender_restriction: h.gender_restriction || 'any',
-          notes: h.notes || null,
         }));
         const { data: rpcData, error: rpcErr } = await supabase.rpc('bulk_upsert_houses', { p_houses: rpcPayload });
         if (!rpcErr && rpcData?.success) {
@@ -741,14 +729,10 @@ export const api = {
           const payload = {
             name: h.name,
             address: h.address,
-            map_url: h.map_url || null,
-            lat: h.lat || null,
-            lng: h.lng || null,
             host_name: h.host_name,
             host_phone: h.host_phone,
             capacity: h.capacity || 4,
             gender_restriction: h.gender_restriction || 'any',
-            notes: h.notes || null,
           };
 
           if (existingId) {
@@ -1364,36 +1348,29 @@ export const api = {
   // Edit house details (Admin)
   async updateHouse(house: Partial<House> & { id: string }): Promise<boolean> {
     invalidateCache('houses');
-    const safeMapUrl = house.map_url !== undefined ? (isSafeUrl(house.map_url) ? house.map_url : '') : undefined;
-    const cleanHouse = {
-      ...house,
-      ...(safeMapUrl !== undefined ? { map_url: safeMapUrl } : {}),
-    };
     const targetVolId =
-      cleanHouse.volunteer_id !== undefined
-        ? cleanHouse.volunteer_id
-        : cleanHouse.volunteer !== undefined
-        ? cleanHouse.volunteer?.id || null
+      house.volunteer_id !== undefined
+        ? house.volunteer_id
+        : house.volunteer !== undefined
+        ? house.volunteer?.id || null
         : undefined;
 
-    mockStore.updateHouse(cleanHouse);
+    mockStore.updateHouse(house);
     if (supabase) {
       try {
         await withNetworkRetry(async () => {
           const { error } = await supabase
             .from('houses')
             .update({
-              name: cleanHouse.name,
-              address: cleanHouse.address,
-              ...(safeMapUrl !== undefined ? { map_url: safeMapUrl } : {}),
-              host_name: cleanHouse.host_name,
-              host_phone: cleanHouse.host_phone,
-              capacity: cleanHouse.capacity,
-              gender_restriction: cleanHouse.gender_restriction,
-              notes: cleanHouse.notes,
+              name: house.name,
+              address: house.address,
+              host_name: house.host_name,
+              host_phone: house.host_phone,
+              capacity: house.capacity,
+              gender_restriction: house.gender_restriction,
               ...(targetVolId !== undefined ? { volunteer_id: targetVolId } : {}),
             })
-            .eq('id', cleanHouse.id);
+            .eq('id', house.id);
           if (error) {
             console.error('Supabase updateHouse error:', error);
             throw new Error(error.message || 'Failed to update house');
@@ -1405,7 +1382,7 @@ export const api = {
             await supabase
               .from('delegates')
               .update({ volunteer_id: targetVolId })
-              .eq('house_id', cleanHouse.id);
+              .eq('house_id', house.id);
           }
         });
       } catch (e: any) {
@@ -1419,7 +1396,6 @@ export const api = {
   // Add new house (Admin)
   async addHouse(houseData: Omit<House, 'id'> & { id?: string }): Promise<House> {
     invalidateCache('houses');
-    const safeMapUrl = isSafeUrl(houseData.map_url) ? houseData.map_url : '';
     const targetVolId =
       houseData.volunteer_id !== undefined
         ? houseData.volunteer_id
@@ -1429,7 +1405,6 @@ export const api = {
 
     const newHouse: House = {
       ...houseData,
-      map_url: safeMapUrl,
       volunteer_id: targetVolId,
       id: houseData.id || 'h-' + Date.now(),
     };
@@ -1440,12 +1415,10 @@ export const api = {
           .insert({
             name: newHouse.name,
             address: newHouse.address,
-            map_url: newHouse.map_url,
             host_name: newHouse.host_name,
             host_phone: newHouse.host_phone,
             capacity: newHouse.capacity,
             gender_restriction: newHouse.gender_restriction,
-            notes: newHouse.notes,
             volunteer_id: targetVolId,
           })
           .select()

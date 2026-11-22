@@ -34,22 +34,18 @@ const houses = [
   {
     name: 'പൂന്തോട്ടം വീട് (Poonthottam House)',
     address: 'വാർഡ് 4, പയ്യന്നൂർ നഗരസഭ, റെയിൽവേ സ്റ്റേഷൻ റോഡ്',
-    map_url: 'https://maps.google.com/?q=12.0984,75.2045',
     host_name: 'കെ. രാഘവൻ',
     host_phone: '9447123456',
     capacity: 4,
-    gender_restriction: 'boys',
-    notes: 'റെയിൽവേ സ്റ്റേഷന് സമീപം'
+    gender_restriction: 'boys'
   },
   {
     name: 'സൗപർണിക (Souparnika)',
     address: 'വാർഡ് 2, കോളേജ് റോഡ്, പയ്യന്നൂർ',
-    map_url: 'https://maps.google.com/?q=12.1020,75.2100',
     host_name: 'പ്രൊഫ. സുജാത എം.',
     host_phone: '9846289001',
     capacity: 6,
-    gender_restriction: 'girls',
-    notes: 'കോളേജ് ജംഗ്ഷൻ'
+    gender_restriction: 'girls'
   }
 ];
 
@@ -125,7 +121,7 @@ function saveCsvWithBom(csvContent, filename) {
 
 console.log('Generating Excel (.xlsx) templates...');
 createXlsx(delegates, 'delegates_template.xlsx', [24, 18, 16, 12], ['phone']);
-createXlsx(houses, 'houses_template.xlsx', [36, 44, 42, 22, 18, 12, 18, 30], ['host_phone']);
+createXlsx(houses, 'houses_template.xlsx', [36, 44, 22, 18, 12, 18], ['host_phone']);
 createXlsx(volunteers, 'volunteers_template.xlsx', [24, 18, 28], ['phone']);
 
 console.log('Generating UTF-8 BOM (.csv) templates...');

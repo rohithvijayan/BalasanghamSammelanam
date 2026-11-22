@@ -47,7 +47,6 @@ describe('Excel (.xlsx / .xls) parsing for /import', () => {
         host_phone: '9446012345',
         capacity: 5,
         gender_restriction: 'boys',
-        notes: 'Near bus stand',
       },
     ];
 

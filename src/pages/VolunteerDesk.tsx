@@ -1197,19 +1197,6 @@ export const VolunteerDesk: React.FC = () => {
                     </div>
                   </div>
                 </div>
-
-                {/* Open in Google Maps */}
-                {house.map_url && isSafeUrl(house.map_url) && (
-                  <a
-                    href={house.map_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="touch-target py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center gap-2 border border-slate-300 transition-colors"
-                  >
-                    <Navigation className="w-4 h-4 text-primary" />
-                    <span>{language === 'ml' ? 'റൂട്ട് മാപ്പ് കാണുക (Google Maps)' : 'Open in Google Maps'}</span>
-                  </a>
-                )}
               </div>
             );
           })}

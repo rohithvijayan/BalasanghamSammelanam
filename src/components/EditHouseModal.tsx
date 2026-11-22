@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { House, Volunteer } from '../types';
 import { useI18n } from '../i18n/i18nContext';
-import { isSafeUrl } from '../lib/supabase';
-import { X, Check, Home, Phone, MapPin, Users, Navigation, UserCheck } from 'lucide-react';
+import { X, Check, Home, Phone, MapPin, Users, UserCheck } from 'lucide-react';
 
 interface EditHouseModalProps {
   house: House | null; // null means adding a new house
@@ -29,8 +28,6 @@ export const EditHouseModal: React.FC<EditHouseModalProps> = ({
   const [hostPhone, setHostPhone] = useState('');
   const [capacity, setCapacity] = useState(4);
   const [genderRestriction, setGenderRestriction] = useState<'any' | 'boys' | 'girls'>('any');
-  const [mapUrl, setMapUrl] = useState('');
-  const [notes, setNotes] = useState('');
   const [volunteerId, setVolunteerId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -42,8 +39,6 @@ export const EditHouseModal: React.FC<EditHouseModalProps> = ({
       setHostPhone(house.host_phone || '');
       setCapacity(house.capacity || 4);
       setGenderRestriction((house.gender_restriction as any) || 'any');
-      setMapUrl(house.map_url || '');
-      setNotes(house.notes || '');
       setVolunteerId(house.volunteer_id || house.volunteer?.id || '');
     } else {
       setName('');
@@ -52,8 +47,6 @@ export const EditHouseModal: React.FC<EditHouseModalProps> = ({
       setHostPhone('');
       setCapacity(4);
       setGenderRestriction('any');
-      setMapUrl('');
-      setNotes('');
       setVolunteerId('');
     }
   }, [house, isOpen]);
@@ -63,12 +56,6 @@ export const EditHouseModal: React.FC<EditHouseModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-
-    const cleanMapUrl = mapUrl.trim();
-    if (cleanMapUrl && !isSafeUrl(cleanMapUrl)) {
-      alert(language === 'ml' ? 'ദയവായി സാധുവായ ഒരു മാപ്പ് ലിങ്ക് (https://) നൽകുക.' : 'Please enter a valid map URL starting with https://');
-      return;
-    }
 
     setIsSaving(true);
     const selectedVol = volunteers.find((v) => v.id === volunteerId) || null;
@@ -80,8 +67,6 @@ export const EditHouseModal: React.FC<EditHouseModalProps> = ({
       host_phone: hostPhone.trim(),
       capacity: Number(capacity) || 4,
       gender_restriction: genderRestriction,
-      map_url: cleanMapUrl,
-      notes: notes.trim(),
       volunteer_id: volunteerId || null,
       volunteer: selectedVol,
     };
@@ -239,35 +224,6 @@ export const EditHouseModal: React.FC<EditHouseModalProps> = ({
                 </option>
               ))}
             </select>
-          </div>
-
-          {/* Google Maps Route URL */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              <Navigation className="w-3.5 h-3.5 text-sky-600" />
-              <span>{language === 'ml' ? 'ഗൂഗിൾ മാപ്പ് ലിങ്ക് (Google Maps URL)' : 'Google Maps URL'}</span>
-            </label>
-            <input
-              type="url"
-              value={mapUrl}
-              onChange={(e) => setMapUrl(e.target.value)}
-              placeholder="https://maps.google.com/?q=..."
-              className="px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
-          {/* Special Notes / Landmark */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-700">
-              {language === 'ml' ? 'അടയാളം / കുറിപ്പുകൾ' : 'Landmark / Notes'}
-            </label>
-            <input
-              type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Near town temple, 500m from railway station"
-              className="px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
-            />
           </div>
 
           {/* Action Buttons */}

@@ -23,14 +23,10 @@ export interface House {
   id: string;
   name: string;
   address: string;
-  map_url?: string;
-  lat?: number;
-  lng?: number;
   host_name: string;
   host_phone: string;
   capacity: number;
   gender_restriction?: 'boys' | 'girls' | 'any';
-  notes?: string;
   volunteer_id?: string | null;
   volunteer?: Volunteer | null;
 }

@@ -273,13 +273,10 @@ BEGIN
             'id', h.id,
             'name', h.name,
             'address', h.address,
-            'map_url', h.map_url,
-            'lat', h.lat,
-            'lng', h.lng,
             'host_name', h.host_name,
             'host_phone', h.host_phone,
             'capacity', h.capacity,
-            'notes', h.notes
+            'gender_restriction', h.gender_restriction
         )
         INTO v_house
         FROM houses h
@@ -490,19 +487,15 @@ BEGIN
     END IF;
 
     INSERT INTO houses (
-        name, address, map_url, lat, lng, host_name, host_phone, capacity, gender_restriction, notes
+        name, address, host_name, host_phone, capacity, gender_restriction
     )
     SELECT 
         COALESCE(NULLIF(elem->>'name', ''), 'Unnamed House'),
         COALESCE(NULLIF(elem->>'address', ''), ''),
-        NULLIF(elem->>'map_url', ''),
-        (elem->>'lat')::DOUBLE PRECISION,
-        (elem->>'lng')::DOUBLE PRECISION,
         COALESCE(NULLIF(elem->>'host_name', ''), 'Host'),
         COALESCE(NULLIF(elem->>'host_phone', ''), ''),
         COALESCE((elem->>'capacity')::INTEGER, 4),
-        COALESCE(NULLIF(elem->>'gender_restriction', ''), 'any'),
-        NULLIF(elem->>'notes', '')
+        COALESCE(NULLIF(elem->>'gender_restriction', ''), 'any')
     FROM jsonb_array_elements(p_houses) AS elem;
 
     GET DIAGNOSTICS v_count = ROW_COUNT;

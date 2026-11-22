@@ -265,16 +265,14 @@ describe('React Components Unit Tests', () => {
       host_name: 'കെ. രാഘവൻ',
       host_phone: '+91 94471 23456',
       capacity: 4,
-      map_url: 'https://maps.google.com/?q=12.25,75.12',
     };
 
-    it('renders delegate stay details, host contacts, and map link', () => {
+    it('renders delegate stay details and host contacts', () => {
       renderWithProviders(<StayCard delegate={mockDelegate} house={mockHouse} />);
 
       expect(screen.getByText('പൂന്തോട്ടം വീട്')).toBeInTheDocument();
       expect(screen.getByText('കെ. രാഘവൻ')).toBeInTheDocument();
       expect(screen.getByText('+91 94471 23456')).toBeInTheDocument();
-      expect(screen.getByText(/റൂട്ട് മാപ്പ് കാണുക/i)).toBeInTheDocument();
     });
   });
 

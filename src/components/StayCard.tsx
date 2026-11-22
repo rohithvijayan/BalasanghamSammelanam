@@ -1,8 +1,7 @@
 import React from 'react';
 import { House } from '../types';
 import { useI18n } from '../i18n/i18nContext';
-import { isSafeUrl } from '../lib/supabase';
-import { Phone, MapPin, CheckCircle, Navigation, Droplet, Wind, ShieldCheck } from 'lucide-react';
+import { Phone, MapPin, CheckCircle, Droplet, Wind, ShieldCheck } from 'lucide-react';
 
 interface StayCardProps {
   house?: House | null;
@@ -30,9 +29,6 @@ export const StayCard: React.FC<StayCardProps> = ({ house }) => {
       </div>
     );
   }
-
-  const safeMapUrl = isSafeUrl(house.map_url) ? house.map_url : null;
-  const mapLink = safeMapUrl || (house.lat && house.lng ? `https://www.google.com/maps/search/?api=1&query=${house.lat},${house.lng}` : null);
 
   return (
     <div className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-sm border border-slate-200/80 flex flex-col gap-5 relative overflow-hidden">
@@ -89,29 +85,15 @@ export const StayCard: React.FC<StayCardProps> = ({ house }) => {
         </div>
       </div>
 
-      {/* Two Large Tap-Friendly Action Buttons (Minimum 48px height) */}
-      <div className="flex flex-col sm:flex-row gap-3 pt-1">
-        {/* Direct Call Host Button */}
+      {/* Direct Call Host Action Button */}
+      <div className="pt-1">
         <a
           href={`tel:${house.host_phone}`}
-          className="flex-1 touch-target px-4 py-3.5 rounded-xl bg-primary hover:bg-primary-600 text-white font-bold text-sm shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 active:scale-98"
+          className="w-full touch-target px-4 py-3.5 rounded-xl bg-primary hover:bg-primary-600 text-white font-bold text-sm shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 active:scale-98"
         >
           <Phone className="w-4 h-4 fill-current" />
           <span>{t('call_host')}</span>
         </a>
-
-        {/* Google Maps Route Button */}
-        {mapLink && (
-          <a
-            href={mapLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 touch-target px-4 py-3.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 font-bold text-sm transition-all flex items-center justify-center gap-2 active:scale-98"
-          >
-            <Navigation className="w-4 h-4 text-sky-600" />
-            <span>{t('route_map')}</span>
-          </a>
-        )}
       </div>
 
       {/* Amenities Pill Badges */}

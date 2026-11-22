@@ -257,24 +257,19 @@ export const CSVImporter: React.FC = () => {
 
         const name = normalized['name'] || normalized['house_name'] || normalized['വീട്ടുപേര്'] || 'Unnamed House';
         const address = normalized['address'] || normalized['മേൽവിലാസം'] || '';
-        const rawMapUrl = normalized['map_url'] || normalized['maps'] || '';
-        const mapUrl = isSafeUrl(rawMapUrl) ? rawMapUrl : '';
         const hostName = normalized['host_name'] || normalized['host'] || normalized['ആതിഥേയൻ'] || 'Host';
         const hostPhone = cleanPhoneNumber(normalized['host_phone'] || normalized['phone'] || normalized['ഫോൺ'] || '');
         const capacity = parseInt(normalized['capacity'] || normalized['കപ്പാസിറ്റി'], 10) || 4;
         const genderRestriction = (normalized['gender_restriction'] || normalized['gender'] || 'any').toLowerCase();
-        const notes = normalized['notes'] || '';
 
         return {
           id: 'h-' + Date.now() + '-' + idx,
           name: name,
           address: address,
-          map_url: mapUrl,
           host_name: hostName,
           host_phone: hostPhone,
           capacity: capacity,
           gender_restriction: genderRestriction,
-          notes: notes,
         };
       });
 
