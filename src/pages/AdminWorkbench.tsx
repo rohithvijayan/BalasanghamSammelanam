@@ -427,7 +427,7 @@ export const AdminWorkbench: React.FC = () => {
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col">
           <span className="text-xs font-semibold text-slate-400">{t('total_delegates')}</span>
           <span className="text-2xl font-black text-slate-900 mt-1">{totalCount}</span>
-          <span className="text-[11px] text-slate-500">{language === 'ml' ? '14 ജില്ലകൾ' : '14 Districts'}</span>
+          <span className="text-[11px] text-slate-500">{language === 'ml' ? 'സംസ്ഥാനം & 14 ജില്ലകൾ' : 'State & 14 Districts'}</span>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col">

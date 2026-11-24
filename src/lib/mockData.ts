@@ -15,6 +15,7 @@ export const initialDistricts: District[] = [
   { id: 12, name_en: 'Pathanamthitta', name_ml: 'പത്തനംതിട്ട' },
   { id: 13, name_en: 'Kollam', name_ml: 'കൊല്ലം' },
   { id: 14, name_en: 'Thiruvananthapuram', name_ml: 'തിരുവനന്തപുരം' },
+  { id: 15, name_en: 'State Committee', name_ml: 'സംസ്ഥാന കമ്മിറ്റി' },
 ];
 
 export const initialHouses: House[] = [];

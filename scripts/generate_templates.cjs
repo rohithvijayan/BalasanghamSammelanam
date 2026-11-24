@@ -26,6 +26,12 @@ const delegates = [
     phone: '9847111029',
     district: 'Palakkad',
     gender: 'boy'
+  },
+  {
+    full_name: 'കെ. വി. സുരേഷ്',
+    phone: '9846012345',
+    district: 'State Committee',
+    gender: 'boy'
   }
 ];
 

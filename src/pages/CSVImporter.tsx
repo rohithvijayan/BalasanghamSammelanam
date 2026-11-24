@@ -197,6 +197,55 @@ export const CSVImporter: React.FC = () => {
     return str.replace(/\s+/g, ' ').trim();
   };
 
+  // Resolves district input supporting English, Malayalam, and common aliases (including State Committee)
+  const matchDistrict = (input: string) => {
+    if (!input) return undefined;
+    const clean = input.trim().toLowerCase();
+
+    // Direct match against English or Malayalam name
+    const direct = initialDistricts.find(
+      (d) => d.name_en.toLowerCase() === clean || d.name_ml.toLowerCase() === clean
+    );
+    if (direct) return direct;
+
+    // State Committee variations
+    if (
+      clean === 'state committee' ||
+      clean === 'state' ||
+      clean === 'state_committee' ||
+      clean === 'statecommittee' ||
+      clean.includes('state committee') ||
+      clean.includes('സംസ്ഥാന')
+    ) {
+      return initialDistricts.find((d) => d.id === 15);
+    }
+
+    // Kasaragod variations
+    if (clean === 'kasargod' || clean === 'kasaragod') {
+      return initialDistricts.find((d) => d.id === 1);
+    }
+
+    // Thiruvananthapuram variations
+    if (clean === 'thiruvanthapuram' || clean === 'thiruvananthapuram' || clean === 'trivandrum') {
+      return initialDistricts.find((d) => d.id === 14);
+    }
+
+    // Ernakulam variations
+    if (clean === 'eranakulam' || clean === 'ernakulam' || clean === 'cochin' || clean === 'kochi') {
+      return initialDistricts.find((d) => d.id === 8);
+    }
+
+    // Kozhikode / Calicut
+    if (clean === 'calicut' || clean === 'kozhikkode') {
+      return initialDistricts.find((d) => d.id === 4);
+    }
+
+    // Substring fallback
+    return initialDistricts.find(
+      (d) => clean.includes(d.name_en.toLowerCase()) || d.name_en.toLowerCase().includes(clean)
+    );
+  };
+
   // SECURITY FIX: Generate cryptographically secure tokens with high entropy
   const generateCryptographicToken = (districtPrefix: string): string => {
     const prefix = districtPrefix ? districtPrefix.toLowerCase().replace(/\s+/g, '-') : 'del';
@@ -233,16 +282,12 @@ export const CSVImporter: React.FC = () => {
           validationErrors.push(`Row ${idx + 1}: Name is required`);
         }
 
-        // Match district
-        const dist = initialDistricts.find(
-          (d) =>
-            d.name_en.toLowerCase() === district.toLowerCase() ||
-            d.name_ml === district
-        );
+        // Match district supporting aliases & State Committee
+        const dist = matchDistrict(district);
 
         return {
           id: 'del-' + Date.now() + '-' + idx,
-          token: generateCryptographicToken(district),
+          token: generateCryptographicToken(dist ? dist.name_en : district),
           full_name: fullName || 'Unnamed',
           phone: phone,
           district_id: dist ? dist.id : 2, // default Kannur if unmatched
