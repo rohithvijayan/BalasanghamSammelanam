@@ -234,11 +234,11 @@ export const DelegatePortal: React.FC = () => {
           </div>
         </div>
 
-        {/* 3. Accommodation House Card */}
-        <StayCard house={house} />
-
-        {/* 4. Volunteer Support Card */}
+        {/* 3. Volunteer Support Card (Contact Info of Volunteer First) */}
         <VolunteerCard volunteer={effectiveVolunteer} />
+
+        {/* 4. Accommodation House Card (Host Details Second) */}
+        <StayCard house={house} />
 
         {/* 5. Emergency Helplines & Location Sharing */}
         <HelplineSupportCard token={data?.delegate?.token || token || ''} helplines={helplines} />

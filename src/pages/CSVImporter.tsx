@@ -182,6 +182,21 @@ export const CSVImporter: React.FC = () => {
     return str;
   };
 
+  // Cleans stray encoding artifacts like '?' replacement characters from ANSI/legacy CSV exports
+  const cleanPersonName = (val: any): string => {
+    if (val === null || val === undefined) return '';
+    let str = String(val).trim();
+    if (!str.includes('?')) return str;
+    // If ? is adjacent to a dot (e.g. 'n?. balakrishnan?' -> 'n. balakrishnan')
+    str = str.replace(/\?\s*\./g, '.').replace(/\.\s*\?/g, '.');
+    str = str.replace(/janar\?danan/gi, 'janardanan');
+    // Between letters, ? is usually an encoding-replaced non-breaking space
+    str = str.replace(/([a-zA-Z\u0D00-\u0D7F])\?([a-zA-Z\u0D00-\u0D7F])/g, '$1 $2');
+    // Remove any remaining ? (e.g. trailing ? or next to whitespace)
+    str = str.replace(/\?/g, '');
+    return str.replace(/\s+/g, ' ').trim();
+  };
+
   // SECURITY FIX: Generate cryptographically secure tokens with high entropy
   const generateCryptographicToken = (districtPrefix: string): string => {
     const prefix = districtPrefix ? districtPrefix.toLowerCase().replace(/\s+/g, '-') : 'del';
@@ -209,7 +224,7 @@ export const CSVImporter: React.FC = () => {
           normalized[k.trim().toLowerCase()] = sanitizeCell(row[k]);
         }
 
-        const fullName = normalized['full_name'] || normalized['name'] || normalized['പേര്'] || '';
+        const fullName = cleanPersonName(normalized['full_name'] || normalized['name'] || normalized['പേര്'] || '');
         const phone = cleanPhoneNumber(normalized['phone'] || normalized['mobile'] || normalized['ഫോൺ'] || '');
         const district = String(normalized['district'] || normalized['ജില്ല'] || '').trim();
         const gender = String(normalized['gender'] || normalized['ലിംഗം'] || 'boy').toLowerCase();
@@ -257,7 +272,7 @@ export const CSVImporter: React.FC = () => {
 
         const name = normalized['name'] || normalized['house_name'] || normalized['വീട്ടുപേര്'] || 'Unnamed House';
         const address = normalized['address'] || normalized['മേൽവിലാസം'] || '';
-        const hostName = normalized['host_name'] || normalized['host'] || normalized['ആതിഥേയൻ'] || 'Host';
+        const hostName = cleanPersonName(normalized['host_name'] || normalized['host'] || normalized['ആതിഥേയൻ'] || 'Host');
         const hostPhone = cleanPhoneNumber(normalized['host_phone'] || normalized['phone'] || normalized['ഫോൺ'] || '');
         const capacity = parseInt(normalized['capacity'] || normalized['കപ്പാസിറ്റി'], 10) || 4;
         const genderRestriction = (normalized['gender_restriction'] || normalized['gender'] || 'any').toLowerCase();
@@ -290,7 +305,7 @@ export const CSVImporter: React.FC = () => {
           normalized[k.trim().toLowerCase()] = sanitizeCell(row[k]);
         }
 
-        const name = normalized['name'] || normalized['volunteer_name'] || normalized['full_name'] || normalized['പേര്'] || normalized['വളണ്ടിയർ'] || '';
+        const name = cleanPersonName(normalized['name'] || normalized['volunteer_name'] || normalized['full_name'] || normalized['പേര്'] || normalized['വളണ്ടിയർ'] || '');
         const phone = cleanPhoneNumber(normalized['phone'] || normalized['mobile'] || normalized['contact'] || normalized['ഫോൺ'] || normalized['മൊബൈൽ'] || '');
         const unit = normalized['unit'] || normalized['area'] || normalized['മേഖല'] || normalized['യൂണിറ്റ്'] || normalized['സെന്റർ'] || '';
 
