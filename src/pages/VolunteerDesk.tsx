@@ -55,7 +55,7 @@ export const VolunteerDesk: React.FC = () => {
   });
   const [selectedVolPhone, setSelectedVolPhone] = useState<string>(() => {
     const list = mockStore.getVolunteers();
-    return user?.phone || list[0]?.phone || '+91 94471 23456';
+    return user?.phone || list[0]?.phone || '';
   });
 
   useEffect(() => {
