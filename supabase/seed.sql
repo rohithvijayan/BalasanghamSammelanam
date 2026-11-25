@@ -23,9 +23,11 @@ ON CONFLICT (id) DO UPDATE SET name_en = EXCLUDED.name_en, name_ml = EXCLUDED.na
 -- 2. App Settings (Helplines, event name)
 INSERT INTO app_settings (key, value) VALUES
 ('helplines', '[
-    {"title_ml": "കൺട്രോൾ റൂം (24/7)", "title_en": "Control Room", "phone": "04985201201"},
-    {"title_ml": "മെഡിക്കൽ എയ്ഡ്", "title_en": "Medical Helpline", "phone": "9400011223"},
-    {"title_ml": "റെസ്ക്യൂ & സുരക്ഷ", "title_en": "Emergency & SOS Desk", "phone": "9447123456"}
+    {"title_ml": "കൺട്രോൾ റൂം 1 (24/7)", "title_en": "Control Room 1 (24/7)", "phone": "9400945049"},
+    {"title_ml": "കൺട്രോൾ റൂം 2 (24/7)", "title_en": "Control Room 2 (24/7)", "phone": "7012768605"},
+    {"title_ml": "കൺട്രോൾ റൂം 3 (24/7)", "title_en": "Control Room 3 (24/7)", "phone": "7902619430"},
+    {"title_ml": "കൺട്രോൾ റൂം 4 (24/7)", "title_en": "Control Room 4 (24/7)", "phone": "9846738223"},
+    {"title_ml": "മെഡിക്കൽ എമർജൻസി (24/7)", "title_en": "Medical Emergency (24/7)", "phone": "8281833858"}
 ]'::jsonb),
 ('event_info', '{
     "name_ml": "ബാലസംഘം 8-ാമത് സംസ്ഥാന സമ്മേളനം",

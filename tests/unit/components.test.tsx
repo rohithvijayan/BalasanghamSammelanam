@@ -206,8 +206,8 @@ describe('React Components Unit Tests', () => {
 
   describe('<HelplineSupportCard />', () => {
     const mockHelplines: HelplineItem[] = [
-      { title_ml: 'കൺട്രോൾ റൂം', title_en: 'Control Room', phone: '04985 201201' },
-      { title_ml: 'അക്കോമഡേഷൻ കൺവീനർ', title_en: 'Accommodation Convener', phone: '94471 23456' },
+      { title_ml: 'കൺട്രോൾ റൂം', title_en: 'Control Room', phone: '9400945049' },
+      { title_ml: 'മെഡിക്കൽ എമർജൻസി', title_en: 'Medical Emergency', phone: '8281833858' },
     ];
 
     it('renders helplines and handles location sharing with geolocation', async () => {
@@ -232,8 +232,8 @@ describe('React Components Unit Tests', () => {
       renderWithProviders(<HelplineSupportCard token="arjun-412" helplines={mockHelplines} />);
 
       expect(screen.getByText(/ഹെൽപ്പ് ലൈൻ & സഹായകേന്ദ്രങ്ങൾ/i)).toBeInTheDocument();
-      expect(screen.getByText('04985 201201')).toBeInTheDocument();
-      expect(screen.getByText('94471 23456')).toBeInTheDocument();
+      expect(screen.getByText('9400945049')).toBeInTheDocument();
+      expect(screen.getByText('8281833858')).toBeInTheDocument();
 
       // Test location share click button
       const shareButton = screen.getByRole('button', { name: /ലൊക്കേഷൻ ഷെയർ ചെയ്യുക/i });

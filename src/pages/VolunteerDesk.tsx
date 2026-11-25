@@ -415,18 +415,18 @@ export const VolunteerDesk: React.FC = () => {
             <span>{language === 'ml' ? 'പ്രൊഫൈൽ മാറ്റുക' : 'Edit My Profile'}</span>
           </button>
           <a
-            href="tel:04985201201"
+            href="tel:9400945049"
             className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-200"
           >
             <Phone className="w-3.5 h-3.5 text-primary" />
-            <span>{language === 'ml' ? 'കൺട്രോൾ റൂം: 04985 201201' : 'Control Room: 04985 201201'}</span>
+            <span>{language === 'ml' ? 'കൺട്രോൾ റൂം: 9400945049' : 'Control Room: 9400945049'}</span>
           </a>
           <a
-            href="tel:9447123456"
-            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-200"
+            href="tel:8281833858"
+            className="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold flex items-center gap-1.5 transition-colors border border-red-200"
           >
-            <Phone className="w-3.5 h-3.5 text-emerald-600" />
-            <span>{language === 'ml' ? 'അക്കോമഡേഷൻ കൺവീനർ' : 'Accommodation Convener'}</span>
+            <Phone className="w-3.5 h-3.5 text-red-600" />
+            <span>{language === 'ml' ? 'മെഡിക്കൽ എമർജൻസി: 8281833858' : 'Medical Emergency: 8281833858'}</span>
           </a>
         </div>
       </div>
